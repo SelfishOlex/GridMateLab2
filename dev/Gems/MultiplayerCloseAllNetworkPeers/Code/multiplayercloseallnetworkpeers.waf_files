@@ -1,0 +1,18 @@
+{
+    "none": {
+        "Source": [
+            "Source/MultiplayerCloseAllNetworkPeers_precompiled.cpp",
+            "Source/MultiplayerCloseAllNetworkPeers_precompiled.h"
+        ]
+    },
+    "auto": {
+        "Include": [
+            "Include/MultiplayerCloseAllNetworkPeers/MultiplayerCloseAllNetworkPeersBus.h"
+        ],
+        "Source": [
+            "Source/MultiplayerCloseAllNetworkPeersModule.cpp",
+            "Source/MultiplayerCloseAllNetworkPeersSystemComponent.cpp",
+            "Source/MultiplayerCloseAllNetworkPeersSystemComponent.h"
+        ]
+    }
+}
