@@ -3,9 +3,7 @@
 #include <platform_impl.h>
 
 #include <AzCore/Memory/SystemAllocator.h>
-
-#include "WindowPositionSystemComponent.h"
-
+#include "WindowPositionCVars.h"
 #include <IGem.h>
 
 namespace WindowPosition
@@ -17,25 +15,30 @@ namespace WindowPosition
         AZ_RTTI(WindowPositionModule, "{2B5A9501-0983-4F0B-8076-43B6CB159B44}", CryHooksModule);
         AZ_CLASS_ALLOCATOR(WindowPositionModule, AZ::SystemAllocator, 0);
 
-        WindowPositionModule()
-            : CryHooksModule()
+        WindowPositionModule() : CryHooksModule() {}
+
+        void OnCrySystemInitialized(ISystem& system,
+            const SSystemInitParams& systemInitParams) override
         {
-            // Push results of [MyComponent]::CreateDescriptor() into m_descriptors here.
-            m_descriptors.insert(m_descriptors.end(), {
-                WindowPositionSystemComponent::CreateDescriptor(),
-            });
-            /// JUST TESTING WAF
+            CryHooksModule::OnCrySystemInitialized(
+                system, systemInitParams);
+            m_cvars.RegisterCVars();
         }
 
-        /**
-         * Add required SystemComponents to the SystemEntity.
-         */
-        AZ::ComponentTypeList GetRequiredSystemComponents() const override
+        void OnSystemEvent(ESystemEvent event,
+            UINT_PTR, UINT_PTR) override
         {
-            return AZ::ComponentTypeList{
-                azrtti_typeid<WindowPositionSystemComponent>(),
-            };
+            switch (event)
+            {
+            case ESYSTEM_EVENT_FULL_SHUTDOWN:
+            case ESYSTEM_EVENT_FAST_SHUTDOWN:
+                m_cvars.UnregisterCVars();
+            default:
+                AZ_UNUSED(event);
+            }
         }
+
+        WindowPositionCVars m_cvars;
     };
 }
 

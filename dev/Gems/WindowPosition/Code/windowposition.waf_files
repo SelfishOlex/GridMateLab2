@@ -6,13 +6,10 @@
         ]
     },
     "auto": {
-        "Include": [
-            "Include/WindowPosition/WindowPositionBus.h"
-        ],
         "Source": [
             "Source/WindowPositionModule.cpp",
-            "Source/WindowPositionSystemComponent.cpp",
-            "Source/WindowPositionSystemComponent.h"
+            "Source/WindowPositionCVars.cpp",
+            "Source/WindowPositionCVars.h"
         ]
     }
 }
