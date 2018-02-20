@@ -135,3 +135,9 @@
 /dev/_WAF_/environment.json
 /SetupAssistant.bat
 filehashes.json
+dev/Bin64vc140.Dedicated/
+dev/GridMatePlayers/Levels/tutorial/_savebackup/
+dev/Editor/editorlayout.xml
+dev/Editor/editoreventlog.xml
+dev/UserSettings.xml
+dev/SessionStatus/editor_statuses.json

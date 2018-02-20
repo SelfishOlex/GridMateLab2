@@ -1,0 +1,52 @@
+{
+    "none": {
+        "Source": [
+            "Source/GridMatePlayers_precompiled.cpp",
+            "Source/GridMatePlayers_precompiled.h"
+        ]
+    },
+    "auto": {
+        "Include": [
+            "Include/GridMatePlayers/InterpolationBus.h",
+            "Include/GridMatePlayers/PlayerBodyBus.h",
+            "Include/GridMatePlayers/LocalClientBus.h",
+            "Include/GridMatePlayers/NetworkTimeRequestBus.h",
+            "Include/GridMatePlayers/PlayerActionsBus.h",
+            "Include/GridMatePlayers/LocalPredictionRequestBus.h",
+            "Include/GridMatePlayers/PlayerControlsBus.h"
+        ],
+        "Source": [
+            "Source/GridMatePlayersModule.cpp"
+        ],
+        "Source/System": [
+            "Source/System/NetworkTimeSystemComponent.cpp",
+            "Source/System/NetworkTimeSystemComponent.h"
+        ],
+        "Source/Utils": [
+            "Source/Utils/VectorInTime.cpp",
+            "Source/Utils/VectorInTime.h",
+            "Source/Utils/MovementHistory.cpp",
+            "Source/Utils/MovementHistory.h"
+        ],
+        "Source/Components": [
+            "Source/Components/InputCaptureComponent.cpp",
+            "Source/Components/InputCaptureComponent.h",
+            "Source/Components/InterpolationComponent.cpp",
+            "Source/Components/InterpolationComponent.h",
+            "Source/Components/LocalClientComponent.cpp",
+            "Source/Components/LocalClientComponent.h",
+            "Source/Components/LocalPredictionComponent.cpp",
+            "Source/Components/LocalPredictionComponent.h",
+            "Source/Components/PebbleSpawnerComponent.cpp",
+            "Source/Components/PebbleSpawnerComponent.h",
+            "Source/Components/ServerPlayerSpawnerComponent.cpp",
+            "Source/Components/ServerPlayerSpawnerComponent.h",
+            "Source/Components/ServerAuthPlayerComponent.cpp",
+            "Source/Components/ServerAuthPlayerComponent.h",
+            "Source/Components/ServerPlayerControlsComponent.cpp",
+            "Source/Components/ServerPlayerControlsComponent.h",
+            "Source/Components/TimedProjectileComponent.cpp",
+            "Source/Components/TimedProjectileComponent.h"
+        ]
+    }
+}
