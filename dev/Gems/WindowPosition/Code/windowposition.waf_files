@@ -1,0 +1,18 @@
+{
+    "none": {
+        "Source": [
+            "Source/WindowPosition_precompiled.cpp",
+            "Source/WindowPosition_precompiled.h"
+        ]
+    },
+    "auto": {
+        "Include": [
+            "Include/WindowPosition/WindowPositionBus.h"
+        ],
+        "Source": [
+            "Source/WindowPositionModule.cpp",
+            "Source/WindowPositionSystemComponent.cpp",
+            "Source/WindowPositionSystemComponent.h"
+        ]
+    }
+}
