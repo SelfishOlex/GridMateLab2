@@ -5,8 +5,9 @@
 #include <AzCore/Memory/SystemAllocator.h>
 
 #include "MultiplayerCloseAllNetworkPeersSystemComponent.h"
-
+#include "CloseNetworkPeersComponent.h"
 #include <IGem.h>
+#include <ConsoleCommandCVars.h>
 
 namespace MultiplayerCloseAllNetworkPeers
 {
@@ -22,7 +23,8 @@ namespace MultiplayerCloseAllNetworkPeers
         {
             // Push results of [MyComponent]::CreateDescriptor() into m_descriptors here.
             m_descriptors.insert(m_descriptors.end(), {
-                MultiplayerCloseAllNetworkPeersSystemComponent::CreateDescriptor(),
+                MultiplayerCloseAllNetworkPeersSystemComponent::CreateDescriptor(),                
+                MultiplayerCloseAllNetworkPeers::CloseNetworkPeersComponent::CreateDescriptor()
             });
         }
 
@@ -35,6 +37,29 @@ namespace MultiplayerCloseAllNetworkPeers
                 azrtti_typeid<MultiplayerCloseAllNetworkPeersSystemComponent>(),
             };
         }
+
+        void OnCrySystemInitialized(ISystem& system,
+            const SSystemInitParams& systemInitParams) override
+        {
+            CryHooksModule::OnCrySystemInitialized(
+                system, systemInitParams);
+            m_cvars.RegisterCVars();
+        }
+
+        void OnSystemEvent(ESystemEvent event,
+            UINT_PTR, UINT_PTR) override
+        {
+            switch (event)
+            {
+            case ESYSTEM_EVENT_FULL_SHUTDOWN:
+            case ESYSTEM_EVENT_FAST_SHUTDOWN:
+                m_cvars.UnregisterCVars();
+            default:
+                AZ_UNUSED(event);
+            }
+        }
+
+        ConsoleCommandCVars m_cvars;
     };
 }
 
