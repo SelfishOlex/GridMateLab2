@@ -181,6 +181,12 @@
             "_comment": "Multiplayer"
         },
         {
+            "Path": "Gems/MyGem",
+            "Uuid": "e3f7daf65c824319ae7304b652296d80",
+            "Version": "0.1.0",
+            "_comment": "MyGem"
+        },
+        {
             "Path": "Gems/PrimitiveAssets",
             "Uuid": "ed07631f95fb4be1bd10cd37298ec697",
             "Version": "1.0.0",
