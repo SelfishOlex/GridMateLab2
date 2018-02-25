@@ -8,8 +8,8 @@
     "auto": {
         "Source": [
             "Source/WindowPositionModule.cpp",
-            "Source/WindowPositionCVars.cpp",
-            "Source/WindowPositionCVars.h"
+            "Source/WindowPositionCommands.cpp",
+            "Source/WindowPositionCommands.h"
         ]
     }
 }

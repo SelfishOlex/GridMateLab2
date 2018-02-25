@@ -3,7 +3,7 @@
 #include <platform_impl.h>
 
 #include <AzCore/Memory/SystemAllocator.h>
-#include "WindowPositionCVars.h"
+#include "WindowPositionCommands.h"
 #include <IGem.h>
 
 namespace WindowPosition
@@ -22,7 +22,7 @@ namespace WindowPosition
         {
             CryHooksModule::OnCrySystemInitialized(
                 system, systemInitParams);
-            m_cvars.RegisterCVars();
+            m_commands.Register();
         }
 
         void OnSystemEvent(ESystemEvent event,
@@ -32,13 +32,13 @@ namespace WindowPosition
             {
             case ESYSTEM_EVENT_FULL_SHUTDOWN:
             case ESYSTEM_EVENT_FAST_SHUTDOWN:
-                m_cvars.UnregisterCVars();
+                m_commands.Unregister();
             default:
                 AZ_UNUSED(event);
             }
         }
 
-        WindowPositionCVars m_cvars;
+        WindowPositionCommands m_commands;
     };
 }
 
