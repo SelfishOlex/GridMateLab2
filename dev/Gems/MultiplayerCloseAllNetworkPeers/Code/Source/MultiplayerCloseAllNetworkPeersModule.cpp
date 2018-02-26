@@ -1,13 +1,10 @@
-
 #include "MultiplayerCloseAllNetworkPeers_precompiled.h"
 #include <platform_impl.h>
-
 #include <AzCore/Memory/SystemAllocator.h>
-
-#include "MultiplayerCloseAllNetworkPeersSystemComponent.h"
-#include "CloseNetworkPeersComponent.h"
 #include <IGem.h>
-#include <ConsoleCommandCVars.h>
+#include "GemSystemComponent.h"
+#include "WorkerComponent.h"
+#include "ConsoleCommands.h"
 
 namespace MultiplayerCloseAllNetworkPeers
 {
@@ -23,8 +20,8 @@ namespace MultiplayerCloseAllNetworkPeers
         {
             // Push results of [MyComponent]::CreateDescriptor() into m_descriptors here.
             m_descriptors.insert(m_descriptors.end(), {
-                MultiplayerCloseAllNetworkPeersSystemComponent::CreateDescriptor(),                
-                MultiplayerCloseAllNetworkPeers::CloseNetworkPeersComponent::CreateDescriptor()
+                GemSystemComponent::CreateDescriptor(),
+                WorkerComponent::CreateDescriptor()
             });
         }
 
@@ -34,7 +31,7 @@ namespace MultiplayerCloseAllNetworkPeers
         AZ::ComponentTypeList GetRequiredSystemComponents() const override
         {
             return AZ::ComponentTypeList{
-                azrtti_typeid<MultiplayerCloseAllNetworkPeersSystemComponent>(),
+                azrtti_typeid<GemSystemComponent>(),
             };
         }
 
@@ -43,7 +40,7 @@ namespace MultiplayerCloseAllNetworkPeers
         {
             CryHooksModule::OnCrySystemInitialized(
                 system, systemInitParams);
-            m_cvars.RegisterCVars();
+            ConsoleCommands::Register();
         }
 
         void OnSystemEvent(ESystemEvent event,
@@ -53,13 +50,11 @@ namespace MultiplayerCloseAllNetworkPeers
             {
             case ESYSTEM_EVENT_FULL_SHUTDOWN:
             case ESYSTEM_EVENT_FAST_SHUTDOWN:
-                m_cvars.UnregisterCVars();
+                ConsoleCommands::Unregister();
             default:
                 AZ_UNUSED(event);
             }
         }
-
-        ConsoleCommandCVars m_cvars;
     };
 }
 

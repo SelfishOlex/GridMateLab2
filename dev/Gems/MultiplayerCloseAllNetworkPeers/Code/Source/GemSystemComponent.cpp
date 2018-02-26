@@ -1,9 +1,9 @@
 #include "MultiplayerCloseAllNetworkPeers_precompiled.h"
 #include <AzCore/Serialization/EditContext.h>
-#include "MultiplayerCloseAllNetworkPeersSystemComponent.h"
+#include "GemSystemComponent.h"
 #include <INetwork.h>
 #include <AzFramework/Network/NetBindingComponent.h>
-#include "CloseNetworkPeersComponent.h"
+#include "WorkerComponent.h"
 #include "AzFramework/Entity/GameEntityContextBus.h"
 #include <MultiplayerCloseAllNetworkPeers/ShutdownApplication.h>
 
@@ -13,16 +13,16 @@ using namespace GridMate;
 
 namespace MultiplayerCloseAllNetworkPeers
 {
-    void MultiplayerCloseAllNetworkPeersSystemComponent::Reflect(ReflectContext* context)
+    void GemSystemComponent::Reflect(ReflectContext* context)
     {
         if (auto sc = azrtti_cast<SerializeContext*>(context))
         {
-            sc->Class<MultiplayerCloseAllNetworkPeersSystemComponent, Component>()
+            sc->Class<GemSystemComponent, Component>()
                 ->Version(0)->SerializerForEmptyClass();
 
             if (auto ec = sc->GetEditContext())
             {
-                ec->Class<MultiplayerCloseAllNetworkPeersSystemComponent>(
+                ec->Class<GemSystemComponent>(
                     "Close All Network Peers",
                     "[Closes all connected network peers]")
                 ->ClassElement(
@@ -34,57 +34,57 @@ namespace MultiplayerCloseAllNetworkPeers
         }
     }
 
-    void MultiplayerCloseAllNetworkPeersSystemComponent::GetProvidedServices(
+    void GemSystemComponent::GetProvidedServices(
         AZ::ComponentDescriptor::DependencyArrayType& provided)
     {
         provided.push_back(AZ_CRC("CloseAllPeersService"));
     }
 
-    void MultiplayerCloseAllNetworkPeersSystemComponent::GetIncompatibleServices(
+    void GemSystemComponent::GetIncompatibleServices(
         AZ::ComponentDescriptor::DependencyArrayType& incompat)
     {
         incompat.push_back(AZ_CRC("CloseAllPeersService"));
     }
 
-    void MultiplayerCloseAllNetworkPeersSystemComponent::GetRequiredServices(
+    void GemSystemComponent::GetRequiredServices(
         AZ::ComponentDescriptor::DependencyArrayType& required)
     {
         (void)required;
     }
 
-    void MultiplayerCloseAllNetworkPeersSystemComponent::GetDependentServices(
+    void GemSystemComponent::GetDependentServices(
         AZ::ComponentDescriptor::DependencyArrayType& dependent)
     {
         (void)dependent;
     }
 
-    void MultiplayerCloseAllNetworkPeersSystemComponent::CloseAllNetworkPeers()
+    void GemSystemComponent::CloseAll()
     {
-        if (CloseAllRequestBus::FindFirstHandler())
+        if (m_workerEntity)
         {
             EBUS_EVENT(CloseAllRequestBus, CloseAll);
         }
         else
         {
-            MultiplayerCloseAllNetworkPeers::ShutdownApplication();
+            ShutdownApplication();
         }
     }
 
-    void MultiplayerCloseAllNetworkPeersSystemComponent::Activate()
+    void GemSystemComponent::Activate()
     {
-        MultiplayerCloseAllNetworkPeersRequestBus::Handler::BusConnect();
+        CloseNetworkPeersRequestBus::Handler::BusConnect();
         GameEntityContextEventBus::Handler::BusConnect();
         CrySystemEventBus::Handler::BusConnect();
     }
 
-    void MultiplayerCloseAllNetworkPeersSystemComponent::Deactivate()
+    void GemSystemComponent::Deactivate()
     {
-        MultiplayerCloseAllNetworkPeersRequestBus::Handler::BusDisconnect();
+        CloseNetworkPeersRequestBus::Handler::BusDisconnect();
         GameEntityContextEventBus::Handler::BusDisconnect();
         CrySystemEventBus::Handler::BusDisconnect();
     }
 
-    void MultiplayerCloseAllNetworkPeersSystemComponent::OnGameEntitiesStarted()
+    void GemSystemComponent::OnGameEntitiesStarted()
     {
         AZ_Printf("", "OnGameEntitiesStarted");
         m_isMapLoaded = true;
@@ -96,13 +96,13 @@ namespace MultiplayerCloseAllNetworkPeers
         }
     }
 
-    void MultiplayerCloseAllNetworkPeersSystemComponent::OnGameEntitiesReset()
+    void GemSystemComponent::OnGameEntitiesReset()
     {
         m_workerEntity = nullptr;
         m_isMapLoaded = false;
     }
 
-    void MultiplayerCloseAllNetworkPeersSystemComponent::OnSessionHosted(
+    void GemSystemComponent::OnSessionHosted(
         GridMate::GridSession* session)
     {
         AZ_Printf("", "OnSessionHosted");
@@ -115,19 +115,19 @@ namespace MultiplayerCloseAllNetworkPeers
         }
     }
 
-    void MultiplayerCloseAllNetworkPeersSystemComponent::OnSessionDelete(
+    void GemSystemComponent::OnSessionDelete(
         GridMate::GridSession*)
     {
         m_isHost = false;
     }
 
-    void MultiplayerCloseAllNetworkPeersSystemComponent::OnSessionEnd(
+    void GemSystemComponent::OnSessionEnd(
         GridMate::GridSession*)
     {
         m_isHost = false;
     }
 
-    void MultiplayerCloseAllNetworkPeersSystemComponent::OnCrySystemInitialized(
+    void GemSystemComponent::OnCrySystemInitialized(
         ISystem& system, const SSystemInitParams&)
     {
         AZ_Printf("", "OnCrySystemInitialized");
@@ -136,15 +136,15 @@ namespace MultiplayerCloseAllNetworkPeers
             system.GetINetwork()->GetGridMate());
     }
 
-    void MultiplayerCloseAllNetworkPeersSystemComponent::CreateWorkerEntity()
+    void GemSystemComponent::CreateWorkerEntity()
     {
-        m_workerEntity = aznew AZ::Entity("Game Player");
+        m_workerEntity = aznew AZ::Entity("MultiplayerCloseAllNetworkPeers Entity");
         if (m_workerEntity)
         {
             m_workerEntity->CreateComponent<
                 AzFramework::NetBindingComponent>();
             m_workerEntity->CreateComponent<
-                CloseNetworkPeersComponent>();
+                WorkerComponent>();
             m_workerEntity->Init();
             m_workerEntity->Activate();
 

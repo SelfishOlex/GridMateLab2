@@ -7,17 +7,17 @@
     },
     "auto": {
         "Include": [
-            "Include/MultiplayerCloseAllNetworkPeers/MultiplayerCloseAllNetworkPeersBus.h",
+            "Include/MultiplayerCloseAllNetworkPeers/CloseNetworkPeersBus.h",
             "Include/MultiplayerCloseAllNetworkPeers/ShutdownApplication.h"
         ],
         "Source": [
             "Source/MultiplayerCloseAllNetworkPeersModule.cpp",
-            "Source/MultiplayerCloseAllNetworkPeersSystemComponent.cpp",
-            "Source/MultiplayerCloseAllNetworkPeersSystemComponent.h",
-            "Source/ConsoleCommandCVars.cpp",
-            "Source/ConsoleCommandCVars.h",
-            "Source/CloseNetworkPeersComponent.cpp",
-            "Source/CloseNetworkPeersComponent.h",
+            "Source/GemSystemComponent.cpp",
+            "Source/GemSystemComponent.h",
+            "Source/ConsoleCommands.cpp",
+            "Source/ConsoleCommands.h",
+            "Source/WorkerComponent.cpp",
+            "Source/WorkerComponent.h",
             "Source/ShutdownApplication.cpp"
         ]
     }

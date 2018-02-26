@@ -1,5 +1,5 @@
 #include "MultiplayerCloseAllNetworkPeers_precompiled.h"
-#include "CloseNetworkPeersComponent.h"
+#include "WorkerComponent.h"
 #include <AzCore/Serialization/EditContext.h>
 #include <GridMate/Replica/ReplicaFunctions.h>
 #include "MultiplayerCloseAllNetworkPeers/ShutdownApplication.h"
@@ -8,7 +8,7 @@ using namespace AZ;
 using namespace MultiplayerCloseAllNetworkPeers;
 using namespace GridMate;
 
-class CloseNetworkPeersComponent::Chunk
+class WorkerComponent::Chunk
     : public GridMate::ReplicaChunk
 {
 public:
@@ -20,25 +20,25 @@ public:
 
     static const char* GetChunkName()
     {
-        return "CloseNetworkPeersComponent::Chunk";
+        return "WorkerComponent::Chunk";
     }
 
     GridMate::Rpc<>::BindInterface<
-        CloseNetworkPeersComponent,
-        &CloseNetworkPeersComponent::OnCloseAll> m_closeAllRpc;
+        WorkerComponent,
+        &WorkerComponent::OnCloseAll> m_closeAllRpc;
 };
 
-void CloseNetworkPeersComponent::Reflect(
+void WorkerComponent::Reflect(
     AZ::ReflectContext* context)
 {
     if (auto sc = azrtti_cast<AZ::SerializeContext*>(context))
     {
-        sc->Class<CloseNetworkPeersComponent, AZ::Component>()
+        sc->Class<WorkerComponent, AZ::Component>()
             ->Version(1);
 
         if (auto ec = sc->GetEditContext())
         {
-            ec->Class<CloseNetworkPeersComponent>(
+            ec->Class<WorkerComponent>(
                 "Close All Network Peers",
                 "[Closes the clients and the server]")
                 ->ClassElement(
@@ -59,28 +59,28 @@ void CloseNetworkPeersComponent::Reflect(
     }
 }
 
-void CloseNetworkPeersComponent::GetProvidedServices(
+void WorkerComponent::GetProvidedServices(
     AZ::ComponentDescriptor::DependencyArrayType& list)
 {
     list.push_back(AZ_CRC("CloseNetworkPeersService"));
 }
 
-void CloseNetworkPeersComponent::GetIncompatibleServices(
+void WorkerComponent::GetIncompatibleServices(
     AZ::ComponentDescriptor::DependencyArrayType& list)
 {
 }
 
-void CloseNetworkPeersComponent::GetRequiredServices(
+void WorkerComponent::GetRequiredServices(
     AZ::ComponentDescriptor::DependencyArrayType& list)
 {
 }
 
-void CloseNetworkPeersComponent::GetDependentServices(
+void WorkerComponent::GetDependentServices(
     AZ::ComponentDescriptor::DependencyArrayType& list)
 {
 }
 
-void CloseNetworkPeersComponent::Activate()
+void WorkerComponent::Activate()
 {
     m_isShuttinDown = false;
 
@@ -88,7 +88,7 @@ void CloseNetworkPeersComponent::Activate()
     TickBus::Handler::BusConnect();
 }
 
-void CloseNetworkPeersComponent::Deactivate()
+void WorkerComponent::Deactivate()
 {
     CloseAllRequestBus::Handler::BusDisconnect();
     TickBus::Handler::BusDisconnect();
@@ -96,7 +96,7 @@ void CloseNetworkPeersComponent::Deactivate()
     m_isShuttinDown = false;
 }
 
-void CloseNetworkPeersComponent::CloseAll()
+void WorkerComponent::CloseAll()
 {
     if (auto chunk = static_cast<Chunk*>(m_chunk.get()))
     {
@@ -104,32 +104,11 @@ void CloseNetworkPeersComponent::CloseAll()
     }
     else
     {
-        MultiplayerCloseAllNetworkPeers::ShutdownApplication();
+        ShutdownApplication();
     }
 }
 
-GridMate::ReplicaChunkPtr
-CloseNetworkPeersComponent::GetNetworkBinding()
-{
-    m_chunk = GridMate::CreateReplicaChunk<Chunk>();
-    m_chunk->SetHandler(this);
-    return m_chunk;
-}
-
-void CloseNetworkPeersComponent::SetNetworkBinding(
-    GridMate::ReplicaChunkPtr chunk)
-{
-    m_chunk = chunk;
-    m_chunk->SetHandler(this);
-}
-
-void CloseNetworkPeersComponent::UnbindFromNetwork()
-{
-    m_chunk->SetHandler(nullptr);
-    m_chunk = nullptr;
-}
-
-bool CloseNetworkPeersComponent::OnCloseAll(
+bool WorkerComponent::OnCloseAll(
     const GridMate::RpcContext& /*rc*/)
 {
     m_shutdownCountdown = m_ticksBeforeShutdown;
@@ -137,10 +116,31 @@ bool CloseNetworkPeersComponent::OnCloseAll(
     return true;
 }
 
-void CloseNetworkPeersComponent::OnTick(float, ScriptTimePoint)
+void WorkerComponent::OnTick(float, ScriptTimePoint)
 {
     if (m_isShuttinDown && m_shutdownCountdown-- == 0)
     {
         MultiplayerCloseAllNetworkPeers::ShutdownApplication();
     }
+}
+
+GridMate::ReplicaChunkPtr
+WorkerComponent::GetNetworkBinding()
+{
+    m_chunk = GridMate::CreateReplicaChunk<Chunk>();
+    m_chunk->SetHandler(this);
+    return m_chunk;
+}
+
+void WorkerComponent::SetNetworkBinding(
+    GridMate::ReplicaChunkPtr chunk)
+{
+    m_chunk = chunk;
+    m_chunk->SetHandler(this);
+}
+
+void WorkerComponent::UnbindFromNetwork()
+{
+    m_chunk->SetHandler(nullptr);
+    m_chunk = nullptr;
 }

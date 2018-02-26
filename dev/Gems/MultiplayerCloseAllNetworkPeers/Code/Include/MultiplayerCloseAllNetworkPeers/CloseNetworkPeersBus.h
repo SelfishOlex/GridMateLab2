@@ -7,17 +7,17 @@
 
 namespace MultiplayerCloseAllNetworkPeers
 {
-    class MultiplayerCloseAllNetworkPeersRequests
+    class CloseNetworkPeersRequests
         : public AZ::EBusTraits
     {
     public:
-        virtual ~MultiplayerCloseAllNetworkPeersRequests() = default;
+        virtual ~CloseNetworkPeersRequests() = default;
 
         // EBusTraits overrides
         static const AZ::EBusHandlerPolicy HandlerPolicy = AZ::EBusHandlerPolicy::Single;
         static const AZ::EBusAddressPolicy AddressPolicy = AZ::EBusAddressPolicy::Single;
 
-        virtual void CloseAllNetworkPeers() = 0;
+        virtual void CloseAll() = 0;
     };
-    using MultiplayerCloseAllNetworkPeersRequestBus = AZ::EBus<MultiplayerCloseAllNetworkPeersRequests>;
+    using CloseNetworkPeersRequestBus = AZ::EBus<CloseNetworkPeersRequests>;
 } // namespace MultiplayerCloseAllNetworkPeers

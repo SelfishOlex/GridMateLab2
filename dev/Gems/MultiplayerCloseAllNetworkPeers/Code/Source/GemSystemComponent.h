@@ -3,7 +3,7 @@
 
 #include <AzCore/Component/Component.h>
 
-#include <MultiplayerCloseAllNetworkPeers/MultiplayerCloseAllNetworkPeersBus.h>
+#include <MultiplayerCloseAllNetworkPeers/CloseNetworkPeersBus.h>
 #include <AzCore/Component/EntityBus.h>
 #include <AzFramework/Entity/GameEntityContextBus.h>
 #include <GridMate/Session/Session.h>
@@ -11,16 +11,16 @@
 
 namespace MultiplayerCloseAllNetworkPeers
 {
-    class MultiplayerCloseAllNetworkPeersSystemComponent
+    class GemSystemComponent
         : public AZ::Component
-        , protected MultiplayerCloseAllNetworkPeersRequestBus::Handler
+        , protected CloseNetworkPeersRequestBus::Handler
         , public AZ::EntityBus::MultiHandler
         , AzFramework::GameEntityContextEventBus::Handler
         , public GridMate::SessionEventBus::Handler
         , public CrySystemEventBus::Handler
     {
     public:
-        AZ_COMPONENT(MultiplayerCloseAllNetworkPeersSystemComponent, "{30168C7B-5DCE-4404-83DC-6349CB07A60F}");
+        AZ_COMPONENT(GemSystemComponent, "{30168C7B-5DCE-4404-83DC-6349CB07A60F}");
 
         static void Reflect(AZ::ReflectContext* context);
 
@@ -30,8 +30,8 @@ namespace MultiplayerCloseAllNetworkPeers
         static void GetDependentServices(AZ::ComponentDescriptor::DependencyArrayType& dependent);
 
     protected:
-        // CloseAllNetworkPeersRequestBus interface implementation
-        void CloseAllNetworkPeers() override;
+        // CloseNetworkPeersRequestBus interface implementation
+        void CloseAll() override;
 
         // AZ::Component interface implementation
         void Activate() override;

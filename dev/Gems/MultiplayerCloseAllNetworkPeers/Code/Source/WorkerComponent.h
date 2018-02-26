@@ -20,14 +20,14 @@ namespace MultiplayerCloseAllNetworkPeers
 
     using CloseAllRequestBus = AZ::EBus<CloseAllRequestInterface>;
 
-    class CloseNetworkPeersComponent
+    class WorkerComponent
         : public AZ::Component
         , public CloseAllRequestBus::Handler
         , public AzFramework::NetBindable
         , public AZ::TickBus::Handler
     {
     public:
-        AZ_COMPONENT(CloseNetworkPeersComponent,
+        AZ_COMPONENT(WorkerComponent,
             "{33C9FC43-8756-48F3-A925-C04A5BD4FF6A}",
             NetBindable);
 
