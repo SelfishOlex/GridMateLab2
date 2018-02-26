@@ -4,11 +4,11 @@ struct IConsoleCmdArgs;
 
 namespace WindowPosition
 {
-    class WindowPositionCVars
+    class WindowPositionCommands
     {
     public:
-        void RegisterCVars();
-        void UnregisterCVars();
+        void Register();
+        void Unregister();
 
         static void WindowX(IConsoleCmdArgs* args);
         static void WindowY(IConsoleCmdArgs* args);
