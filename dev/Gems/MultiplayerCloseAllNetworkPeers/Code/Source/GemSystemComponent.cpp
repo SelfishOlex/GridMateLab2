@@ -34,30 +34,6 @@ namespace MultiplayerCloseAllNetworkPeers
         }
     }
 
-    void GemSystemComponent::GetProvidedServices(
-        AZ::ComponentDescriptor::DependencyArrayType& provided)
-    {
-        provided.push_back(AZ_CRC("CloseAllPeersService"));
-    }
-
-    void GemSystemComponent::GetIncompatibleServices(
-        AZ::ComponentDescriptor::DependencyArrayType& incompat)
-    {
-        incompat.push_back(AZ_CRC("CloseAllPeersService"));
-    }
-
-    void GemSystemComponent::GetRequiredServices(
-        AZ::ComponentDescriptor::DependencyArrayType& required)
-    {
-        (void)required;
-    }
-
-    void GemSystemComponent::GetDependentServices(
-        AZ::ComponentDescriptor::DependencyArrayType& dependent)
-    {
-        (void)dependent;
-    }
-
     void GemSystemComponent::CloseAll()
     {
         if (m_workerEntity)

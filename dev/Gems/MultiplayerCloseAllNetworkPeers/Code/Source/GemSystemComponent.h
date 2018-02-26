@@ -24,11 +24,6 @@ namespace MultiplayerCloseAllNetworkPeers
 
         static void Reflect(AZ::ReflectContext* context);
 
-        static void GetProvidedServices(AZ::ComponentDescriptor::DependencyArrayType& provided);
-        static void GetRequiredServices(AZ::ComponentDescriptor::DependencyArrayType& required);
-        static void GetIncompatibleServices(AZ::ComponentDescriptor::DependencyArrayType& incompat);
-        static void GetDependentServices(AZ::ComponentDescriptor::DependencyArrayType& dependent);
-
     protected:
         // CloseNetworkPeersRequestBus interface implementation
         void CloseAll() override;

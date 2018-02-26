@@ -33,22 +33,7 @@ void WorkerComponent::Reflect(
 {
     if (auto sc = azrtti_cast<AZ::SerializeContext*>(context))
     {
-        sc->Class<WorkerComponent, AZ::Component>()
-            ->Version(1);
-
-        if (auto ec = sc->GetEditContext())
-        {
-            ec->Class<WorkerComponent>(
-                "Close All Network Peers",
-                "[Closes the clients and the server]")
-                ->ClassElement(
-                    Edit::ClassElements::EditorData, "")
-                ->Attribute(Edit::Attributes::Category,
-                    "Testing Tools")
-                ->Attribute(Edit::Attributes::
-                    AppearsInAddComponentMenu,
-                    AZ_CRC("Game"));
-        }
+        sc->Class<WorkerComponent, AZ::Component>()->Version(1);
     }
 
     auto& descTable = ReplicaChunkDescriptorTable::Get();
