@@ -33,15 +33,6 @@ namespace MultiplayerCloseAllNetworkPeers
 
         static void Reflect(AZ::ReflectContext* context);
 
-        static void GetProvidedServices(
-            AZ::ComponentDescriptor::DependencyArrayType& list);
-        static void GetIncompatibleServices(
-            AZ::ComponentDescriptor::DependencyArrayType& list);
-        static void GetRequiredServices(
-            AZ::ComponentDescriptor::DependencyArrayType& list);
-        static void GetDependentServices(
-            AZ::ComponentDescriptor::DependencyArrayType& list);
-
     protected:
         // AZ::Component interface implementation
         void Activate() override;

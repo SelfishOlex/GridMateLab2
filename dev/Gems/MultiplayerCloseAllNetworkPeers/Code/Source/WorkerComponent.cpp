@@ -44,27 +44,6 @@ void WorkerComponent::Reflect(
     }
 }
 
-void WorkerComponent::GetProvidedServices(
-    AZ::ComponentDescriptor::DependencyArrayType& list)
-{
-    list.push_back(AZ_CRC("CloseNetworkPeersService"));
-}
-
-void WorkerComponent::GetIncompatibleServices(
-    AZ::ComponentDescriptor::DependencyArrayType& list)
-{
-}
-
-void WorkerComponent::GetRequiredServices(
-    AZ::ComponentDescriptor::DependencyArrayType& list)
-{
-}
-
-void WorkerComponent::GetDependentServices(
-    AZ::ComponentDescriptor::DependencyArrayType& list)
-{
-}
-
 void WorkerComponent::Activate()
 {
     m_isShuttinDown = false;

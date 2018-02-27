@@ -38,5 +38,6 @@ void ConsoleCommands::Unregister()
 
 void ConsoleCommands::CloseAll(IConsoleCmdArgs* /*args*/)
 {
-    EBUS_EVENT(CloseNetworkPeersRequestBus, CloseAll);
+    CloseNetworkPeersRequestBus::Broadcast(
+        &CloseNetworkPeersRequestBus::Events::CloseAll);
 }
