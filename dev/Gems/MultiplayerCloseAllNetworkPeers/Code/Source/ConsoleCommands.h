@@ -1,5 +1,4 @@
 #pragma once
-
 #include <IConsole.h>
 
 namespace MultiplayerCloseAllNetworkPeers
