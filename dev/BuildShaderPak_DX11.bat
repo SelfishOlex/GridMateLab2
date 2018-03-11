@@ -29,7 +29,7 @@ IF ERRORLEVEL 1 (
 ECHO Detected binary folder at %MYBATCHFILEDIRECTORY%%BINFOLDER%
 
 set SOURCESHADERLIST=%1
-set GAMENAME=SamplesProject
+set GAMENAME=GridMatePlayers
 set DESTSHADERFOLDER=Cache\%GAMENAME%\PC\user\Cache\Shaders
 
 set SHADERPLATFORM=PC
