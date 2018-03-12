@@ -214,7 +214,7 @@
 	<Class name="ModuleEntity" type="{C5950488-35E0-4B55-B664-29A691A6482F}">
 		<Class name="AZ::Entity" field="BaseClass1" version="2" type="{75651658-8663-478D-9090-2432DFCAFA44}">
 			<Class name="EntityId" field="Id" version="1" type="{6383F1D3-BB27-4E6B-A49A-6409B2059EAA}">
-				<Class name="AZ::u64" field="id" value="205885256153" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+				<Class name="AZ::u64" field="id" value="640990078181" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 			</Class>
 			<Class name="AZStd::string" field="Name" value="D:\Work\GridMateLab2\dev\Bin64vc140\\Gem.EMotionFX.044a63ea67d04479aa5daf62ded9d9ca.v0.1.0.dll" type="{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9}"/>
 			<Class name="bool" field="IsDependencyReady" value="false" type="{A0CA880C-AFE4-43CB-926C-59AC48496112}"/>
@@ -222,7 +222,7 @@
 			<Class name="AZStd::vector" field="Components" type="{0D23B755-6E8F-5C6C-B7C9-A352A55DC1DF}">
 				<Class name="SystemComponent" field="element" version="1" type="{7AE4102B-387C-4157-B8C7-8D1EA3BCFD60}">
 					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
-						<Class name="AZ::u64" field="Id" value="15983125615411856387" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+						<Class name="AZ::u64" field="Id" value="2932270571040890661" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 					</Class>
 					<Class name="unsigned int" field="NumThreads" value="1" type="{43DA906B-7DEF-4CA8-9790-854106D3F983}"/>
 				</Class>
@@ -233,7 +233,7 @@
 	<Class name="ModuleEntity" type="{C5950488-35E0-4B55-B664-29A691A6482F}">
 		<Class name="AZ::Entity" field="BaseClass1" version="2" type="{75651658-8663-478D-9090-2432DFCAFA44}">
 			<Class name="EntityId" field="Id" version="1" type="{6383F1D3-BB27-4E6B-A49A-6409B2059EAA}">
-				<Class name="AZ::u64" field="id" value="193000354265" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+				<Class name="AZ::u64" field="id" value="628105176293" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 			</Class>
 			<Class name="AZStd::string" field="Name" value="D:\Work\GridMateLab2\dev\Bin64vc140\\Gem.ScriptCanvasGem.869a0d0ec11a45c299917d45c81555e6.v0.1.0.dll" type="{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9}"/>
 			<Class name="bool" field="IsDependencyReady" value="false" type="{A0CA880C-AFE4-43CB-926C-59AC48496112}"/>
@@ -241,17 +241,17 @@
 			<Class name="AZStd::vector" field="Components" type="{0D23B755-6E8F-5C6C-B7C9-A352A55DC1DF}">
 				<Class name="CoreBuilderSystemComponent" field="element" type="{521BF54E-29A9-4367-B9E5-19736AA3A957}">
 					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
-						<Class name="AZ::u64" field="Id" value="5050666730271890072" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+						<Class name="AZ::u64" field="Id" value="14163403137665714208" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 					</Class>
 				</Class>
 				<Class name="Component" field="element" version="1" type="{794B1BA5-DE13-46C7-9149-74FFB02CB51B}">
 					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
-						<Class name="AZ::u64" field="Id" value="13518686900664150181" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+						<Class name="AZ::u64" field="Id" value="8102920784790533890" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 					</Class>
 				</Class>
 				<Class name="SystemComponent" field="element" type="{CCCCE7AE-AEC7-43F8-969C-ED592C264560}">
 					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
-						<Class name="AZ::u64" field="Id" value="2108260095907102073" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+						<Class name="AZ::u64" field="Id" value="11499778143407711198" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 					</Class>
 				</Class>
 			</Class>
@@ -261,7 +261,7 @@
 	<Class name="ModuleEntity" type="{C5950488-35E0-4B55-B664-29A691A6482F}">
 		<Class name="AZ::Entity" field="BaseClass1" version="2" type="{75651658-8663-478D-9090-2432DFCAFA44}">
 			<Class name="EntityId" field="Id" version="1" type="{6383F1D3-BB27-4E6B-A49A-6409B2059EAA}">
-				<Class name="AZ::u64" field="id" value="214475190745" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+				<Class name="AZ::u64" field="id" value="649580012773" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 			</Class>
 			<Class name="AZStd::string" field="Name" value="D:\Work\GridMateLab2\dev\Bin64vc140\\Gem.CryEntityRemoval.f3ae24a1635e4f849535f37ef9f4b4da.v0.1.0.dll" type="{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9}"/>
 			<Class name="bool" field="IsDependencyReady" value="false" type="{A0CA880C-AFE4-43CB-926C-59AC48496112}"/>
@@ -269,7 +269,7 @@
 			<Class name="AZStd::vector" field="Components" type="{0D23B755-6E8F-5C6C-B7C9-A352A55DC1DF}">
 				<Class name="CryEntityRemovalSystemComponent" field="element" value="" type="{B112E067-0481-472A-9CD9-A5C8BF5A82C8}">
 					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
-						<Class name="AZ::u64" field="Id" value="15875471410719881094" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+						<Class name="AZ::u64" field="Id" value="16767875594826058058" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 					</Class>
 				</Class>
 			</Class>
@@ -279,7 +279,7 @@
 	<Class name="ModuleEntity" type="{C5950488-35E0-4B55-B664-29A691A6482F}">
 		<Class name="AZ::Entity" field="BaseClass1" version="2" type="{75651658-8663-478D-9090-2432DFCAFA44}">
 			<Class name="EntityId" field="Id" version="1" type="{6383F1D3-BB27-4E6B-A49A-6409B2059EAA}">
-				<Class name="AZ::u64" field="id" value="201590288857" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+				<Class name="AZ::u64" field="id" value="636695110885" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 			</Class>
 			<Class name="AZStd::string" field="Name" value="D:\Work\GridMateLab2\dev\Bin64vc140\\Gem.LegacyGameInterface.3108b261962e44b6a0c1c036c693bca2.v1.0.0.dll" type="{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9}"/>
 			<Class name="bool" field="IsDependencyReady" value="false" type="{A0CA880C-AFE4-43CB-926C-59AC48496112}"/>
@@ -287,7 +287,7 @@
 			<Class name="AZStd::vector" field="Components" type="{0D23B755-6E8F-5C6C-B7C9-A352A55DC1DF}">
 				<Class name="LegacyGameInterfaceSystemComponent" field="element" value="" type="{6F11A7F2-4091-46EA-A77A-D1E918D8EDFE}">
 					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
-						<Class name="AZ::u64" field="Id" value="9526152605946450141" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+						<Class name="AZ::u64" field="Id" value="15916286283693648944" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 					</Class>
 				</Class>
 			</Class>
@@ -297,7 +297,7 @@
 	<Class name="ModuleEntity" type="{C5950488-35E0-4B55-B664-29A691A6482F}">
 		<Class name="AZ::Entity" field="BaseClass1" version="2" type="{75651658-8663-478D-9090-2432DFCAFA44}">
 			<Class name="EntityId" field="Id" version="1" type="{6383F1D3-BB27-4E6B-A49A-6409B2059EAA}">
-				<Class name="AZ::u64" field="id" value="210180223449" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+				<Class name="AZ::u64" field="id" value="645285045477" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 			</Class>
 			<Class name="AZStd::string" field="Name" value="D:\Work\GridMateLab2\dev\Bin64vc140\\Gem.LyShine.0fefab3f13364722b2eab3b96ce2bf20.v0.1.0.dll" type="{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9}"/>
 			<Class name="bool" field="IsDependencyReady" value="false" type="{A0CA880C-AFE4-43CB-926C-59AC48496112}"/>
@@ -305,7 +305,7 @@
 			<Class name="AZStd::vector" field="Components" type="{0D23B755-6E8F-5C6C-B7C9-A352A55DC1DF}">
 				<Class name="LyShineSystemComponent" field="element" type="{B0C78B8D-1E5B-47D7-95D0-EC69C0513804}">
 					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
-						<Class name="AZ::u64" field="Id" value="645465965096210380" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+						<Class name="AZ::u64" field="Id" value="14125104405047934786" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 					</Class>
 					<Class name="AzFramework::SimpleAssetReference&lt;LmbrCentral::TextureAsset&gt;" field="CursorImagePath" version="1" type="{68E92460-5C0C-4031-9620-6F1A08763243}">
 						<Class name="SimpleAssetReferenceBase" field="BaseClass1" version="1" type="{E16CA6C5-5C78-4AD9-8E9B-F8C1FB4D1DB8}">
@@ -320,7 +320,7 @@
 	<Class name="ModuleEntity" type="{C5950488-35E0-4B55-B664-29A691A6482F}">
 		<Class name="AZ::Entity" field="BaseClass1" version="2" type="{75651658-8663-478D-9090-2432DFCAFA44}">
 			<Class name="EntityId" field="Id" version="1" type="{6383F1D3-BB27-4E6B-A49A-6409B2059EAA}">
-				<Class name="AZ::u64" field="id" value="227360092633" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+				<Class name="AZ::u64" field="id" value="662464914661" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 			</Class>
 			<Class name="AZStd::string" field="Name" value="D:\Work\GridMateLab2\dev\Bin64vc140\\Gem.CryLegacy.352fef7706634c92814c587e84d7165a.v0.1.0.dll" type="{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9}"/>
 			<Class name="bool" field="IsDependencyReady" value="false" type="{A0CA880C-AFE4-43CB-926C-59AC48496112}"/>
@@ -328,7 +328,7 @@
 			<Class name="AZStd::vector" field="Components" type="{0D23B755-6E8F-5C6C-B7C9-A352A55DC1DF}">
 				<Class name="CryLegacySystemComponent" field="element" value="" type="{D2051F81-6B46-4B23-A7F6-C19F814E63F0}">
 					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
-						<Class name="AZ::u64" field="Id" value="15135996551572850127" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+						<Class name="AZ::u64" field="Id" value="7931803817423307586" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 					</Class>
 				</Class>
 			</Class>
@@ -338,7 +338,7 @@
 	<Class name="ModuleEntity" type="{C5950488-35E0-4B55-B664-29A691A6482F}">
 		<Class name="AZ::Entity" field="BaseClass1" version="2" type="{75651658-8663-478D-9090-2432DFCAFA44}">
 			<Class name="EntityId" field="Id" version="1" type="{6383F1D3-BB27-4E6B-A49A-6409B2059EAA}">
-				<Class name="AZ::u64" field="id" value="184410419673" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+				<Class name="AZ::u64" field="id" value="619515241701" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 			</Class>
 			<Class name="AZStd::string" field="Name" value="D:\Work\GridMateLab2\dev\Bin64vc140\\Gem.CloudGemFramework.6fc787a982184217a5a553ca24676cfa.v1.1.1.dll" type="{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9}"/>
 			<Class name="bool" field="IsDependencyReady" value="false" type="{A0CA880C-AFE4-43CB-926C-59AC48496112}"/>
@@ -346,7 +346,7 @@
 			<Class name="AZStd::vector" field="Components" type="{0D23B755-6E8F-5C6C-B7C9-A352A55DC1DF}">
 				<Class name="CloudGemFrameworkSystemComponent" field="element" version="1" type="{3A468AF0-3D40-4E7C-95AF-E6F9FCF7F1EE}">
 					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
-						<Class name="AZ::u64" field="Id" value="11409581681759356957" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+						<Class name="AZ::u64" field="Id" value="17009374227726492050" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 					</Class>
 					<Class name="int" field="ThreadCount" value="0" type="{72039442-EB38-4D42-A1AD-CB68F7E0EEF6}"/>
 					<Class name="int" field="FirstThreadCPU" value="-1" type="{72039442-EB38-4D42-A1AD-CB68F7E0EEF6}"/>
@@ -355,12 +355,12 @@
 				</Class>
 				<Class name="CloudCanvasMappingsComponent" field="element" value="" type="{4DE985CB-9AC4-472F-B647-E5E634C5C3A7}">
 					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
-						<Class name="AZ::u64" field="Id" value="8624983599216834180" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+						<Class name="AZ::u64" field="Id" value="1733722661350739340" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 					</Class>
 				</Class>
 				<Class name="CloudCanvasPlayerIdentityComponent" field="element" value="" type="{AA90442E-613E-40E3-AF0E-13C6032C06E4}">
 					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
-						<Class name="AZ::u64" field="Id" value="9800141724626288638" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+						<Class name="AZ::u64" field="Id" value="12261287425660001975" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 					</Class>
 				</Class>
 			</Class>
@@ -370,7 +370,7 @@
 	<Class name="ModuleEntity" type="{C5950488-35E0-4B55-B664-29A691A6482F}">
 		<Class name="AZ::Entity" field="BaseClass1" version="2" type="{75651658-8663-478D-9090-2432DFCAFA44}">
 			<Class name="EntityId" field="Id" version="1" type="{6383F1D3-BB27-4E6B-A49A-6409B2059EAA}">
-				<Class name="AZ::u64" field="id" value="167230550489" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+				<Class name="AZ::u64" field="id" value="602335372517" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 			</Class>
 			<Class name="AZStd::string" field="Name" value="D:\Work\GridMateLab2\dev\Bin64vc140\\Gem.LmbrCentral.ff06785f7145416b9d46fde39098cb0c.v0.1.0.dll" type="{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9}"/>
 			<Class name="bool" field="IsDependencyReady" value="false" type="{A0CA880C-AFE4-43CB-926C-59AC48496112}"/>
@@ -378,28 +378,28 @@
 			<Class name="AZStd::vector" field="Components" type="{0D23B755-6E8F-5C6C-B7C9-A352A55DC1DF}">
 				<Class name="PhysicsSystemComponent" field="element" value="" version="1" type="{1586DBA1-F5F0-49AB-9F59-AE62C0E60AE0}">
 					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
-						<Class name="AZ::u64" field="Id" value="15431495261121531803" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+						<Class name="AZ::u64" field="Id" value="7198794465470739263" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 					</Class>
 				</Class>
 				<Class name="NavigationSystemComponent" field="element" value="" version="1" type="{3D27484B-00C4-4F3F-9605-2BF3E5C317FF}">
 					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
-						<Class name="AZ::u64" field="Id" value="4635049367848047997" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+						<Class name="AZ::u64" field="Id" value="6865222270987637131" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 					</Class>
 				</Class>
 				<Class name="LoadScreenComponent" field="element" value="" version="1" type="{97CDBD6C-C621-4427-87C8-10E1B8F947FF}">
 					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
-						<Class name="AZ::u64" field="Id" value="15778829679724420081" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+						<Class name="AZ::u64" field="Id" value="8229601182352940107" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 					</Class>
 				</Class>
 				<Class name="CharacterAnimationManagerComponent" field="element" value="" version="1" type="{ABD0848C-0CFC-43D3-AEFB-7EEED64AF164}">
 					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
-						<Class name="AZ::u64" field="Id" value="15320970711061772245" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+						<Class name="AZ::u64" field="Id" value="13210029377010489464" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 					</Class>
 				</Class>
 				<Class name="StereoRendererComponent" field="element" version="1" type="{BBFE0965-5564-4739-8219-AFE8209A5E57}"/>
 				<Class name="LmbrCentralSystemComponent" field="element" value="" version="1" type="{CE249D37-C1D6-4A64-932D-C937B0EC2B8C}">
 					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
-						<Class name="AZ::u64" field="Id" value="6971770590401947438" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+						<Class name="AZ::u64" field="Id" value="3483067104839794790" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 					</Class>
 				</Class>
 			</Class>
@@ -409,15 +409,15 @@
 	<Class name="ModuleEntity" type="{C5950488-35E0-4B55-B664-29A691A6482F}">
 		<Class name="AZ::Entity" field="BaseClass1" version="2" type="{75651658-8663-478D-9090-2432DFCAFA44}">
 			<Class name="EntityId" field="Id" version="1" type="{6383F1D3-BB27-4E6B-A49A-6409B2059EAA}">
-				<Class name="AZ::u64" field="id" value="175820485081" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+				<Class name="AZ::u64" field="id" value="610925307109" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 			</Class>
 			<Class name="AZStd::string" field="Name" value="D:\Work\GridMateLab2\dev\Bin64vc140\\Gem.MultiplayerCloseAllNetworkPeers.822389b771a4439e8edda73c4c27b953.v0.1.0.dll" type="{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9}"/>
 			<Class name="bool" field="IsDependencyReady" value="false" type="{A0CA880C-AFE4-43CB-926C-59AC48496112}"/>
 			<Class name="bool" field="IsRuntimeActive" value="true" type="{A0CA880C-AFE4-43CB-926C-59AC48496112}"/>
 			<Class name="AZStd::vector" field="Components" type="{0D23B755-6E8F-5C6C-B7C9-A352A55DC1DF}">
-				<Class name="MultiplayerCloseAllNetworkPeersSystemComponent" field="element" value="" type="{30168C7B-5DCE-4404-83DC-6349CB07A60F}">
+				<Class name="GemSystemComponent" field="element" value="" type="{30168C7B-5DCE-4404-83DC-6349CB07A60F}">
 					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
-						<Class name="AZ::u64" field="Id" value="14636070166352258536" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+						<Class name="AZ::u64" field="Id" value="15619015840370144392" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 					</Class>
 				</Class>
 			</Class>
@@ -427,7 +427,7 @@
 	<Class name="ModuleEntity" type="{C5950488-35E0-4B55-B664-29A691A6482F}">
 		<Class name="AZ::Entity" field="BaseClass1" version="2" type="{75651658-8663-478D-9090-2432DFCAFA44}">
 			<Class name="EntityId" field="Id" version="1" type="{6383F1D3-BB27-4E6B-A49A-6409B2059EAA}">
-				<Class name="AZ::u64" field="id" value="197295321561" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+				<Class name="AZ::u64" field="id" value="632400143589" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 			</Class>
 			<Class name="AZStd::string" field="Name" value="D:\Work\GridMateLab2\dev\Bin64vc140\\Gem.GridMatePlayers.cbf52ff874f2444381876e15e87b8a48.v0.1.0.dll" type="{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9}"/>
 			<Class name="bool" field="IsDependencyReady" value="false" type="{A0CA880C-AFE4-43CB-926C-59AC48496112}"/>
@@ -435,9 +435,16 @@
 			<Class name="AZStd::vector" field="Components" type="{0D23B755-6E8F-5C6C-B7C9-A352A55DC1DF}">
 				<Class name="NetworkTimeSystemComponent" field="element" version="1" type="{6ADBBF4F-1895-4580-BE77-166614E22B9C}">
 					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
-						<Class name="AZ::u64" field="Id" value="11441515771488443739" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+						<Class name="AZ::u64" field="Id" value="2349501258192088236" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 					</Class>
 					<Class name="unsigned int" field="Server Clock Delay" value="200" type="{43DA906B-7DEF-4CA8-9790-854106D3F983}"/>
+				</Class>
+				<Class name="StartingMapSystemComponent" field="element" version="1" type="{771A7066-45AF-4E0D-8915-04129BC64E0E}">
+					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
+						<Class name="AZ::u64" field="Id" value="17138449758738680787" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+					</Class>
+					<Class name="AZStd::string" field="Client Map" value="gamelobby" type="{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9}"/>
+					<Class name="AZStd::string" field="Server Map" value="tutorial" type="{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9}"/>
 				</Class>
 			</Class>
 		</Class>
@@ -446,7 +453,7 @@
 	<Class name="ModuleEntity" type="{C5950488-35E0-4B55-B664-29A691A6482F}">
 		<Class name="AZ::Entity" field="BaseClass1" version="2" type="{75651658-8663-478D-9090-2432DFCAFA44}">
 			<Class name="EntityId" field="Id" version="1" type="{6383F1D3-BB27-4E6B-A49A-6409B2059EAA}">
-				<Class name="AZ::u64" field="id" value="162935583193" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+				<Class name="AZ::u64" field="id" value="598040405221" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 			</Class>
 			<Class name="AZStd::string" field="Name" value="D:\Work\GridMateLab2\dev\Bin64vc140\\Gem.StartingPointInput.09f4bedeee614358bc36788e77f97e51.v0.1.0.dll" type="{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9}"/>
 			<Class name="bool" field="IsDependencyReady" value="false" type="{A0CA880C-AFE4-43CB-926C-59AC48496112}"/>
@@ -454,7 +461,7 @@
 			<Class name="AZStd::vector" field="Components" type="{0D23B755-6E8F-5C6C-B7C9-A352A55DC1DF}">
 				<Class name="StartingPointInputDummyComponent" field="element" type="{0F784CD5-C5AB-4673-8651-ABFA66060232}">
 					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
-						<Class name="AZ::u64" field="Id" value="896865899884168230" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+						<Class name="AZ::u64" field="Id" value="15291738784575198513" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 					</Class>
 				</Class>
 			</Class>
@@ -464,7 +471,7 @@
 	<Class name="ModuleEntity" type="{C5950488-35E0-4B55-B664-29A691A6482F}">
 		<Class name="AZ::Entity" field="BaseClass1" version="2" type="{75651658-8663-478D-9090-2432DFCAFA44}">
 			<Class name="EntityId" field="Id" version="1" type="{6383F1D3-BB27-4E6B-A49A-6409B2059EAA}">
-				<Class name="AZ::u64" field="id" value="158640615897" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+				<Class name="AZ::u64" field="id" value="593745437925" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 			</Class>
 			<Class name="AZStd::string" field="Name" value="D:\Work\GridMateLab2\dev\Bin64vc140\\Gem.LyShineExamples.c7935ecf5e8047fe8ca947b34b11cadb.v0.1.0.dll" type="{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9}"/>
 			<Class name="bool" field="IsDependencyReady" value="false" type="{A0CA880C-AFE4-43CB-926C-59AC48496112}"/>
@@ -472,7 +479,7 @@
 			<Class name="AZStd::vector" field="Components" type="{0D23B755-6E8F-5C6C-B7C9-A352A55DC1DF}">
 				<Class name="LyShineExamplesSystemComponent" field="element" value="" type="{045500EA-BB1D-40CE-8811-F1DF6A340557}">
 					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
-						<Class name="AZ::u64" field="Id" value="15014652669850193751" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+						<Class name="AZ::u64" field="Id" value="9934553436449553139" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 					</Class>
 				</Class>
 			</Class>
@@ -482,7 +489,7 @@
 	<Class name="ModuleEntity" type="{C5950488-35E0-4B55-B664-29A691A6482F}">
 		<Class name="AZ::Entity" field="BaseClass1" version="2" type="{75651658-8663-478D-9090-2432DFCAFA44}">
 			<Class name="EntityId" field="Id" version="1" type="{6383F1D3-BB27-4E6B-A49A-6409B2059EAA}">
-				<Class name="AZ::u64" field="id" value="180115452377" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+				<Class name="AZ::u64" field="id" value="615220274405" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 			</Class>
 			<Class name="AZStd::string" field="Name" value="D:\Work\GridMateLab2\dev\Bin64vc140\\Gem.CloudCanvasCommon.102e23cf4c4c4b748585edbce2bbdc65.v0.1.0.dll" type="{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9}"/>
 			<Class name="bool" field="IsDependencyReady" value="false" type="{A0CA880C-AFE4-43CB-926C-59AC48496112}"/>
@@ -490,7 +497,7 @@
 			<Class name="AZStd::vector" field="Components" type="{0D23B755-6E8F-5C6C-B7C9-A352A55DC1DF}">
 				<Class name="CloudCanvasCommonSystemComponent" field="element" value="" type="{35921485-494D-43B6-B893-E557088C3FFE}">
 					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
-						<Class name="AZ::u64" field="Id" value="8153246197839140128" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+						<Class name="AZ::u64" field="Id" value="12383040719433888400" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 					</Class>
 				</Class>
 			</Class>
@@ -500,7 +507,7 @@
 	<Class name="ModuleEntity" type="{C5950488-35E0-4B55-B664-29A691A6482F}">
 		<Class name="AZ::Entity" field="BaseClass1" version="2" type="{75651658-8663-478D-9090-2432DFCAFA44}">
 			<Class name="EntityId" field="Id" version="1" type="{6383F1D3-BB27-4E6B-A49A-6409B2059EAA}">
-				<Class name="AZ::u64" field="id" value="171525517785" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+				<Class name="AZ::u64" field="id" value="606630339813" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 			</Class>
 			<Class name="AZStd::string" field="Name" value="D:\Work\GridMateLab2\dev\Bin64vc140\\Gem.ChatPlay.bfbc60c63ffd4b00927003735b26ce99.v0.1.0.dll" type="{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9}"/>
 			<Class name="bool" field="IsDependencyReady" value="false" type="{A0CA880C-AFE4-43CB-926C-59AC48496112}"/>
@@ -508,7 +515,7 @@
 			<Class name="AZStd::vector" field="Components" type="{0D23B755-6E8F-5C6C-B7C9-A352A55DC1DF}">
 				<Class name="ChatPlaySystemComponent" field="element" value="" type="{20952273-903A-4B2F-9C64-EF75193B941A}">
 					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
-						<Class name="AZ::u64" field="Id" value="1418907705055225778" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+						<Class name="AZ::u64" field="Id" value="2340877277437701584" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 					</Class>
 				</Class>
 			</Class>
@@ -518,7 +525,7 @@
 	<Class name="ModuleEntity" type="{C5950488-35E0-4B55-B664-29A691A6482F}">
 		<Class name="AZ::Entity" field="BaseClass1" version="2" type="{75651658-8663-478D-9090-2432DFCAFA44}">
 			<Class name="EntityId" field="Id" version="1" type="{6383F1D3-BB27-4E6B-A49A-6409B2059EAA}">
-				<Class name="AZ::u64" field="id" value="188705386969" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+				<Class name="AZ::u64" field="id" value="623810208997" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 			</Class>
 			<Class name="AZStd::string" field="Name" value="D:\Work\GridMateLab2\dev\Bin64vc140\\Gem.Maestro.3b9a978ed6f742a1acb99f74379a342c.v0.1.0.dll" type="{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9}"/>
 			<Class name="bool" field="IsDependencyReady" value="false" type="{A0CA880C-AFE4-43CB-926C-59AC48496112}"/>
@@ -526,12 +533,12 @@
 			<Class name="AZStd::vector" field="Components" type="{0D23B755-6E8F-5C6C-B7C9-A352A55DC1DF}">
 				<Class name="MaestroSystemComponent" field="element" value="" type="{47991994-4417-4CD7-AE0B-FEF1C8720766}">
 					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
-						<Class name="AZ::u64" field="Id" value="7764530387710784025" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+						<Class name="AZ::u64" field="Id" value="4605560017684466520" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 					</Class>
 				</Class>
 				<Class name="SequenceAgentExternalCreator" field="element" value="" version="1" type="{AA979CD3-B47B-4710-9689-F20F4CD476BB}">
 					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
-						<Class name="AZ::u64" field="Id" value="18225563457997689370" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+						<Class name="AZ::u64" field="Id" value="15505107509416825737" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 					</Class>
 				</Class>
 			</Class>
@@ -541,7 +548,7 @@
 	<Class name="ModuleEntity" type="{C5950488-35E0-4B55-B664-29A691A6482F}">
 		<Class name="AZ::Entity" field="BaseClass1" version="2" type="{75651658-8663-478D-9090-2432DFCAFA44}">
 			<Class name="EntityId" field="Id" version="1" type="{6383F1D3-BB27-4E6B-A49A-6409B2059EAA}">
-				<Class name="AZ::u64" field="id" value="218770158041" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+				<Class name="AZ::u64" field="id" value="653874980069" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 			</Class>
 			<Class name="AZStd::string" field="Name" value="D:\Work\GridMateLab2\dev\Bin64vc140\\Gem.InputManagementFramework.59b1b2acc1974aae9f18faddcaddac5b.v0.1.0.dll" type="{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9}"/>
 			<Class name="bool" field="IsDependencyReady" value="false" type="{A0CA880C-AFE4-43CB-926C-59AC48496112}"/>
@@ -549,7 +556,7 @@
 			<Class name="AZStd::vector" field="Components" type="{0D23B755-6E8F-5C6C-B7C9-A352A55DC1DF}">
 				<Class name="InputManagementFrameworkSystemComponent" field="element" value="" version="1" type="{B52457FC-2DEA-4F0E-B0D0-F17786B40F02}">
 					<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
-						<Class name="AZ::u64" field="Id" value="5994896341427247765" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+						<Class name="AZ::u64" field="Id" value="711795764364666702" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 					</Class>
 				</Class>
 			</Class>
@@ -559,7 +566,7 @@
 	<Class name="ModuleEntity" type="{C5950488-35E0-4B55-B664-29A691A6482F}">
 		<Class name="AZ::Entity" field="BaseClass1" version="2" type="{75651658-8663-478D-9090-2432DFCAFA44}">
 			<Class name="EntityId" field="Id" version="1" type="{6383F1D3-BB27-4E6B-A49A-6409B2059EAA}">
-				<Class name="AZ::u64" field="id" value="223065125337" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+				<Class name="AZ::u64" field="id" value="658169947365" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 			</Class>
 			<Class name="AZStd::string" field="Name" value="D:\Work\GridMateLab2\dev\Bin64vc140\\Gem.HttpRequestor.28479e255bde466e91fc34eec808d9c7.v1.0.0.dll" type="{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9}"/>
 			<Class name="bool" field="IsDependencyReady" value="false" type="{A0CA880C-AFE4-43CB-926C-59AC48496112}"/>

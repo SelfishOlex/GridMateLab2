@@ -19,6 +19,8 @@
             "Source/GridMatePlayersModule.cpp"
         ],
         "Source/System": [
+            "Source/System/StartingMapSystemComponent.cpp",
+            "Source/System/StartingMapSystemComponent.h",
             "Source/System/NetworkTimeSystemComponent.cpp",
             "Source/System/NetworkTimeSystemComponent.h"
         ],

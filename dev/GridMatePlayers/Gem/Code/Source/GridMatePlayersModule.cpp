@@ -12,6 +12,7 @@
 #include <Components/LocalPredictionComponent.h>
 #include <Components/InterpolationComponent.h>
 #include <System/NetworkTimeSystemComponent.h>
+#include <System/StartingMapSystemComponent.h>
 
 namespace GridMatePlayers
 {
@@ -23,10 +24,10 @@ namespace GridMatePlayers
         AZ_CLASS_ALLOCATOR(GridMatePlayersModule, AZ::SystemAllocator, 0);
 
         GridMatePlayersModule()
-            : CryHooksModule()
         {
             // Push results of [MyComponent]::CreateDescriptor() into m_descriptors here.
             m_descriptors.insert(m_descriptors.end(), {
+                StartingMapSystemComponent::CreateDescriptor(),
                 NetworkTimeSystemComponent::CreateDescriptor(),
                 InputCaptureComponent::CreateDescriptor(),
                 TimedProjectileComponent::CreateDescriptor(),
@@ -47,6 +48,7 @@ namespace GridMatePlayers
         {
             return AZ::ComponentTypeList{
                 azrtti_typeid<NetworkTimeSystemComponent>(),
+                azrtti_typeid<StartingMapSystemComponent>(),
             };
         }
     };
