@@ -141,3 +141,8 @@ dev/Editor/editorlayout.xml
 dev/Editor/editoreventlog.xml
 dev/UserSettings.xml
 dev/SessionStatus/editor_statuses.json
+dev/Bin64vc140.Release.Dedicated/
+dev/Bin64vc140.Release/
+dev/GridMatePlayers/Levels/gamelobby/_savebackup/
+dev/gridmateplayers_pc_paks/
+dev/GridMatePlayers/Levels/testing/_savebackup/
