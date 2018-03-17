@@ -86,11 +86,6 @@
             "_comment": "UiBasics"
         },
         {
-            "Path": "Gems/CloudGemFramework/v1",
-            "Uuid": "6fc787a982184217a5a553ca24676cfa",
-            "Version": "1.1.1"
-        },
-        {
             "Path": "Gems/StartingPointMovement",
             "Uuid": "73d8779dc28a4123b7c9ed76217464af",
             "Version": "0.1.0",
