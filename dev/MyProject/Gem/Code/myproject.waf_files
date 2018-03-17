@@ -1,0 +1,18 @@
+{
+    "none": {
+        "Source": [
+            "Source/MyProject_precompiled.cpp",
+            "Source/MyProject_precompiled.h"
+        ]
+    },
+    "auto": {
+        "Include": [
+            "Include/MyProject/MyProjectBus.h"
+        ],
+        "Source": [
+            "Source/MyProjectModule.cpp",
+            "Source/MyProjectSystemComponent.cpp",
+            "Source/MyProjectSystemComponent.h"
+        ]
+    }
+}
