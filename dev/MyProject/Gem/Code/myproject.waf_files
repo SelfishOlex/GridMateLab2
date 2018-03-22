@@ -11,6 +11,8 @@
         ],
         "Source": [
             "Source/MyProjectModule.cpp",
+            "Source/MyComponent.cpp",
+            "Source/MyComponent.h",
             "Source/MyProjectSystemComponent.cpp",
             "Source/MyProjectSystemComponent.h"
         ]
