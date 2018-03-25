@@ -4,15 +4,17 @@
 
 namespace MyProject
 {
-    // An example of the simplest Lumberyard component
+    // An example of singing up to an Ebus, TickBus in this case
     class OscillatorComponent
         : public AZ::Component
         , public AZ::TickBus::Handler // for ticking events
     {
     public:
+        // be sure this guid is unique, avoid copy-paste errors!
         AZ_COMPONENT(OscillatorComponent,
             "{302AE5A0-F7C4-4319-8023-B1ADF53E1E72}");
 
+    protected:
         // AZ::Component overrides
         void Activate() override;
         void Deactivate() override;
