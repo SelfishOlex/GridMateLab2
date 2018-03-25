@@ -7,13 +7,14 @@ using namespace MyProject;
 
 void OscillatorComponent::Activate()
 {
-    // we must connect. otherwise OnTick() will never be called
+    // We must connect, otherwise OnTick() will never be called.
+    // Forgetting this call is the common error in Lumberyard!
     AZ::TickBus::Handler::BusConnect();
 }
 
 void OscillatorComponent::Deactivate()
 {
-    // good practice on cleanup
+    // good practice on cleanup to disconnect
     AZ::TickBus::Handler::BusDisconnect();
 }
 
@@ -55,7 +56,6 @@ void OscillatorComponent::Reflect(AZ::ReflectContext* reflection)
 {
     auto sc = azrtti_cast<AZ::SerializeContext*>(reflection);
     if (!sc) return;
-
     sc->Class<OscillatorComponent>()
         // serialize m_period
         ->Field("Period", &OscillatorComponent::m_period)
@@ -65,7 +65,6 @@ void OscillatorComponent::Reflect(AZ::ReflectContext* reflection)
 
     AZ::EditContext* ec = sc->GetEditContext();
     if (!ec) return;
-
     using namespace AZ::Edit::Attributes;
     // reflection of this component for Lumberyard Editor
     ec->Class<OscillatorComponent>("Oscillator Component",
@@ -85,5 +84,6 @@ void OscillatorComponent::Reflect(AZ::ReflectContext* reflection)
 void OscillatorComponent::GetRequiredServices(
     AZ::ComponentDescriptor::DependencyArrayType& req)
 {
+    // OscillatorComponent requires TransformComponent
     req.push_back(AZ_CRC("TransformService"));
 }
