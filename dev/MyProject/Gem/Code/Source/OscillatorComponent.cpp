@@ -61,7 +61,7 @@ void OscillatorComponent::Reflect(AZ::ReflectContext* reflection)
         ->Field("Period", &OscillatorComponent::m_period)
         // serialize m_amplitude
         ->Field("Amplitude", &OscillatorComponent::m_amplitude)
-        ->Version(1);
+        ->Version(2);
 
     AZ::EditContext* ec = sc->GetEditContext();
     if (!ec) return;
