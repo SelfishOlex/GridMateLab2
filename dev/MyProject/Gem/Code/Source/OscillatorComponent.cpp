@@ -66,6 +66,7 @@ void OscillatorComponent::Reflect(AZ::ReflectContext* reflection)
     AZ::EditContext* ec = sc->GetEditContext();
     if (!ec) return;
     using namespace AZ::Edit::Attributes;
+    using namespace AZ::Edit::UIHandlers;
     // reflection of this component for Lumberyard Editor
     ec->Class<OscillatorComponent>("Oscillator Component",
             "[oscillates the entity]")
@@ -73,10 +74,10 @@ void OscillatorComponent::Reflect(AZ::ReflectContext* reflection)
         ->Attribute(AppearsInAddComponentMenu, AZ_CRC("Game"))
         ->Attribute(Category, "My Project")
         // expose the setting to the editor
-        ->DataElement(nullptr, &OscillatorComponent::m_period,
+        ->DataElement(Default, &OscillatorComponent::m_period,
             "Period", "[the period of oscillation]")
         // expose the setting to the editor
-        ->DataElement(nullptr, &OscillatorComponent::m_amplitude,
+        ->DataElement(Default, &OscillatorComponent::m_amplitude,
             "Amplitude", "[the height of oscillation]")
     ;
 }
