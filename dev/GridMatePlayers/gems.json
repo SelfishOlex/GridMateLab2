@@ -14,12 +14,6 @@
             "_comment": "PBSreferenceMaterials"
         },
         {
-            "Path": "Gems/AWS",
-            "Uuid": "0945e21b7ae848ac80b4ec1f34c459cc",
-            "Version": "0.1.0",
-            "_comment": "AWS"
-        },
-        {
             "Path": "Gems/StartingPointInput",
             "Uuid": "09f4bedeee614358bc36788e77f97e51",
             "Version": "0.1.0",
@@ -30,12 +24,6 @@
             "Uuid": "0fefab3f13364722b2eab3b96ce2bf20",
             "Version": "0.1.0",
             "_comment": "LyShine"
-        },
-        {
-            "Path": "Gems/CloudCanvasCommon",
-            "Uuid": "102e23cf4c4c4b748585edbce2bbdc65",
-            "Version": "0.1.0",
-            "_comment": "CloudCanvasCommon"
         },
         {
             "Path": "Gems/HttpRequestor",
@@ -102,12 +90,6 @@
             "Uuid": "6bb61c9e547043f0afc5019d6d460b78",
             "Version": "0.1.0",
             "_comment": "UiBasics"
-        },
-        {
-            "Path": "Gems/CloudGemFramework/v1",
-            "Uuid": "6fc787a982184217a5a553ca24676cfa",
-            "Version": "1.1.1",
-            "_comment": "CloudGemFramework"
         },
         {
             "Path": "Gems/StartingPointMovement",
@@ -185,6 +167,12 @@
             "Uuid": "d3ed407a19bb4c0d92b7c4872313d600",
             "Version": "1.0.0",
             "_comment": "Multiplayer"
+        },
+        {
+            "Path": "Gems/MyGem",
+            "Uuid": "e3f7daf65c824319ae7304b652296d80",
+            "Version": "0.1.0",
+            "_comment": "MyGem"
         },
         {
             "Path": "Gems/PrimitiveAssets",
