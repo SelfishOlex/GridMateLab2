@@ -1,0 +1,18 @@
+{
+    "none": {
+        "Source": [
+            "Source/MyGem_precompiled.cpp",
+            "Source/MyGem_precompiled.h"
+        ]
+    },
+    "auto": {
+        "Include": [
+            "Include/MyGem/MyGemBus.h"
+        ],
+        "Source": [
+            "Source/MyGemModule.cpp",
+            "Source/MyGemSystemComponent.cpp",
+            "Source/MyGemSystemComponent.h"
+        ]
+    }
+}
