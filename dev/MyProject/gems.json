@@ -193,6 +193,12 @@
             "_comment": "LyShineExamples"
         },
         {
+            "Path": "Gems/Multiplayer",
+            "Uuid": "d3ed407a19bb4c0d92b7c4872313d600",
+            "Version": "1.0.0",
+            "_comment": "Multiplayer"
+        },
+        {
             "Path": "Gems/PrimitiveAssets",
             "Uuid": "ed07631f95fb4be1bd10cd37298ec697",
             "Version": "1.0.0",
