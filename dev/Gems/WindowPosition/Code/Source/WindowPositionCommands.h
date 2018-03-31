@@ -1,5 +1,4 @@
 #pragma once
-
 struct IConsoleCmdArgs;
 
 namespace WindowPosition

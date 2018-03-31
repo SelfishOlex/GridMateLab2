@@ -50,6 +50,12 @@
             "_comment": "LegacyGameInterface"
         },
         {
+            "Path": "Gems/WindowPosition",
+            "Uuid": "34891f182f464c4390e15d54b6e08636",
+            "Version": "0.1.0",
+            "_comment": "WindowPosition"
+        },
+        {
             "Path": "Gems/CryLegacy",
             "Uuid": "352fef7706634c92814c587e84d7165a",
             "Version": "0.1.0",
@@ -131,6 +137,12 @@
             "Uuid": "7c2578f634df4345aca98d671e39b8ab",
             "Version": "0.1.0",
             "_comment": "SceneProcessing"
+        },
+        {
+            "Path": "Gems/MultiplayerCloseAllNetworkPeers",
+            "Uuid": "822389b771a4439e8edda73c4c27b953",
+            "Version": "0.1.0",
+            "_comment": "MultiplayerCloseAllNetworkPeers"
         },
         {
             "Path": "Gems/StartingPointCamera",
