@@ -1,8 +1,16 @@
-function LyBuildPackage () {
-    Remove-Item .\gridmateplayers_pc_paks\ -Recurse -Force
-    .\BuildGridMatePlayers_Paks_PC.bat
+function LyReleasePackage () {
+    .\lmbr_waf.bat build_win_x64_vs2015_profile -p all
     .\lmbr_waf.bat build_win_x64_vs2015_release -p game_and_engine
-    Copy-Item .\Bin64vc140.Release\ .\gridmateplayers_pc_paks\ -Recurse -Force -Verbose
+
+    if (Test-Path -Path .\myproject_pc_paks\) {
+        Remove-Item .\myproject_pc_paks\ -Recurse -Force
+    }
+
+    .\BuildMyProject_Paks_PC.bat
+    Copy-Item .\Bin64vc140.Release\ `
+        -Destination .\myproject_pc_paks\ -Recurse -Force -Verbose
     .\BuildShaderPak_DX11.bat
-    Copy-Item .\Build\pc\GridMatePlayers\*.pak .\gridmateplayers_pc_paks\gridmateplayers\ -Force -Verbose
+    Copy-Item .\Build\pc\MyProject\*.pak `
+        -Destination .\myproject_pc_paks\myproject\ `
+        -Force -Verbose
 }
