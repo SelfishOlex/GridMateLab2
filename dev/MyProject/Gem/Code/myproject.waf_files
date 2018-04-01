@@ -1,0 +1,24 @@
+{
+    "none": {
+        "Source": [
+            "Source/MyProject_precompiled.cpp",
+            "Source/MyProject_precompiled.h"
+        ]
+    },
+    "auto": {
+        "Include": [
+            "Include/MyProject/MyProjectBus.h"
+        ],
+        "Source": [
+            "Source/MyProjectModule.cpp",
+            "Source/MyComponent.cpp",
+            "Source/MyComponent.h",
+            "Source/MySpawnerComponent.cpp",
+            "Source/MySpawnerComponent.h",
+            "Source/OscillatorComponent.cpp",
+            "Source/OscillatorComponent.h",
+            "Source/MyProjectSystemComponent.cpp",
+            "Source/MyProjectSystemComponent.h"
+        ]
+    }
+}
