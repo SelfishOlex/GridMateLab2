@@ -2,11 +2,10 @@
 #include <platform_impl.h>
 #include <AzCore/Memory/SystemAllocator.h>
 #include <IGem.h>
-
-#include "MyProjectSystemComponent.h"
+#include "StartingMapSystemComponent.h"
 #include "MyComponent.h"
 #include "MySpawnerComponent.h"
-#include <OscillatorComponent.h>
+#include "OscillatorComponent.h"
 
 namespace MyProject
 {
@@ -26,7 +25,7 @@ namespace MyProject
             // Push results of [MyComponent]::CreateDescriptor()
             // into m_descriptors here.
             m_descriptors.insert(m_descriptors.end(), {
-                MyProjectSystemComponent::CreateDescriptor(),
+                StartingMapSystemComponent::CreateDescriptor(),
                 MyComponent::CreateDescriptor(),
                 OscillatorComponent::CreateDescriptor(),
                 MySpawnerComponent::CreateDescriptor(),
@@ -40,7 +39,7 @@ namespace MyProject
             GetRequiredSystemComponents() const override
         {
             return AZ::ComponentTypeList{
-                azrtti_typeid<MyProjectSystemComponent>(),
+                azrtti_typeid<StartingMapSystemComponent>(),
             };
         }
     };
