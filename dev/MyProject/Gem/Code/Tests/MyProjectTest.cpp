@@ -66,6 +66,11 @@ protected:
         m_od.reset(OscillatorComponent::CreateDescriptor());
         m_od->Reflect(m_sc.get());
 
+        CreateEntity();
+    }
+
+    void CreateEntity()
+    {
         // create a test entity
         e = AZStd::make_unique<Entity>();
         // OscillatorComponent is the component we are testing
