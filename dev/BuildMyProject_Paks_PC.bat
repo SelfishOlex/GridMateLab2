@@ -17,12 +17,12 @@ IF ERRORLEVEL 1 (
 ECHO Detected binary folder at %MYBATCHFILEDIRECTORY%%BINFOLDER%
 
 echo ----- Processing Assets Using Asset Processor Batch ----
-.\%BINFOLDER%\AssetProcessorBatch.exe /gamefolder=GridMatePlayers /platforms=pc
+.\%BINFOLDER%\AssetProcessorBatch.exe /gamefolder=MyProject /platforms=pc
 IF ERRORLEVEL 1 GOTO AssetProcessingFailed
 
 echo ----- Creating Packages ----
 rem lowercase is intentional, since cache folders are lowercase on some platforms
-.\%BINFOLDER%\rc\rc.exe /job=%BINFOLDER%\rc\RCJob_Generic_MakePaks.xml /p=pc /game=gridmateplayers
+.\%BINFOLDER%\rc\rc.exe /job=%BINFOLDER%\rc\RCJob_Generic_MakePaks.xml /p=pc /game=myproject
 IF ERRORLEVEL 1 GOTO RCFailed
 
 echo ----- Done -----
