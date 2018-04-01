@@ -146,3 +146,7 @@ dev/MyProject/Levels/gamelobby/_savebackup/
 dev/MyProject/Levels/Simple/_savebackup/
 dev/MyProject/.vscode/
 dev/myproject_pc_paks/
+dev/Bin64vc140.Debug.Test/
+dev/Bin64vc140.Test/
+dev/Tools/LmbrSetup/Win.vc140.Debug.Test/
+dev/Tools/LmbrSetup/Win.vc140.Profile.Test/
