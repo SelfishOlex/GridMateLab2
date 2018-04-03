@@ -24,21 +24,22 @@ public:
     AZ_COMPONENT(MockTransformComponent,
         "{7E8087BD-46DA-4708-ADB0-08D7812CA49F}");
 
+    // Just a mock object, no reflection necessary
     static void Reflect(ReflectContext*) {}
-
-    // OscillatorComponent will be calling these methods
-    MOCK_METHOD1(SetWorldTranslation, void (const AZ::Vector3&));
-    MOCK_METHOD0(GetWorldTranslation, AZ::Vector3 ());
 
     // Mocking out pure virtual methods
     void Activate() override
     {
-        BusConnect(GetEntityId());
+        AZ::TransformBus::Handler::BusConnect(GetEntityId());
     }
     void Deactivate() override
     {
-        BusDisconnect();
+        AZ::TransformBus::Handler::BusDisconnect();
     }
+
+    // OscillatorComponent will be calling these methods
+    MOCK_METHOD1(SetWorldTranslation, void (const AZ::Vector3&));
+    MOCK_METHOD0(GetWorldTranslation, AZ::Vector3 ());
 
     MOCK_METHOD0(IsStaticTransform, bool ());
     MOCK_METHOD0(IsPositionInterpolated, bool ());
