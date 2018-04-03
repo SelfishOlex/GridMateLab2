@@ -46,8 +46,7 @@ public:
     MOCK_METHOD0(GetWorldTM, const Transform& ());
 };
 
-class OscillatorTest
-    //: public ::testing::Test
+class OscillatorMockTest
     : public ::UnitTest::AllocatorsFixture
 {
     AZStd::unique_ptr<AZ::SerializeContext> m_sc;
@@ -88,7 +87,7 @@ protected:
     MockTransformComponent* mock = nullptr;
 };
 
-TEST_F(OscillatorTest, Calls_SetWorldTranslation)
+TEST_F(OscillatorMockTest, Calls_SetWorldTranslation)
 {
     // setup a return value for GetWorldTranslation()
     ON_CALL(*mock, GetWorldTranslation()).WillByDefault(
@@ -100,5 +99,3 @@ TEST_F(OscillatorTest, Calls_SetWorldTranslation)
     TickBus::Broadcast(&TickBus::Events::OnTick, 0.1f,
             ScriptTimePoint());
 }
-
-AZ_UNIT_TEST_HOOK();
