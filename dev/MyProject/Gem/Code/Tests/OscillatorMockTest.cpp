@@ -39,6 +39,7 @@ public:
     {
         BusDisconnect();
     }
+
     MOCK_METHOD0(IsStaticTransform, bool ());
     MOCK_METHOD0(IsPositionInterpolated, bool ());
     MOCK_METHOD0(IsRotationInterpolated, bool ());
@@ -64,31 +65,30 @@ protected:
         m_md->Reflect(m_sc.get());
         m_od.reset(OscillatorComponent::CreateDescriptor());
         m_od->Reflect(m_sc.get());
-
-        CreateEntity();
     }
 
-    void CreateEntity()
+    // helper method
+    void PopulateEntity(Entity& e)
     {
-        // create a test entity
-        e = AZStd::make_unique<Entity>();
         // OscillatorComponent is the component we are testing
-        e->CreateComponent<OscillatorComponent>();
+        e.CreateComponent<OscillatorComponent>();
         // We can mock out Transform and test the interaction
         mock = new NiceMock<MockTransformComponent>();
-        e->AddComponent(mock);
+        e.AddComponent(mock);
 
         // Bring the entity online
-        e->Init();
-        e->Activate();
+        e.Init();
+        e.Activate();
     }
 
-    unique_ptr<Entity> e;
     MockTransformComponent* mock = nullptr;
 };
 
 TEST_F(OscillatorMockTest, Calls_SetWorldTranslation)
 {
+    Entity e;
+    PopulateEntity(e);
+
     // setup a return value for GetWorldTranslation()
     ON_CALL(*mock, GetWorldTranslation()).WillByDefault(
         Return(AZ::Vector3::CreateZero()));

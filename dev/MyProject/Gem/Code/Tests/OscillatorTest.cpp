@@ -31,41 +31,44 @@ protected:
         m_td->Reflect(m_sc.get());
         m_od.reset(OscillatorComponent::CreateDescriptor());
         m_od->Reflect(m_sc.get());
-
-        CreateEntity();
     }
 
-    void CreateEntity()
+    // helper method
+    void PopulateEntity(Entity& e)
     {
-        // create a test entity
-        e = AZStd::make_unique<Entity>();
         // OscillatorComponent is the component we are testing
-        e->CreateComponent<OscillatorComponent>();
+        e.CreateComponent<OscillatorComponent>();
         // We can mock out Transform and test the interaction
-        e->CreateComponent<AzFramework::TransformComponent>();
+        e.CreateComponent<AzFramework::TransformComponent>();
 
         // Bring the entity online
-        e->Init();
-        e->Activate();
+        e.Init();
+        e.Activate();
     }
-
-    unique_ptr<Entity> e;
 };
 
 TEST_F(OscillatorTest, EntityMovingUp)
 {
-    TransformBus::Event(e->GetId(),
+    Entity e;
+    PopulateEntity(e);
+
+    // Move entity to (0,0,0)
+    TransformBus::Event(e.GetId(),
         &TransformBus::Events::SetWorldTranslation,
         Vector3::CreateZero());
 
+    // tick once
     TickBus::Broadcast(&TickBus::Events::OnTick, 0.1f,
             ScriptTimePoint());
 
+    // Get entity's position
     Vector3 change;
-    TransformBus::EventResult(change, e->GetId(),
+    TransformBus::EventResult(change, e.GetId(),
         &TransformBus::Events::GetWorldTranslation);
 
+    // check that it moved up, by any amount
     ASSERT_TRUE(change.GetZ() > 0);
 }
 
+// Include this only ONCE per module
 AZ_UNIT_TEST_HOOK();
