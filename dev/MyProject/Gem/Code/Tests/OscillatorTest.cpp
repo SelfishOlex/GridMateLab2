@@ -38,7 +38,7 @@ protected:
     {
         // OscillatorComponent is the component we are testing
         e.CreateComponent<OscillatorComponent>();
-        // We can mock out Transform and test the interaction
+        // And how it interacts with
         e.CreateComponent<AzFramework::TransformComponent>();
 
         // Bring the entity online
