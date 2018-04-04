@@ -41,6 +41,7 @@ public:
     MOCK_METHOD1(SetWorldTranslation, void (const AZ::Vector3&));
     MOCK_METHOD0(GetWorldTranslation, AZ::Vector3 ());
 
+    // Unused methods but they are pure virtual in TransformBus
     MOCK_METHOD0(IsStaticTransform, bool ());
     MOCK_METHOD0(IsPositionInterpolated, bool ());
     MOCK_METHOD0(IsRotationInterpolated, bool ());
