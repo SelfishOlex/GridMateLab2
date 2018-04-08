@@ -9,7 +9,7 @@ void MyComponent::Reflect(AZ::ReflectContext* reflection)
     auto sc = azrtti_cast<AZ::SerializeContext*>(reflection);
     if (!sc) return;
 
-    sc->Class<MyComponent>()
+    sc->Class<MyComponent, Component>()
         ->Version(1);
 
     AZ::EditContext* ec = sc->GetEditContext();
@@ -19,6 +19,6 @@ void MyComponent::Reflect(AZ::ReflectContext* reflection)
     // reflection of this component for Lumberyard Editor
     ec->Class<MyComponent>("My Component", "[my description]")
       ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
-        ->Attribute(AppearsInAddComponentMenu, AZ_CRC("Game"))
+        ->Attribute(AppearsInAddComponentMenu, AZ_CRC("Game", 0x232b318c))
         ->Attribute(Category, "My Project");
 }

@@ -56,7 +56,7 @@ void OscillatorComponent::Reflect(AZ::ReflectContext* reflection)
 {
     auto sc = azrtti_cast<AZ::SerializeContext*>(reflection);
     if (!sc) return;
-    sc->Class<OscillatorComponent>()
+    sc->Class<OscillatorComponent, Component>()
         // serialize m_period
         ->Field("Period", &OscillatorComponent::m_period)
         // serialize m_amplitude
@@ -71,7 +71,7 @@ void OscillatorComponent::Reflect(AZ::ReflectContext* reflection)
     ec->Class<OscillatorComponent>("Oscillator Component",
             "[oscillates the entity]")
       ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
-        ->Attribute(AppearsInAddComponentMenu, AZ_CRC("Game"))
+        ->Attribute(AppearsInAddComponentMenu, AZ_CRC("Game", 0x232b318c))
         ->Attribute(Category, "My Project")
         // expose the setting to the editor
         ->DataElement(Default, &OscillatorComponent::m_period,
@@ -86,5 +86,5 @@ void OscillatorComponent::GetRequiredServices(
     AZ::ComponentDescriptor::DependencyArrayType& req)
 {
     // OscillatorComponent requires TransformComponent
-    req.push_back(AZ_CRC("TransformService"));
+    req.push_back(AZ_CRC("TransformService", 0x8ee22c50));
 }

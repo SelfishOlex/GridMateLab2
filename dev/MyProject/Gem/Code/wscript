@@ -31,12 +31,13 @@ def build(bld):
 
         darwin_file_list        = ['myproject_mac.waf_files'],
 
-       
-       
+
+
 
         # Testing
         test_all_file_list      = ['myproject_tests.waf_files'],
 
         # Add additional custom build options here
+        win_features        = ['crcfix'],
 
     )

@@ -150,3 +150,4 @@ dev/Bin64vc140.Debug.Test/
 dev/Bin64vc140.Test/
 dev/Tools/LmbrSetup/Win.vc140.Debug.Test/
 dev/Tools/LmbrSetup/Win.vc140.Profile.Test/
+dev/.vscode/

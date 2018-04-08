@@ -30,7 +30,7 @@ void StartingMapSystemComponent::Reflect(
         "[Loads the starting map]")
         ->ClassElement(Edit::ClassElements::EditorData, "")
         // mark it as a system component
-        ->Attribute(AppearsInAddComponentMenu, AZ_CRC("System"))
+        ->Attribute(AppearsInAddComponentMenu, AZ_CRC("System", 0xc94d118b))
         ->DataElement(Default, &Self::m_clientMap,
             "Map to load on a client", "")
         ->DataElement(Default, &Self::m_serverMap,
