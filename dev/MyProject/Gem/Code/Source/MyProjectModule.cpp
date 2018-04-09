@@ -6,6 +6,7 @@
 #include "MyComponent.h"
 #include "MySpawnerComponent.h"
 #include "OscillatorComponent.h"
+#include <TransformSyncComponent.h>
 
 namespace MyProject
 {
@@ -20,7 +21,6 @@ namespace MyProject
             AZ::SystemAllocator, 0);
 
         MyProjectModule()
-            : CryHooksModule()
         {
             // Push results of [MyComponent]::CreateDescriptor()
             // into m_descriptors here.
@@ -29,6 +29,7 @@ namespace MyProject
                 MyComponent::CreateDescriptor(),
                 OscillatorComponent::CreateDescriptor(),
                 MySpawnerComponent::CreateDescriptor(),
+                TransformSyncComponent::CreateDescriptor(),
             });
         }
 
