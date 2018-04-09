@@ -45,5 +45,6 @@ namespace MultiplayerCharacter
         bool m_isStrafingRight = false;
 
         float m_speed = 100.f;
+        float m_turnSpeed = 500.f;
     };
 }

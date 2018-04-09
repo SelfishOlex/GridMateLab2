@@ -33,12 +33,18 @@ namespace MultiplayerCharacter
 
         void CheckAndUpdateForward(bool pressed);
         void CheckAndUpdateBackward(bool pressed);
-        void CheckAndUpdateStrafeLeft(bool pressed);
-        void CheckAndUpdateStrafeRight(bool pressed);
+        void CheckAndUpdateStrafeLeft(bool press);
+        void CheckAndUpdateStrafeRight(bool press);
 
         bool m_isForwardPressed = false;
         bool m_isBackwardPressed = false;
         bool m_isStrafingLeftPressed = false;
         bool m_isStrafingRightPressed = false;
+
+        bool OnMouseEvent(
+            const AzFramework::InputChannel& inputChannel);
+
+        AZ::Vector2 m_mouseChangeAggregate = AZ::Vector2::CreateZero();
+        AZ::Vector2 m_lastMousePosition = AZ::Vector2::CreateZero();
     };
 }

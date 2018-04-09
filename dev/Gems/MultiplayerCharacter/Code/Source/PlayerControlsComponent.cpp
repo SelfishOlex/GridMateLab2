@@ -24,20 +24,29 @@ void PlayerControlsComponent::Reflect(AZ::ReflectContext* ref)
     auto sc = azrtti_cast<AZ::SerializeContext*>(ref);
     if (!sc) return;
 
+    using Self = PlayerControlsComponent;
     sc->Class<PlayerControlsComponent, Component>()
+        ->Field("Movement Speed", &Self::m_speed)
+        ->Field("Turning Speed", &Self::m_turnSpeed)
         ->Version(1);
 
     AZ::EditContext* ec = sc->GetEditContext();
     if (!ec) return;
 
     using namespace AZ::Edit::Attributes;
+    using namespace AZ::Edit::UIHandlers;
     // reflection of this component for Lumberyard Editor
     ec->Class<PlayerControlsComponent>("Player Controls",
         "[Implements various player controls]")
       ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
         ->Attribute(AppearsInAddComponentMenu,
             AZ_CRC("Game", 0x232b318c))
-        ->Attribute(Category, "Multiplayer Character");
+        ->Attribute(Category, "Multiplayer Character")
+        ->DataElement(Default, &Self::m_speed,
+            "Movement Speed", "")
+        ->DataElement(Default, &Self::m_turnSpeed,
+            "Turning Speed", "")
+    ;
 }
 
 void PlayerControlsComponent::GetRequiredServices(
@@ -68,10 +77,19 @@ void PlayerControlsComponent::StrafeRight(ActionState state)
 
 void PlayerControlsComponent::Turn(Degree angle)
 {
+    AZ::EntityId parent;
+    AZ::TransformBus::EventResult(parent, GetEntityId(),
+        &AZ::TransformBus::Events::GetParentId);
+
+    const auto q = AZ::Quaternion::CreateRotationZ(
+        angle.GetDegrees() * 3.141f / 180.f * m_turnSpeed);
+    AZ::TransformBus::Event(parent,
+        &AZ::TransformBus::Events::SetLocalRotationQuaternion, q);
 }
 
 void PlayerControlsComponent::LookUpOrDown(Degree angle)
 {
+    AZ_UNUSED(angle);
 }
 
 void PlayerControlsComponent::OnTick(

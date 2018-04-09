@@ -3,6 +3,7 @@
 #include <AzCore/Serialization/EditContext.h>
 #include <MultiplayerCharacter/PlayerControlsRequestBus.h>
 #include <AzFramework/Input/Devices/Keyboard/InputDeviceKeyboard.h>
+#include <AzFramework/Input/Devices/Mouse/InputDeviceMouse.h>
 
 using namespace AzFramework;
 using namespace MultiplayerCharacter;
@@ -54,6 +55,9 @@ bool InputCaptureComponent::OnInputChannelEventFiltered(
 
     if (deviceId == AzFramework::InputDeviceKeyboard::Id)
         return OnKeyboardEvent(inputChannel);
+
+    if (deviceId == AzFramework::InputDeviceMouse::Id)
+        return OnMouseEvent(inputChannel);
 
     return false; // key not consumed
 }
@@ -137,4 +141,42 @@ void InputCaptureComponent::CheckAndUpdateStrafeRight(bool press)
         press ? ActionState::Started : ActionState::Stopped);
 
     m_isStrafingRightPressed = press;
+}
+
+bool InputCaptureComponent::OnMouseEvent(
+    const InputChannel& inputChannel)
+{
+    const InputChannelId id = inputChannel.GetInputChannelId();
+    if (id == InputDeviceMouse::Button::Left ||
+        id == InputDeviceMouse::Button::Right)
+    {
+    }
+    else if (id == InputDeviceMouse::SystemCursorPosition)
+    {
+        const auto* pos = inputChannel.GetCustomData<
+            InputChannel::PositionData2D>();
+        if (!pos) return false;
+
+        const AZ::Vector2& position = pos->m_normalizedPosition;
+        // range is [0,1]
+        const float x = position.GetX();
+        const float y = position.GetY();
+
+        InputSystemCursorRequestBus::Broadcast(
+            &InputSystemCursorRequestBus::Events::
+                SetSystemCursorPositionNormalized,
+            AZ::Vector2{.5f, .5f});
+
+        const AZ::Vector2 delta = m_lastMousePosition - position;
+        m_lastMousePosition = position;
+        m_mouseChangeAggregate += delta;
+
+        m_lastMousePosition = AZ::Vector2{.5f, .5f};
+
+        const Degree angle(m_mouseChangeAggregate.GetX() * 5.f);
+        PlayerControlsRequestBus::Broadcast(
+            &PlayerControlsRequestBus::Events::Turn, angle);
+    }
+
+    return false;
 }
