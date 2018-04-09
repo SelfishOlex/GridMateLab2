@@ -32,6 +32,9 @@ namespace MultiplayerCharacter
             const AzFramework::InputChannel& inputChannel);
 
         void CheckAndUpdateForward(bool pressed);
+        void CheckAndUpdateBackward(bool pressed);
+        void CheckAndUpdateStrafeLeft(bool pressed);
+        void CheckAndUpdateStrafeRight(bool pressed);
 
         bool m_isForwardPressed = false;
         bool m_isBackwardPressed = false;

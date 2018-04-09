@@ -53,14 +53,17 @@ void PlayerControlsComponent::MoveForward(ActionState state)
 
 void PlayerControlsComponent::MoveBackward(ActionState state)
 {
+    m_isBackward = state == ActionState::Started;
 }
 
 void PlayerControlsComponent::StrafeLeft(ActionState state)
 {
+    m_isStrafingLeft = state == ActionState::Started;
 }
 
 void PlayerControlsComponent::StrafeRight(ActionState state)
 {
+    m_isStrafingRight = state == ActionState::Started;
 }
 
 void PlayerControlsComponent::Turn(Degree angle)
@@ -74,18 +77,27 @@ void PlayerControlsComponent::LookUpOrDown(Degree angle)
 void PlayerControlsComponent::OnTick(
     float dt, AZ::ScriptTimePoint)
 {
-    AZ::Vector3 direction = AZ::Vector3::CreateZero();
-
-    if (m_isForward)
-    {
-        direction += AZ::Vector3::CreateAxisX(1.f);
-    }
-
-    direction *= m_speed * dt;
-
     AZ::EntityId parent;
     AZ::TransformBus::EventResult(parent, GetEntityId(),
         &AZ::TransformBus::Events::GetParentId);
+
+    AZ::Quaternion q;
+    AZ::TransformBus::EventResult(q, parent,
+        &AZ::TransformBus::Events::GetWorldRotationQuaternion);
+
+    AZ::Vector3 direction = AZ::Vector3::CreateZero();
+
+    if (m_isForward)
+        direction += AZ::Vector3::CreateAxisX(1.f);
+    if (m_isBackward)
+        direction -= AZ::Vector3::CreateAxisX(1.f);
+    if (m_isStrafingLeft)
+        direction += AZ::Vector3::CreateAxisY(1.f);
+    if (m_isStrafingRight)
+        direction -= AZ::Vector3::CreateAxisY(1.f);
+
+    direction *= m_speed * dt;
+    direction = q * direction;
 
     using namespace LmbrCentral;
     CryCharacterPhysicsRequestBus::Event(parent,

@@ -70,6 +70,28 @@ bool InputCaptureComponent::OnKeyboardEvent(
         CheckAndUpdateForward(pressed);
         return true; // key consumed
     }
+
+    if (inputType == InputDeviceKeyboard::Key::AlphanumericS)
+    {
+        const bool pressed = !!inputChannel.GetValue();
+        CheckAndUpdateBackward(pressed);
+        return true; // key consumed
+    }
+
+    if (inputType == InputDeviceKeyboard::Key::AlphanumericA)
+    {
+        const bool pressed = !!inputChannel.GetValue();
+        CheckAndUpdateStrafeLeft(pressed);
+        return true; // key consumed
+    }
+
+    if (inputType == InputDeviceKeyboard::Key::AlphanumericD)
+    {
+        const bool pressed = !!inputChannel.GetValue();
+        CheckAndUpdateStrafeRight(pressed);
+        return true; // key consumed
+    }
+
     return false; // key not consumed
 }
 
@@ -82,4 +104,37 @@ void InputCaptureComponent::CheckAndUpdateForward(bool pressed)
         pressed ? ActionState::Started : ActionState::Stopped);
 
     m_isForwardPressed = pressed;
+}
+
+void InputCaptureComponent::CheckAndUpdateBackward(bool pressed)
+{
+    if (m_isBackwardPressed == pressed) return;
+
+    PlayerControlsRequestBus::Broadcast(
+        &PlayerControlsRequestBus::Events::MoveBackward,
+        pressed ? ActionState::Started : ActionState::Stopped);
+
+    m_isBackwardPressed = pressed;
+}
+
+void InputCaptureComponent::CheckAndUpdateStrafeLeft(bool press)
+{
+    if (m_isStrafingLeftPressed == press) return;
+
+    PlayerControlsRequestBus::Broadcast(
+        &PlayerControlsRequestBus::Events::StrafeLeft,
+        press ? ActionState::Started : ActionState::Stopped);
+
+    m_isStrafingLeftPressed = press;
+}
+
+void InputCaptureComponent::CheckAndUpdateStrafeRight(bool press)
+{
+    if (m_isStrafingRightPressed == press) return;
+
+    PlayerControlsRequestBus::Broadcast(
+        &PlayerControlsRequestBus::Events::StrafeRight,
+        press ? ActionState::Started : ActionState::Stopped);
+
+    m_isStrafingRightPressed = press;
 }
