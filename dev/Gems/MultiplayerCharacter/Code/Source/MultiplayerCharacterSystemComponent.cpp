@@ -1,0 +1,63 @@
+
+#include "MultiplayerCharacter_precompiled.h"
+
+#include <AzCore/Serialization/SerializeContext.h>
+#include <AzCore/Serialization/EditContext.h>
+
+#include "MultiplayerCharacterSystemComponent.h"
+
+namespace MultiplayerCharacter
+{
+    void MultiplayerCharacterSystemComponent::Reflect(AZ::ReflectContext* context)
+    {
+        if (AZ::SerializeContext* serialize = azrtti_cast<AZ::SerializeContext*>(context))
+        {
+            serialize->Class<MultiplayerCharacterSystemComponent, AZ::Component>()
+                ->Version(0)
+                ->SerializerForEmptyClass();
+
+            if (AZ::EditContext* ec = serialize->GetEditContext())
+            {
+                ec->Class<MultiplayerCharacterSystemComponent>("MultiplayerCharacter", "[Description of functionality provided by this System Component]")
+                    ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
+                        ->Attribute(AZ::Edit::Attributes::AppearsInAddComponentMenu, AZ_CRC("System"))
+                        ->Attribute(AZ::Edit::Attributes::AutoExpand, true)
+                    ;
+            }
+        }
+    }
+
+    void MultiplayerCharacterSystemComponent::GetProvidedServices(AZ::ComponentDescriptor::DependencyArrayType& provided)
+    {
+        provided.push_back(AZ_CRC("MultiplayerCharacterService"));
+    }
+
+    void MultiplayerCharacterSystemComponent::GetIncompatibleServices(AZ::ComponentDescriptor::DependencyArrayType& incompatible)
+    {
+        incompatible.push_back(AZ_CRC("MultiplayerCharacterService"));
+    }
+
+    void MultiplayerCharacterSystemComponent::GetRequiredServices(AZ::ComponentDescriptor::DependencyArrayType& required)
+    {
+        (void)required;
+    }
+
+    void MultiplayerCharacterSystemComponent::GetDependentServices(AZ::ComponentDescriptor::DependencyArrayType& dependent)
+    {
+        (void)dependent;
+    }
+
+    void MultiplayerCharacterSystemComponent::Init()
+    {
+    }
+
+    void MultiplayerCharacterSystemComponent::Activate()
+    {
+        MultiplayerCharacterRequestBus::Handler::BusConnect();
+    }
+
+    void MultiplayerCharacterSystemComponent::Deactivate()
+    {
+        MultiplayerCharacterRequestBus::Handler::BusDisconnect();
+    }
+}

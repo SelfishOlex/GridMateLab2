@@ -103,6 +103,12 @@
             "_comment": "UiBasics"
         },
         {
+            "Path": "Gems/MultiplayerCharacter",
+            "Uuid": "6f05cbbd30e0470784094f854745edf1",
+            "Version": "0.1.0",
+            "_comment": "MultiplayerCharacter"
+        },
+        {
             "Path": "Gems/CloudGemFramework/v1",
             "Uuid": "6fc787a982184217a5a553ca24676cfa",
             "Version": "1.1.3",
