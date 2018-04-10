@@ -1,4 +1,4 @@
-#include "MyProject_precompiled.h"
+#include "MultiplayerCharacter_precompiled.h"
 #include "TransformSyncComponent.h"
 #include <AzCore/Serialization/EditContext.h>
 // For GridMate::CreateReplicaChunk
@@ -12,7 +12,7 @@
 
 using namespace AZ;
 using namespace GridMate;
-using namespace MyProject;
+using namespace MultiplayerCharacter;
 
 class TransformSyncComponent::Chunk
     : public GridMate::ReplicaChunk
@@ -115,7 +115,7 @@ void TransformSyncComponent::Reflect(AZ::ReflectContext* reflect)
       ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
         ->Attribute(AppearsInAddComponentMenu,
             AZ_CRC("Game", 0x232b318c))
-        ->Attribute(Category, "My Project");
+        ->Attribute(Category, "Multiplayer Character");
 }
 
 GridMate::ReplicaChunkPtr

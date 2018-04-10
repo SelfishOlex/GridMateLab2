@@ -6,7 +6,6 @@
 #include "MyComponent.h"
 #include "MySpawnerComponent.h"
 #include "OscillatorComponent.h"
-#include <TransformSyncComponent.h>
 
 namespace MyProject
 {
@@ -29,7 +28,6 @@ namespace MyProject
                 MyComponent::CreateDescriptor(),
                 OscillatorComponent::CreateDescriptor(),
                 MySpawnerComponent::CreateDescriptor(),
-                TransformSyncComponent::CreateDescriptor(),
             });
         }
 

@@ -16,6 +16,8 @@
             "Source/PlayerControlsComponent.h",
             "Source/InputCaptureComponent.cpp",
             "Source/InputCaptureComponent.h",
+            "Source/TransformSyncComponent.cpp",
+            "Source/TransformSyncComponent.h",
             "Source/MultiplayerCharacterSystemComponent.cpp",
             "Source/MultiplayerCharacterSystemComponent.h"
         ]

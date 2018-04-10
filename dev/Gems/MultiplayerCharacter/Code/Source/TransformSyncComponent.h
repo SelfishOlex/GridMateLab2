@@ -3,7 +3,7 @@
 #include <AzCore/Component/TransformBus.h>
 #include <AzFramework/Network/NetBindable.h>
 
-namespace MyProject
+namespace MultiplayerCharacter
 {
     // An example of syncing TransformComponent
     class TransformSyncComponent

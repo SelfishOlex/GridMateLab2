@@ -13,8 +13,6 @@
             "Source/MyProjectModule.cpp",
             "Source/MyComponent.cpp",
             "Source/MyComponent.h",
-            "Source/TransformSyncComponent.cpp",
-            "Source/TransformSyncComponent.h",
             "Source/MySpawnerComponent.cpp",
             "Source/MySpawnerComponent.h",
             "Source/OscillatorComponent.cpp",
