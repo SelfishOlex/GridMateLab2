@@ -5,6 +5,7 @@
 #include <IGem.h>
 #include <PlayerControlsComponent.h>
 #include <InputCaptureComponent.h>
+#include <CameraControlsComponent.h>
 #include <TransformSyncComponent.h>
 
 namespace MultiplayerCharacter
@@ -26,6 +27,7 @@ namespace MultiplayerCharacter
             m_descriptors.insert(m_descriptors.end(), {
                 MultiplayerCharacterSystemComponent::CreateDescriptor(),
                 PlayerControlsComponent::CreateDescriptor(),
+                CameraControlsComponent::CreateDescriptor(),
                 InputCaptureComponent::CreateDescriptor(),
                 TransformSyncComponent::CreateDescriptor(),
             });

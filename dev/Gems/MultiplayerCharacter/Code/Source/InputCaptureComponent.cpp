@@ -42,12 +42,6 @@ void InputCaptureComponent::Reflect(AZ::ReflectContext* ref)
         ->Attribute(Category, "Multiplayer Character");
 }
 
-void InputCaptureComponent::GetProvidedServices(
-    AZ::ComponentDescriptor::DependencyArrayType& prov)
-{
-    prov.push_back(AZ_CRC("InputCaptureService"));
-}
-
 bool InputCaptureComponent::OnInputChannelEventFiltered(
     const AzFramework::InputChannel& inputChannel)
 {
@@ -156,7 +150,7 @@ bool InputCaptureComponent::OnMouseEvent(
 
     if (id == InputDeviceMouse::SystemCursorPosition)
     {
-        const auto* pos = inputChannel.
+        const InputChannel::PositionData2D* pos = inputChannel.
             GetCustomData<InputChannel::PositionData2D>();
         if (!pos) return false;
 

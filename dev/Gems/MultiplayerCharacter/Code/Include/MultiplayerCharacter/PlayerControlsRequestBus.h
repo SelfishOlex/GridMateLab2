@@ -24,12 +24,12 @@ namespace MultiplayerCharacter
         using BusIdType = AZ::EntityId;
 
         // Put your public methods here
-        virtual void MoveForward(ActionState state) = 0;
-        virtual void MoveBackward(ActionState state) = 0;
-        virtual void StrafeLeft(ActionState state) = 0;
-        virtual void StrafeRight(ActionState state) = 0;
-        virtual void Turn(float amount) = 0;
-        virtual void LookUpOrDown(float amount) = 0;
+        virtual void MoveForward(ActionState state) {}
+        virtual void MoveBackward(ActionState state) {}
+        virtual void StrafeLeft(ActionState state) {}
+        virtual void StrafeRight(ActionState state) {}
+        virtual void Turn(float amount) {}
+        virtual void LookUpOrDown(float amount) {};
     };
 
     using PlayerControlsRequestBus =

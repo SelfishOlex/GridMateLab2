@@ -22,10 +22,6 @@ namespace MultiplayerCharacter
         // Provide runtime reflection, if any
         static void Reflect(AZ::ReflectContext* ref);
 
-        // what other components does this component require?
-        static void GetRequiredServices(
-            AZ::ComponentDescriptor::DependencyArrayType& req);
-
     protected:
         // PlayerControlsRequestBus interface
         void MoveForward(ActionState state) override;
@@ -33,7 +29,6 @@ namespace MultiplayerCharacter
         void StrafeLeft(ActionState state) override;
         void StrafeRight(ActionState state) override;
         void Turn(float amount) override;
-        void LookUpOrDown(float amount) override;
 
         // TickBus interface
         void OnTick(float dt, AZ::ScriptTimePoint) override;
@@ -46,9 +41,7 @@ namespace MultiplayerCharacter
 
         float m_speed = 100.f;
         float m_turnSpeed = 500.f;
-        float m_lookUpSpeed = .1f;
 
-        float m_rotY = 0.f;
         float m_rotZ = 0.f;
         void SetRotation();
     };

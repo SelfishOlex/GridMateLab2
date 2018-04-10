@@ -30,7 +30,6 @@ void PlayerControlsComponent::Reflect(AZ::ReflectContext* ref)
     sc->Class<PlayerControlsComponent, Component>()
         ->Field("Movement Speed", &Self::m_speed)
         ->Field("Turning Speed", &Self::m_turnSpeed)
-        ->Field("LookUp Speed", &Self::m_lookUpSpeed)
         ->Version(1);
 
     AZ::EditContext* ec = sc->GetEditContext();
@@ -48,15 +47,7 @@ void PlayerControlsComponent::Reflect(AZ::ReflectContext* ref)
         ->DataElement(Default, &Self::m_speed,
             "Movement Speed", "")
         ->DataElement(Default, &Self::m_turnSpeed,
-            "Turning Speed", "")
-        ->DataElement(Default, &Self::m_lookUpSpeed,
-            "LookUp Speed", "");
-}
-
-void PlayerControlsComponent::GetRequiredServices(
-    AZ::ComponentDescriptor::DependencyArrayType& req)
-{
-    req.push_back(AZ_CRC("InputCaptureService"));
+            "Turning Speed", "");
 }
 
 void PlayerControlsComponent::MoveForward(ActionState state)
@@ -85,12 +76,6 @@ void PlayerControlsComponent::Turn(float amount)
     SetRotation();
 }
 
-void PlayerControlsComponent::LookUpOrDown(float amount)
-{
-    m_rotY = amount * m_lookUpSpeed;
-    SetRotation();
-}
-
 void PlayerControlsComponent::SetRotation()
 {
     AZ::EntityId parent;
@@ -99,11 +84,7 @@ void PlayerControlsComponent::SetRotation()
 
     TransformBus::Event(parent,
         &TransformBus::Events::SetLocalRotationQuaternion,
-        AZ::Quaternion::CreateRotationZ(m_rotZ));
-
-    TransformBus::Event(GetEntityId(),
-        &TransformBus::Events::SetLocalRotationQuaternion,
-        Quaternion::CreateRotationX(m_rotY));
+            Quaternion::CreateRotationZ(m_rotZ));
 }
 
 void PlayerControlsComponent::OnTick(

@@ -20,9 +20,6 @@ namespace MultiplayerCharacter
         // Provide runtime reflection, if any
         static void Reflect(AZ::ReflectContext* ref);
 
-        static void GetProvidedServices(
-            AZ::ComponentDescriptor::DependencyArrayType& prov);
-
     protected:
         bool OnInputChannelEventFiltered(const
             AzFramework::InputChannel& inputChannel) override;
