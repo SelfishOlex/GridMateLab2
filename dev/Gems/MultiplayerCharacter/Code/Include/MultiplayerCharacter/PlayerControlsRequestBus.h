@@ -4,17 +4,6 @@
 
 namespace MultiplayerCharacter
 {
-    // A class representing a unit measurement in degrees
-    class Degree
-    {
-    public:
-        Degree() : m_value(0) {}
-        explicit Degree(float value) : m_value(value) {}
-        float GetDegrees() const { return m_value; }
-    private:
-        float m_value;
-    };
-
     enum class ActionState
     {
         Started,
@@ -39,8 +28,8 @@ namespace MultiplayerCharacter
         virtual void MoveBackward(ActionState state) = 0;
         virtual void StrafeLeft(ActionState state) = 0;
         virtual void StrafeRight(ActionState state) = 0;
-        virtual void Turn(Degree angle) = 0;
-        virtual void LookUpOrDown(Degree angle) = 0;
+        virtual void Turn(float amount) = 0;
+        virtual void LookUpOrDown(float amount) = 0;
     };
 
     using PlayerControlsRequestBus =

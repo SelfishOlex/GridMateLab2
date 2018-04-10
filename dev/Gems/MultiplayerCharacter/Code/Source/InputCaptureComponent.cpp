@@ -5,6 +5,7 @@
 #include <AzFramework/Input/Devices/Keyboard/InputDeviceKeyboard.h>
 #include <AzFramework/Input/Devices/Mouse/InputDeviceMouse.h>
 
+using namespace AZ;
 using namespace AzFramework;
 using namespace MultiplayerCharacter;
 
@@ -150,32 +151,37 @@ bool InputCaptureComponent::OnMouseEvent(
     if (id == InputDeviceMouse::Button::Left ||
         id == InputDeviceMouse::Button::Right)
     {
+        return false;
     }
-    else if (id == InputDeviceMouse::SystemCursorPosition)
+
+    if (id == InputDeviceMouse::SystemCursorPosition)
     {
-        const auto* pos = inputChannel.GetCustomData<
-            InputChannel::PositionData2D>();
+        const auto* pos = inputChannel.
+            GetCustomData<InputChannel::PositionData2D>();
         if (!pos) return false;
 
-        const AZ::Vector2& position = pos->m_normalizedPosition;
         // range is [0,1]
-        const float x = position.GetX();
-        const float y = position.GetY();
+        const AZ::Vector2& position = pos->m_normalizedPosition;
 
-        InputSystemCursorRequestBus::Broadcast(
-            &InputSystemCursorRequestBus::Events::
-                SetSystemCursorPositionNormalized,
-            AZ::Vector2{.5f, .5f});
-
-        const AZ::Vector2 delta = m_lastMousePosition - position;
+        const Vector2 delta = m_lastMousePosition - position;
         m_lastMousePosition = position;
         m_mouseChangeAggregate += delta;
 
-        m_lastMousePosition = AZ::Vector2{.5f, .5f};
+        const Vector2 center = Vector2{.5f, .5f};
+        m_lastMousePosition = center;
+        InputSystemCursorRequestBus::Broadcast(
+            &InputSystemCursorRequestBus::Events::
+                SetSystemCursorPositionNormalized, center);
 
-        const Degree angle(m_mouseChangeAggregate.GetX() * 5.f);
         PlayerControlsRequestBus::Broadcast(
-            &PlayerControlsRequestBus::Events::Turn, angle);
+            &PlayerControlsRequestBus::Events::Turn,
+            m_mouseChangeAggregate.GetX());
+
+        PlayerControlsRequestBus::Broadcast(
+            &PlayerControlsRequestBus::Events::LookUpOrDown,
+            m_mouseChangeAggregate.GetY());
+
+        return true;
     }
 
     return false;

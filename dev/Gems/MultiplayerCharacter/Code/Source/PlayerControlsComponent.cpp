@@ -5,6 +5,7 @@
 #include <AzCore/Math/Vector3.h>
 #include <AzCore/Component/TransformBus.h>
 
+using namespace AZ;
 using namespace MultiplayerCharacter;
 
 void PlayerControlsComponent::Activate()
@@ -24,10 +25,12 @@ void PlayerControlsComponent::Reflect(AZ::ReflectContext* ref)
     auto sc = azrtti_cast<AZ::SerializeContext*>(ref);
     if (!sc) return;
 
+    // to shorten lines
     using Self = PlayerControlsComponent;
     sc->Class<PlayerControlsComponent, Component>()
         ->Field("Movement Speed", &Self::m_speed)
         ->Field("Turning Speed", &Self::m_turnSpeed)
+        ->Field("LookUp Speed", &Self::m_lookUpSpeed)
         ->Version(1);
 
     AZ::EditContext* ec = sc->GetEditContext();
@@ -46,7 +49,8 @@ void PlayerControlsComponent::Reflect(AZ::ReflectContext* ref)
             "Movement Speed", "")
         ->DataElement(Default, &Self::m_turnSpeed,
             "Turning Speed", "")
-    ;
+        ->DataElement(Default, &Self::m_lookUpSpeed,
+            "LookUp Speed", "");
 }
 
 void PlayerControlsComponent::GetRequiredServices(
@@ -75,21 +79,31 @@ void PlayerControlsComponent::StrafeRight(ActionState state)
     m_isStrafingRight = state == ActionState::Started;
 }
 
-void PlayerControlsComponent::Turn(Degree angle)
+void PlayerControlsComponent::Turn(float amount)
+{
+    m_rotZ = amount * m_turnSpeed;
+    SetRotation();
+}
+
+void PlayerControlsComponent::LookUpOrDown(float amount)
+{
+    m_rotY = amount * m_lookUpSpeed;
+    SetRotation();
+}
+
+void PlayerControlsComponent::SetRotation()
 {
     AZ::EntityId parent;
     AZ::TransformBus::EventResult(parent, GetEntityId(),
         &AZ::TransformBus::Events::GetParentId);
 
-    const auto q = AZ::Quaternion::CreateRotationZ(
-        angle.GetDegrees() * 3.141f / 180.f * m_turnSpeed);
-    AZ::TransformBus::Event(parent,
-        &AZ::TransformBus::Events::SetLocalRotationQuaternion, q);
-}
+    TransformBus::Event(parent,
+        &TransformBus::Events::SetLocalRotationQuaternion,
+        AZ::Quaternion::CreateRotationZ(m_rotZ));
 
-void PlayerControlsComponent::LookUpOrDown(Degree angle)
-{
-    AZ_UNUSED(angle);
+    TransformBus::Event(GetEntityId(),
+        &TransformBus::Events::SetLocalRotationQuaternion,
+        Quaternion::CreateRotationX(m_rotY));
 }
 
 void PlayerControlsComponent::OnTick(
@@ -100,19 +114,19 @@ void PlayerControlsComponent::OnTick(
         &AZ::TransformBus::Events::GetParentId);
 
     AZ::Quaternion q;
-    AZ::TransformBus::EventResult(q, parent,
-        &AZ::TransformBus::Events::GetWorldRotationQuaternion);
+    TransformBus::EventResult(q, parent,
+        &TransformBus::Events::GetWorldRotationQuaternion);
 
     AZ::Vector3 direction = AZ::Vector3::CreateZero();
 
     if (m_isForward)
-        direction += AZ::Vector3::CreateAxisX(1.f);
-    if (m_isBackward)
-        direction -= AZ::Vector3::CreateAxisX(1.f);
-    if (m_isStrafingLeft)
         direction += AZ::Vector3::CreateAxisY(1.f);
-    if (m_isStrafingRight)
+    if (m_isBackward)
         direction -= AZ::Vector3::CreateAxisY(1.f);
+    if (m_isStrafingLeft)
+        direction -= AZ::Vector3::CreateAxisX(1.f);
+    if (m_isStrafingRight)
+        direction += AZ::Vector3::CreateAxisX(1.f);
 
     direction *= m_speed * dt;
     direction = q * direction;
