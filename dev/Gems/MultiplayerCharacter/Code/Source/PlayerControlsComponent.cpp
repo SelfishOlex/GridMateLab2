@@ -25,8 +25,7 @@ void PlayerControlsComponent::Reflect(AZ::ReflectContext* ref)
     auto sc = azrtti_cast<AZ::SerializeContext*>(ref);
     if (!sc) return;
 
-    // to shorten lines
-    using Self = PlayerControlsComponent;
+    using Self = PlayerControlsComponent; // to shorten lines
     sc->Class<PlayerControlsComponent, Component>()
         ->Field("Movement Speed", &Self::m_speed)
         ->Field("Turning Speed", &Self::m_turnSpeed)
@@ -78,11 +77,7 @@ void PlayerControlsComponent::Turn(float amount)
 
 void PlayerControlsComponent::SetRotation()
 {
-    AZ::EntityId parent;
-    AZ::TransformBus::EventResult(parent, GetEntityId(),
-        &AZ::TransformBus::Events::GetParentId);
-
-    TransformBus::Event(parent,
+    TransformBus::Event(GetEntityId(),
         &TransformBus::Events::SetLocalRotationQuaternion,
             Quaternion::CreateRotationZ(m_rotZ));
 }
@@ -90,30 +85,29 @@ void PlayerControlsComponent::SetRotation()
 void PlayerControlsComponent::OnTick(
     float dt, AZ::ScriptTimePoint)
 {
-    AZ::EntityId parent;
-    AZ::TransformBus::EventResult(parent, GetEntityId(),
-        &AZ::TransformBus::Events::GetParentId);
-
     AZ::Quaternion q;
-    TransformBus::EventResult(q, parent,
+    TransformBus::EventResult(q, GetEntityId(),
         &TransformBus::Events::GetWorldRotationQuaternion);
 
     AZ::Vector3 direction = AZ::Vector3::CreateZero();
 
+    static const Vector3 yUnit = Vector3::CreateAxisY(1.f);
+    static const Vector3 xUnit = Vector3::CreateAxisX(1.f);
+
     if (m_isForward)
-        direction += AZ::Vector3::CreateAxisY(1.f);
+        direction += yUnit;
     if (m_isBackward)
-        direction -= AZ::Vector3::CreateAxisY(1.f);
+        direction -= yUnit;
     if (m_isStrafingLeft)
-        direction -= AZ::Vector3::CreateAxisX(1.f);
+        direction -= xUnit;
     if (m_isStrafingRight)
-        direction += AZ::Vector3::CreateAxisX(1.f);
+        direction += xUnit;
 
     direction *= m_speed * dt;
     direction = q * direction;
 
     using namespace LmbrCentral;
-    CryCharacterPhysicsRequestBus::Event(parent,
+    CryCharacterPhysicsRequestBus::Event(GetEntityId(),
         &CryCharacterPhysicsRequestBus::Events::RequestVelocity,
         direction, 0);
 }
