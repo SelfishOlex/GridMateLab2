@@ -44,9 +44,9 @@ void PlayerControlsComponent::Reflect(AZ::ReflectContext* ref)
             AZ_CRC("Game", 0x232b318c))
         ->Attribute(Category, "Multiplayer Character")
         ->DataElement(Default, &Self::m_speed,
-            "Movement Speed", "")
+            "Movement Speed", "how fast the character moves")
         ->DataElement(Default, &Self::m_turnSpeed,
-            "Turning Speed", "");
+            "Turning Speed", "how fast the character turns");
 }
 
 void PlayerControlsComponent::MoveForward(ActionState state)
@@ -77,6 +77,7 @@ void PlayerControlsComponent::Turn(float amount)
 
 void PlayerControlsComponent::SetRotation()
 {
+    // Rotate the entity
     TransformBus::Event(GetEntityId(),
         &TransformBus::Events::SetLocalRotationQuaternion,
             Quaternion::CreateRotationZ(m_rotZ));
@@ -85,15 +86,11 @@ void PlayerControlsComponent::SetRotation()
 void PlayerControlsComponent::OnTick(
     float dt, AZ::ScriptTimePoint)
 {
-    AZ::Quaternion q;
-    TransformBus::EventResult(q, GetEntityId(),
-        &TransformBus::Events::GetWorldRotationQuaternion);
-
-    AZ::Vector3 direction = AZ::Vector3::CreateZero();
-
     static const Vector3 yUnit = Vector3::CreateAxisY(1.f);
     static const Vector3 xUnit = Vector3::CreateAxisX(1.f);
 
+    // Figure out where the movement will take the entity
+    AZ::Vector3 direction{0, 0, 0};
     if (m_isForward)
         direction += yUnit;
     if (m_isBackward)
@@ -103,9 +100,16 @@ void PlayerControlsComponent::OnTick(
     if (m_isStrafingRight)
         direction += xUnit;
 
-    direction *= m_speed * dt;
+    direction *= m_speed * dt /* Take frame time into account */;
+
+    // Get the current orientation of the entity
+    AZ::Quaternion q = Quaternion::CreateIdentity();
+    TransformBus::EventResult(q, GetEntityId(),
+        &TransformBus::Events::GetWorldRotationQuaternion);
+    // Apply the orientation
     direction = q * direction;
 
+    // Issue character move command
     using namespace LmbrCentral;
     CryCharacterPhysicsRequestBus::Event(GetEntityId(),
         &CryCharacterPhysicsRequestBus::Events::RequestVelocity,

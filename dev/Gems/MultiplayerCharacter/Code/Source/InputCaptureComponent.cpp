@@ -145,32 +145,35 @@ bool InputCaptureComponent::OnMouseEvent(
     if (id == InputDeviceMouse::Button::Left ||
         id == InputDeviceMouse::Button::Right)
     {
+        // Mouse clicks can be handled from here
         return false;
     }
 
     if (id == InputDeviceMouse::SystemCursorPosition)
     {
+        // Get the positional mouse data
         const InputChannel::PositionData2D* pos = inputChannel.
             GetCustomData<InputChannel::PositionData2D>();
         if (!pos) return false;
 
-        // range is [0,1]
+        // Get its normalized position in range of [0,1]
         const AZ::Vector2& position = pos->m_normalizedPosition;
 
-        const Vector2 delta = m_lastMousePosition - position;
-        m_lastMousePosition = position;
-        m_mouseChangeAggregate += delta;
+        static const Vector2 center = Vector2{.5f, .5f};
+        // Keep track of how much the mouse moved
+        m_mouseChangeAggregate += center - position;
 
-        const Vector2 center = Vector2{.5f, .5f};
-        m_lastMousePosition = center;
+        // Reset the mouse back to the center of the screen
         InputSystemCursorRequestBus::Broadcast(
             &InputSystemCursorRequestBus::Events::
                 SetSystemCursorPositionNormalized, center);
 
+        // report horizontal mouse movement
         PlayerControlsRequestBus::Broadcast(
             &PlayerControlsRequestBus::Events::Turn,
             m_mouseChangeAggregate.GetX());
 
+        // report vertical mouse movement
         PlayerControlsRequestBus::Broadcast(
             &PlayerControlsRequestBus::Events::LookUpOrDown,
             m_mouseChangeAggregate.GetY());

@@ -21,13 +21,16 @@ namespace MultiplayerCharacter
         static void Reflect(AZ::ReflectContext* ref);
 
     protected:
+        // AzFramework::InputChannelEventListener implementation
         bool OnInputChannelEventFiltered(const
             AzFramework::InputChannel& inputChannel) override;
 
-    private:
         bool OnKeyboardEvent(
             const AzFramework::InputChannel& inputChannel);
+        bool OnMouseEvent(
+            const AzFramework::InputChannel& inputChannel);
 
+    private:
         void CheckAndUpdateForward(bool pressed);
         void CheckAndUpdateBackward(bool pressed);
         void CheckAndUpdateStrafeLeft(bool press);
@@ -38,10 +41,6 @@ namespace MultiplayerCharacter
         bool m_isStrafingLeftPressed = false;
         bool m_isStrafingRightPressed = false;
 
-        bool OnMouseEvent(
-            const AzFramework::InputChannel& inputChannel);
-
-        AZ::Vector2 m_mouseChangeAggregate = AZ::Vector2::CreateZero();
-        AZ::Vector2 m_lastMousePosition = AZ::Vector2::CreateZero();
+        AZ::Vector2 m_mouseChangeAggregate{0, 0};
     };
 }
