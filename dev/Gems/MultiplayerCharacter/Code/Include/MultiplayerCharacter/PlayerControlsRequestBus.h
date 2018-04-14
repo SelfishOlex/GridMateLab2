@@ -29,7 +29,7 @@ namespace MultiplayerCharacter
         virtual void StrafeLeft(ActionState state) {}
         virtual void StrafeRight(ActionState state) {}
         virtual void Turn(float amount) {}
-        virtual void LookUpOrDown(float amount) {};
+        virtual void LookUpOrDown(float amount) {}
     };
 
     using PlayerControlsRequestBus =
