@@ -1,7 +1,6 @@
 #include "MultiplayerCharacter_precompiled.h"
 #include "CameraControlsComponent.h"
 #include <AzCore/Serialization/EditContext.h>
-#include <LmbrCentral/Physics/CryCharacterPhysicsBus.h>
 #include <AzCore/Math/Vector3.h>
 #include <AzCore/Component/TransformBus.h>
 

@@ -5,7 +5,7 @@
 
 namespace MultiplayerCharacter
 {
-    // Implements various player controls
+    // Implements camera pitch controls
     class CameraControlsComponent
         : public AZ::Component
         , public PlayerControlsRequestBus::Handler
