@@ -16,7 +16,7 @@ namespace MyProject
             "{2FBF833D-E29A-4FAF-AE4B-0732ED04460F}");
 
         // AZ::Component overrides
-        void Activate() override { BusConnect(GetEntityId()); }
+        void Activate() override { BusConnect(); }
         void Deactivate() override { BusDisconnect(); }
 
         // Provide runtime reflection, if any
@@ -39,7 +39,7 @@ namespace MyProject
             "{E3B07140-DD69-47B0-8C50-2E33C15B499F}");
 
         // AZ::Component overrides
-        void Activate() override { BusConnect(GetEntityId()); }
+        void Activate() override { BusConnect(); }
         void Deactivate() override { BusDisconnect(); }
 
         // Provide runtime reflection, if any
@@ -62,7 +62,7 @@ namespace MyProject
             "{18F69738-84AD-4ACC-8781-62BA29E7F2B4}");
 
         // AZ::Component overrides
-        void Activate() override { BusConnect(GetEntityId()); }
+        void Activate() override { BusConnect(); }
         void Deactivate() override { BusDisconnect(); }
 
         // Provide runtime reflection, if any
@@ -85,7 +85,7 @@ namespace MyProject
             "{ABEABC3B-628E-47FC-A2D9-BE984164B1CE}");
 
         // AZ::Component overrides
-        void Activate() override { BusConnect(GetEntityId()); }
+        void Activate() override { BusConnect(); }
         void Deactivate() override { BusDisconnect(); }
 
         // Provide runtime reflection, if any
