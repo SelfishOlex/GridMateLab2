@@ -6,6 +6,7 @@
 #include "MyComponent.h"
 #include "MySpawnerComponent.h"
 #include "OscillatorComponent.h"
+#include <MyUIStatusComponents.h>
 
 namespace MyProject
 {
@@ -28,6 +29,11 @@ namespace MyProject
                 MyComponent::CreateDescriptor(),
                 OscillatorComponent::CreateDescriptor(),
                 MySpawnerComponent::CreateDescriptor(),
+
+                MyUIForwardComponent::CreateDescriptor(),
+                MyUIBackwardComponent::CreateDescriptor(),
+                MyUIStrafeLeftComponent::CreateDescriptor(),
+                MyUIStrafeRightComponent::CreateDescriptor(),
             });
         }
 

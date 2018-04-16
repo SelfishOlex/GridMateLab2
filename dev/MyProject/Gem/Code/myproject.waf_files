@@ -17,6 +17,8 @@
             "Source/MySpawnerComponent.h",
             "Source/OscillatorComponent.cpp",
             "Source/OscillatorComponent.h",
+            "Source/MyUIStatusComponents.cpp",
+            "Source/MyUIStatusComponents.h",
             "Source/StartingMapSystemComponent.cpp",
             "Source/StartingMapSystemComponent.h"
         ]

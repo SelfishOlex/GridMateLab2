@@ -6,7 +6,7 @@ def build(bld):
         includes                = [ '.',
                                     bld.Path('Code/CryEngine/CryCommon'),
                                     bld.Path('Code/CryEngine/CryAction')],
-        use                     = ['AzGameFramework'],
+        use                     = ['AzGameFramework','MultiplayerCharacter'],
 
         # Platform Specific
         android_use             = ['AndroidLauncher'],
