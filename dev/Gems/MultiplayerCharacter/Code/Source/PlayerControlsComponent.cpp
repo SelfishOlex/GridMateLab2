@@ -10,7 +10,7 @@ using namespace MultiplayerCharacter;
 
 void PlayerControlsComponent::Activate()
 {
-    PlayerControlsRequestBus::Handler::BusConnect(GetEntityId());
+    PlayerControlsRequestBus::Handler::BusConnect();
     AZ::TickBus::Handler::BusConnect();
 }
 
