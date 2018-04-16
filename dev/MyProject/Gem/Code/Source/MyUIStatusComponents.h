@@ -1,6 +1,5 @@
 #pragma once
 #include <AzCore/Component/Component.h>
-#include <AzCore/Component/TickBus.h>
 #include <MultiplayerCharacter/PlayerControlsRequestBus.h>
 
 namespace MyProject
