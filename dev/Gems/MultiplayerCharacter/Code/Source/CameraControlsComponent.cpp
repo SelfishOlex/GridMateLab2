@@ -9,7 +9,7 @@ using namespace MultiplayerCharacter;
 
 void CameraControlsComponent::Activate()
 {
-    PlayerControlsRequestBus::Handler::BusConnect(GetEntityId());
+    PlayerControlsRequestBus::Handler::BusConnect();
 }
 
 void CameraControlsComponent::Deactivate()
