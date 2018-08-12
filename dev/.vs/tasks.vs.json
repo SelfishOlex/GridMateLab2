@@ -1,0 +1,49 @@
+{
+  "version": "0.2.1",
+  "tasks": [
+    {
+      "appliesTo": "*",
+      "commands": [
+        {
+          "command": "lmbr_waf",
+          "args": [
+            "build_win_x64_vs2015_profile",
+            "-p",
+            "game",
+            "&&",
+            "lmbr_waf",
+            "build_win_x64_vs2015_profile_dedicated",
+            "-p",
+            "game"
+          ],
+          "workingDirectory": "${workspaceRoot}"
+        }
+      ],
+      "contextType": "build",
+      "taskName": "Build Client and Server (profile)",
+      "type": "launch"
+    },
+    {
+      "appliesTo": "*",
+      "commands": [
+        {
+          "command": "lmbr_waf",
+          "args": [
+            "build_win_x64_vs2015_profile",
+            "-p",
+            "all",
+            "&&",
+            "lmbr_waf",
+            "build_win_x64_vs2015_profile_dedicated",
+            "-p",
+            "all"
+          ],
+          "workingDirectory": "${workspaceRoot}"
+        }
+      ],
+      "contextType": "custom",
+      "taskName": "Build ALL (profile)",
+      "type": "launch"
+    }
+  ]
+}

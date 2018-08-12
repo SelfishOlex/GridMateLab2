@@ -1,0 +1,303 @@
+{
+  "version": "0.2.1",
+  "tasks": [
+    {
+      "appliesTo": "*",
+      "commands": [
+        {
+          "command": "powershell",
+          "args": [
+            "-c",
+            ".\\launch_Server_and_Client.ps1"
+          ],
+          "workingDirectory": "${workspaceRoot}"
+        }
+      ],
+      "contextType": "custom",
+      "taskName": "Run Dedicated Server and Client (profile)",
+      "type": "launch"
+    },
+    {
+      "appliesTo": "*",
+      "commands": [
+        {
+          "command": "powershell",
+          "args": [
+            "-c",
+            ".\\launch_Server_and_2Clients.ps1"
+          ],
+          "workingDirectory": "${workspaceRoot}"
+        }
+      ],
+      "contextType": "custom",
+      "taskName": "Run Dedicated Server and 2 Clients (profile)",
+      "type": "launch"
+    },
+    {
+      "appliesTo": "*",
+      "commands": [
+        {
+          "command": "powershell",
+          "args": [
+            "-c",
+            ".\\launch_Hosted_and_Client.ps1"
+          ],
+          "workingDirectory": "${workspaceRoot}"
+        }
+      ],
+      "contextType": "custom",
+      "taskName": "Run Hosted Server and Client (profile)",
+      "type": "launch"
+    },
+    {
+      "appliesTo": "*",
+      "commands": [
+        {
+          "command": "Bin64vc141/Editor.exe",
+          "args": [],
+          "workingDirectory": "${workspaceRoot}"
+        }
+      ],
+      "launchOption": "None",
+      "contextType": "custom",
+      "taskName": "Run Editor (profile)",
+      "type": "launch"
+    },
+    {
+      "appliesTo": "*",
+      "commands": [
+        {
+          "command": "lmbr_waf",
+          "args": [
+            "build_win_x64_vs2017_profile",
+            "-p",
+            "game",
+            "&&",
+            "lmbr_waf",
+            "build_win_x64_vs2017_profile_dedicated",
+            "-p",
+            "game"
+          ],
+          "workingDirectory": "${workspaceRoot}"
+        }
+      ],
+      "contextType": "build",
+      "taskName": "Build Client and Server (profile)",
+      "type": "launch"
+    },
+    {
+      "appliesTo": "*",
+      "commands": [
+        {
+          "command": "lmbr_waf",
+          "args": [
+            "build_win_x64_vs2017_profile",
+            "-p",
+            "all",
+            "&&",
+            "lmbr_waf",
+            "build_win_x64_vs2017_profile_dedicated",
+            "-p",
+            "all"
+          ],
+          "workingDirectory": "${workspaceRoot}"
+        }
+      ],
+      "contextType": "build",
+      "taskName": "Build Everything (profile)",
+      "type": "launch"
+    },
+    {
+      "appliesTo": "*",
+      "commands": [
+        {
+          "command": "lmbr_waf",
+          "args": [
+            "build_win_x64_vs2017_profile",
+            "-p",
+            "all",
+            "&&",
+            "lmbr_waf",
+            "build_win_x64_vs2017_profile_dedicated",
+            "-p",
+            "all"
+          ],
+          "workingDirectory": "${workspaceRoot}"
+        }
+      ],
+      "contextType": "rebuild",
+      "taskName": "Build All Client and Server (profile)",
+      "type": "launch"
+    },
+    {
+      "appliesTo": "*",
+      "commands": [
+        {
+          "command": ".\\Bin64vc140.Dedicated\\ProtoD2Launcher_Server.exe",
+          "args": [
+            "+mphost",
+            "+map",
+            "basebuilding"
+          ],
+          "workingDirectory": "${workspaceRoot}"
+        }
+      ],
+      "contextType": "custom",
+      "taskName": "Run Dedicated Server (profile)",
+      "type": "launch"
+    },
+    {
+      "appliesTo": "*",
+      "commands": [
+        {
+          "command": ".\\Bin64vc140\\ProtoD2Launcher.exe",
+          "args": [
+            "+mpjoin"
+          ],
+          "workingDirectory": "${workspaceRoot}"
+        }
+      ],
+      "contextType": "custom",
+      "taskName": "Run Client (profile)",
+      "type": "launch"
+    },
+    {
+      "appliesTo": "*",
+      "commands": [
+        {
+          "command": "lmbr_waf",
+          "args": [
+            "build_win_x64_vs2017_profile",
+            "-p",
+            "all",
+            "&&",
+            "lmbr_waf",
+            "build_win_x64_vs2017_profile_dedicated",
+            "-p",
+            "all"
+          ],
+          "workingDirectory": "${workspaceRoot}"
+        }
+      ],
+      "taskName": "Build All (profile)",
+      "type": "launch"
+    },
+    {
+      "appliesTo": "*",
+      "commands": [
+        {
+          "command": "lmbr_waf",
+          "args": [
+            "build_win_x64_vs2017_debug",
+            "-p",
+            "game"
+          ],
+          "workingDirectory": "${workspaceRoot}"
+        }
+      ],
+      "taskName": "Build Game (debug)",
+      "type": "launch"
+    },
+    {
+      "appliesTo": "*",
+      "commands": [
+        {
+          "command": "lmbr_waf",
+          "args": [
+            "build_win_x64_vs2017_debug",
+            "-p",
+            "game",
+            "&&",
+            "lmbr_waf",
+            "build_win_x64_vs2017_debug_dedicated",
+            "-p",
+            "game"
+          ],
+          "workingDirectory": "${workspaceRoot}"
+        }
+      ],
+      "taskName": "Build Client and Dedicated (debug)",
+      "type": "launch"
+    },
+    {
+      "appliesTo": "*",
+      "commands": [
+        {
+          "command": "lmbr_waf",
+          "args": [
+            "build_win_x64_vs2017_debug_dedicated",
+            "-p",
+            "game"
+          ],
+          "workingDirectory": "${workspaceRoot}"
+        }
+      ],
+      "taskName": "Build Server (debug)",
+      "type": "launch"
+    },
+    {
+      "appliesTo": "*",
+      "commands": [
+        {
+          "command": "lmbr_waf",
+          "args": [
+            "build_win_x64_vs2017_debug",
+            "-p",
+            "all"
+          ],
+          "workingDirectory": "${workspaceRoot}"
+        }
+      ],
+      "taskName": "Build All (debug)",
+      "type": "launch"
+    },
+    {
+      "appliesTo": "*",
+      "commands": [
+        {
+          "command": "lmbr_waf",
+          "args": [
+            "build_win_x64_vs2017_debug_test",
+            "-p",
+            "game"
+          ],
+          "workingDirectory": "${workspaceRoot}"
+        }
+      ],
+      "taskName": "Build Unittests (debug)",
+      "type": "launch"
+    },
+    {
+      "appliesTo": "*",
+      "commands": [
+        {
+          "command": "powershell",
+          "args": [
+            "-c",
+            ".\\launch_unittests.ps1"
+          ],
+          "workingDirectory": "${workspaceRoot}"
+        }
+      ],
+      "contextType": "custom",
+      "taskName": "Run Unitests (debug)",
+      "type": "launch"
+    },
+    {
+      "appliesTo": "*",
+      "commands": [
+        {
+          "command": "lmbr_waf",
+          "args": [
+            "configure",
+            "-p",
+            "game"
+          ],
+          "workingDirectory": "${workspaceRoot}"
+        }
+      ],
+      "taskName": "Configure",
+      "type": "launch"
+    }
+  ]
+}

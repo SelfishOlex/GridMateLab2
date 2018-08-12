@@ -1,0 +1,43 @@
+{
+  "version": "0.2.1",
+  "defaults": {},
+  "configurations": [
+    {
+      "type": "default",
+      "project": "Bin64vc141\\ProtoD2Launcher.exe",
+      "args": [ "+mpjoin" ],
+      "name": "_Principia Launcher Profile"
+    },
+    {
+      "project": "Bin64vc141.Dedicated\\ProtoD2Launcher_Server.exe",
+      "args": [
+        "+mphost",
+        "+map",
+        "basebuilding"
+      ],
+      "type": "default",
+      "name": "_Principia Server"
+    },
+    {
+      "type": "default",
+      "project": "Bin64vc141.Debug\\ProtoD2Launcher.exe",
+      "name": "_Principia Launcher Debug",
+      "args": []
+    },
+    {
+      "type": "default",
+      "project": "Bin64vc141\\Editor.exe",
+      "name": "_Editor"
+    },
+    {
+      "type": "default",
+      "project": "Bin64vc141.Debug.Dedicated\\ProtoD2Launcher_Server.exe",
+      "args": [
+        "+mphost",
+        "+map",
+        "basebuilding"
+      ],
+      "name": "_Principia Server Debug"
+    }
+  ]
+}

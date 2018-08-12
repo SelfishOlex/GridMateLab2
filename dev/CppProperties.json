@@ -1,0 +1,44 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceRoot}/Code/CryEngine/CryCommon",
+                "${workspaceRoot}/Code/CryEngine/CryAction",
+                "${workspaceRoot}/Code/Framework/AzGameFramework",
+                "${workspaceRoot}/Gems/LmbrCentral/Code/include",
+                "${workspaceRoot}/Gems/LightningArc/Code/include",
+                "${workspaceRoot}/Gems/Multiplayer/Code/include",
+                "${workspaceRoot}/Code/Framework/AzFramework",
+                "${workspaceRoot}/Code/Framework/GFxFramework",
+                "${workspaceRoot}/Code/Framework/GridMate",
+                "${workspaceRoot}/Code/Framework/AzCore",
+                "${workspaceRoot}/Code/Framework/AzTest",
+                "${workspaceRoot}/Code/Framework/AzToolsFramework",
+                "${workspaceRoot}../3rdParty/GoogleMock/gmock-az-1.3/googlemock/include",
+                "${workspaceRoot}../3rdParty/GoogleMock/gmock-az-1.3/googletest/include",
+                "${workspaceRoot}/Gems/LyShine/Code/Include",
+                "${workspaceRoot}/Gems/MultiplayerCharacter/Code/Include",
+                "C:/Program Files (x86)/Microsoft Visual Studio 14.0/VC/INCLUDE",
+                "C:/Program Files (x86)/Windows Kits/10/include/10.0.10586.0/ucrt",
+                "C:/Program Files (x86)/Windows Kits/10/include/10.0.10586.0/um",
+                "C:/Program Files (x86)/Windows Kits/10/include/10.0.10586.0/shared",
+                "${workspaceRoot}/Code/CryEngine"
+            ],
+            "defines": [
+                "_WIN32",
+                "_WIN64",
+                "NOMINMAX",
+                "_DEBUG",
+                "BINFOLDER_NAME=\"Bin64vc140\"",
+                "_MT",
+                "_DLL",
+                "SCRIPTCANVAS_ERRORS_ENABLED"
+            ],
+            "intelliSenseMode": "windows-msvc-x64",
+            "cStandard": "c11",
+            "cppStandard": "c++17"
+        }
+    ],
+    "version": 3
+}
