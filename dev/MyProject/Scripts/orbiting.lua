@@ -22,8 +22,9 @@ function Orbiting:OnDeactivate()
 end
 
 function Orbiting:OnTick(deltaTime, timePoint)
-    TransformBus.Event.RotateAroundLocalZ(
-        self.entityId, self.Properties.speed*deltaTime)
+	rot = TransformBus.Event.GetLocalRotation(self.entityId)
+	rot.z = rot.z + self.Properties.speed*deltaTime
+	TransformBus.Event.SetLocalRotation(self.entityId, rot)
 end
 
 return Orbiting
