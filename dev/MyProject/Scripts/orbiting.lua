@@ -13,18 +13,21 @@ local Orbiting =
 function Orbiting:OnActivate()
      -- Activation Code
     Debug.Log("Orbiting activated")
-    self.tickHandler = TickBus.Connect(self)
+	if MyHelper.IsServer(self.entityId) then
+	    self.tickHandler = TickBus.Connect(self)
+	end
 end
 
 function Orbiting:OnDeactivate()
     -- Deactivation Code
-    self.tickHandler:Disconnect()
+	if MyHelper.IsServer(self.entityId) then
+    	self.tickHandler:Disconnect()
+	end
 end
 
 function Orbiting:OnTick(deltaTime, timePoint)
-	rot = TransformBus.Event.GetLocalRotation(self.entityId)
-	rot.z = rot.z + self.Properties.speed*deltaTime
-	TransformBus.Event.SetLocalRotation(self.entityId, rot)
+    TransformBus.Event.RotateAroundLocalZ(
+        self.entityId, self.Properties.speed*deltaTime)
 end
 
 return Orbiting
