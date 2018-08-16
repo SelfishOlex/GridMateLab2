@@ -1,6 +1,6 @@
 #include "MyProject_precompiled.h"
 #include "MyScriptHelperComponent.h"
-#include <AzCore/Serialization/EditContext.h>
+#include <AzCore/Serialization/SerializeContext.h>
 #include <AzCore/RTTI/BehaviorContext.h>
 #include <AzFramework/Network/NetBindingHandlerBus.h>
 
@@ -13,17 +13,6 @@ void MyScriptHelperComponent::Reflect(AZ::ReflectContext* rc)
     {
         sc->Class<MyScriptHelperComponent, Component>()
             ->Version(1);
-        using namespace AZ::Edit::Attributes;
-        using namespace AZ::Edit::ClassElements;
-        if (auto editContext = sc->GetEditContext())
-        {
-            editContext->Class<MyScriptHelperComponent>(
-                "MyScriptHelperComponent", "[script helper]")
-               ->ClassElement(EditorData, "")
-               ->Attribute(Category, "PrototypingBase")
-               ->Attribute(AppearsInAddComponentMenu,
-                   AZ_CRC("Game", 0x232b318c));
-        }
     }
 
     auto* bc = azrtti_cast<AZ::BehaviorContext*>(rc);
