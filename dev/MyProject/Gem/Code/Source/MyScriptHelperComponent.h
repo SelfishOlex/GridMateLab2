@@ -25,8 +25,6 @@ namespace MyProject
     public:
         AZ_RTTI(MyHelper,
             "{F9168A15-69F4-4730-B222-BBC8342E5430}");
-        AZ_CLASS_ALLOCATOR(MyHelper, AZ::SystemAllocator, 0);
-
         virtual ~MyHelper() = default;
 
         static bool IsEntityAuthoritative(AZ::EntityId entity);

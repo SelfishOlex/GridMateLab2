@@ -15,7 +15,7 @@ void MyScriptHelperComponent::Reflect(AZ::ReflectContext* rc)
             ->Version(1);
     }
 
-    auto* bc = azrtti_cast<AZ::BehaviorContext*>(rc);
+    auto* bc = azrtti_cast<BehaviorContext*>(rc);
     if(!bc) return;
     bc->Class<MyHelper>("MyHelper")->
         Method("IsServer", &MyHelper::IsEntityAuthoritative)->
