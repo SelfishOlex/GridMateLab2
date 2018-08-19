@@ -1,4 +1,4 @@
--- ScriptName.lua -- Constant turning around Z axis
+-- Orbiting.lua -- Constant rotation around Z axis
 local Orbiting =
 {
     Properties =
@@ -13,16 +13,16 @@ local Orbiting =
 function Orbiting:OnActivate()
      -- Activation Code
     Debug.Log("Orbiting activated")
-	if MyHelper.IsServer(self.entityId) then
-	    self.tickHandler = TickBus.Connect(self)
-	end
+    if MyHelper.IsServer(self.entityId) then
+        self.tickHandler = TickBus.Connect(self)
+    end
 end
 
 function Orbiting:OnDeactivate()
     -- Deactivation Code
-	if MyHelper.IsServer(self.entityId) then
-    	self.tickHandler:Disconnect()
-	end
+    if MyHelper.IsServer(self.entityId) then
+        self.tickHandler:Disconnect()
+    end
 end
 
 function Orbiting:OnTick(deltaTime, timePoint)
