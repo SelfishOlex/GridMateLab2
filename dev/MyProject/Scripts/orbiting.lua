@@ -12,8 +12,8 @@ local Orbiting =
 
 function Orbiting:OnActivate()
      -- Activation Code
-    Debug.Log("Orbiting activated")
     if MyHelper.IsServer(self.entityId) then
+        Debug.Log("Orbiting activated")
         self.tickHandler = TickBus.Connect(self)
     end
 end
