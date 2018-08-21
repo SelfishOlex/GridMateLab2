@@ -8,6 +8,7 @@
 #include "OscillatorComponent.h"
 #include "MyUIStatusComponents.h"
 #include "MyScriptHelperComponent.h"
+#include "MyScriptSystemComponent.h"
 
 namespace MyProject
 {
@@ -31,6 +32,7 @@ namespace MyProject
                 OscillatorComponent::CreateDescriptor(),
                 MySpawnerComponent::CreateDescriptor(),
                 MyScriptHelperComponent::CreateDescriptor(),
+                MyScriptSystemComponent::CreateDescriptor(),
 
                 MyUIForwardComponent::CreateDescriptor(),
                 MyUIBackwardComponent::CreateDescriptor(),
@@ -47,6 +49,7 @@ namespace MyProject
         {
             return AZ::ComponentTypeList{
                 azrtti_typeid<StartingMapSystemComponent>(),
+                azrtti_typeid<MyScriptSystemComponent>(),
             };
         }
     };

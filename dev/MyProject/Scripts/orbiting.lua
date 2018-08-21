@@ -11,7 +11,8 @@ local Orbiting =
 }
 
 function Orbiting:OnActivate()
-     -- Activation Code
+    -- Activation Code
+    Debug.Log("Is this editor? " .. tostring(MyHelperBus.Broadcast.IsEditor()))
     if MyHelper.IsServer(self.entityId) then
         Debug.Log("Orbiting activated")
         self.tickHandler = TickBus.Connect(self)
@@ -20,7 +21,7 @@ end
 
 function Orbiting:OnDeactivate()
     -- Deactivation Code
-    if MyHelper.IsServer(self.entityId) then
+    if self.tickHandler ~= nil then
         self.tickHandler:Disconnect()
     end
 end
