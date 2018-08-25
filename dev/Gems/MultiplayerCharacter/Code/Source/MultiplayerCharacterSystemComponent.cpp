@@ -13,8 +13,7 @@ namespace MultiplayerCharacter
         if (AZ::SerializeContext* serialize = azrtti_cast<AZ::SerializeContext*>(context))
         {
             serialize->Class<MultiplayerCharacterSystemComponent, AZ::Component>()
-                ->Version(0)
-                ->SerializerForEmptyClass();
+                ->Version(1);
 
             if (AZ::EditContext* ec = serialize->GetEditContext())
             {

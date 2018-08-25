@@ -18,7 +18,7 @@ namespace MultiplayerCloseAllNetworkPeers
         if (auto sc = azrtti_cast<SerializeContext*>(context))
         {
             sc->Class<GemSystemComponent, Component>()
-                ->Version(0)->SerializerForEmptyClass();
+                ->Version(1);
 
             if (auto ec = sc->GetEditContext())
             {
