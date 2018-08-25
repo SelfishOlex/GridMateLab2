@@ -157,7 +157,7 @@ void ImportableResourcesWidget::CreateResourcesTable()
     m_filterListProxyModel->setSourceModel(m_importerModel.data());
 
     //Generate the table to list all of the importable resources
-    m_listTable = new QTableView{};
+    m_listTable = new QTableView{this};
     m_listTable->setObjectName("ListTable");
     m_listTable->setModel(m_filterListProxyModel.data());
     m_listTable->verticalHeader()->hide();
@@ -468,7 +468,7 @@ void ImportableResourcesWidget::ImportResource()
 
 void ImportableResourcesWidget::OnImporterOutput(const QVariant& output, const char* outputType)
 {
-    if (m_selectedRowList.length() > 0 && output == m_importerModel->item(m_selectedRowList[0], IAWSImporterModel::NameColumn)->text() + " imported sucessfully")
+    if (m_selectedRowList.length() > 0 && output == m_importerModel->item(m_selectedRowList[0], IAWSImporterModel::NameColumn)->text() + " imported successfully")
     {
         //Reset the checkstate for those successfully imported resources
         m_importerModel->item(m_selectedRowList[0], IAWSImporterModel::CheckableResourceColumn)->setCheckState(Qt::Unchecked);

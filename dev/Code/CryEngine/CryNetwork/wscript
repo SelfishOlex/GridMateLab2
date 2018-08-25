@@ -25,17 +25,12 @@ def build(bld):
         platforms           = ['all'],
         configurations      = ['all'],
         pch                 = 'StdAfx.cpp',
-        includes            = [bld.Path('Code/SDKs'),
-                               bld.Path('Code/CryEngine/CryAction')],
-        defines             = ['ENGINE_EXPORTS'],
+        includes            = [bld.Path('Code/CryEngine/CryAction')],
         use                 = ['GridMate','AzFramework' ],
 
         # Platform Specific
         win_defines         = [ '_HAS_EXCEPTIONS=0' ],
 
-        win_cxxflags        = [ '/WX', # warnings as errors
-                                '/W3', # warning level
-                              ],
 
         win_x64_lib         = [ 'Ws2_32', 'mswsock', 'gdi32' ],
         win_x64_linkflags   = '/NODEFAULTLIB:libcmt.lib',
@@ -43,7 +38,9 @@ def build(bld):
        
        
        
+       
 
+       
        
        
 

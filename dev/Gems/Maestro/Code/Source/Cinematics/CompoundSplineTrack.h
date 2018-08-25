@@ -27,7 +27,7 @@ public:
     AZ_CLASS_ALLOCATOR(CCompoundSplineTrack, AZ::SystemAllocator, 0);
     AZ_RTTI(CCompoundSplineTrack, "{E6B88EF4-6DB7-48E7-9758-DF6C9E40D4D2}", IAnimTrack);
 
-    CCompoundSplineTrack(int nDims, AnimValueType inValueType, CAnimParamType subTrackParamTypes[MAX_SUBTRACKS]);
+    CCompoundSplineTrack(int nDims, AnimValueType inValueType, CAnimParamType subTrackParamTypes[MAX_SUBTRACKS], bool expanded);
     CCompoundSplineTrack();
 
     //////////////////////////////////////////////////////////////////////////
@@ -88,6 +88,7 @@ public:
     virtual void GetValue(float time, Vec4& value, bool applyMultiplier = false);
     virtual void GetValue(float time, Quat& value);
     virtual void GetValue(float time, bool& value) { assert(0); };
+    virtual void GetValue(float time, AZ::Data::AssetBlends<AZ::Data::AssetData>& value) { assert(0); }
 
     //////////////////////////////////////////////////////////////////////////
     // Set track value at specified time.
@@ -98,6 +99,7 @@ public:
     void SetValue(float time, const Vec4& value, bool bDefault = false, bool applyMultiplier = false);
     virtual void SetValue(float time, const Quat& value, bool bDefault = false);
     virtual void SetValue(float time, const bool& value, bool bDefault = false) { assert(0); };
+    virtual void SetValue(float time, const AZ::Data::AssetBlends<AZ::Data::AssetData>& value, bool bDefault = false) { assert(0); }
 
     virtual void OffsetKeyPosition(const Vec3& value);
     virtual void UpdateKeyDataAfterParentChanged(const AZ::Transform& oldParentWorldTM, const AZ::Transform& newParentWorldTM);
@@ -149,6 +151,9 @@ public:
         }
     }
 
+    void SetExpanded(bool expanded) override;
+    bool GetExpanded() const override;
+
     static void Reflect(AZ::SerializeContext* serializeContext);
 
 protected:
@@ -168,6 +173,7 @@ protected:
     float PreferShortestRotPath(float degree, float degree0) const;
     int GetSubTrackIndex(int& key) const;
     IAnimNode* m_node;
+    bool m_expanded;
 };
 
 //////////////////////////////////////////////////////////////////////////

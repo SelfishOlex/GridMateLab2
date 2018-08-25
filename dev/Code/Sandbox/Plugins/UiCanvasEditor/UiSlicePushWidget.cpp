@@ -10,7 +10,7 @@
 *
 */
 
-#include "StdAfx.h"
+#include "stdafx.h"
 
 #include <QtWidgets/QDialog>
 #include <QtWidgets/QDialogButtonBox>
@@ -73,11 +73,7 @@ namespace UiCanvasEditor
         button->setFixedSize(200, 40);
         layout->addWidget(button);
 
-        connect(button, &QPushButton::released, 
-            [this]()
-            {
-                emit OnCloseClicked();
-            });
+        connect(button, &QPushButton::released, this, &NoChangesOverlay::OnCloseClicked);
 
         setLayout(layout);
 
@@ -513,11 +509,7 @@ namespace UiCanvasEditor
         if (0 == m_fieldTree->topLevelItemCount())
         {
             NoChangesOverlay* overlay = new NoChangesOverlay(this);
-            connect(overlay, &NoChangesOverlay::OnCloseClicked, 
-                [this]() 
-                { 
-                    OnCancelClicked();
-                });
+            connect(overlay, &NoChangesOverlay::OnCloseClicked, this, &UiSlicePushWidget::OnCancelClicked);
         }
     }
 
@@ -1362,7 +1354,7 @@ namespace UiCanvasEditor
             if (sliceAssetPath.empty())
             {
                 QMessageBox::warning(this, QStringLiteral("Cannot Push to Slice"),
-                                     QString(tr("Failed to resolve path for slice asset %1. Aborting slice push. No assets have been affected.")).arg(asset.GetId().ToString<AZStd::string>().c_str()),
+                                     QString(tr("Failed to resolve path for slice asset %1. Aborting slice push. No assets have been affected.")).arg(asset.ToString<AZStd::string>().c_str()),
                                      QMessageBox::Ok);
                 return false;
             }
@@ -1434,7 +1426,7 @@ namespace UiCanvasEditor
                 if (sliceAssetPath.empty())
                 {
                     QMessageBox::warning(this, QStringLiteral("Cannot Push to Slice"), 
-                        QString("Failed to resolve path for asset \"%1\".").arg(asset.GetId().ToString<AZStd::string>().c_str()), 
+                        QString("Failed to resolve path for asset %1").arg(asset.ToString<AZStd::string>().c_str()), 
                         QMessageBox::Ok);
 
                     return false;

@@ -20,6 +20,18 @@
 #include <IGameFramework.h>
 #include <ICryAnimation.h>
 #include "PostProcess/PostEffects.h"
+
+#if defined(AZ_RESTRICTED_PLATFORM)
+#undef AZ_RESTRICTED_SECTION
+#define RENDERTHREAD_CPP_SECTION_1 1
+#define RENDERTHREAD_CPP_SECTION_2 2
+#define RENDERTHREAD_CPP_SECTION_3 3
+#define RENDERTHREAD_CPP_SECTION_4 4
+#define RENDERTHREAD_CPP_SECTION_5 5
+#define RENDERTHREAD_CPP_SECTION_6 6
+#define RENDERTHREAD_CPP_SECTION_7 7
+#endif
+
 #if !defined(NULL_RENDERER)
 #include <DriverD3D.h>
 #endif
@@ -57,14 +69,24 @@ void CRenderThread::Run()
 
     CryThreadSetName(threadID(THREADID_NULL), RENDER_THREAD_NAME);
     gEnv->pSystem->GetIThreadTaskManager()->MarkThisThreadForDebugging(RENDER_THREAD_NAME, true);
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION RENDERTHREAD_CPP_SECTION_1
+#include AZ_RESTRICTED_FILE(RenderThread_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
     threadID renderThreadId = ::GetCurrentThreadId();
     gRenDev->m_pRT->m_nRenderThread = renderThreadId;
     CNameTableR::m_nRenderThread = renderThreadId;
     gEnv->pCryPak->SetRenderThreadId(renderThreadId);
     //SetThreadAffinityMask(GetCurrentThread(), 2);
     m_started.Set();
+
     gRenDev->m_pRT->Process();
-    gEnv->pSystem->GetIThreadTaskManager()->MarkThisThreadForDebugging(RENDER_THREAD_NAME, false);
+
+    // Check pointers, it's not guaranteed that system is still valid.
+    if (gEnv && gEnv->pSystem && gEnv->pSystem->GetIThreadTaskManager())
+    {
+        gEnv->pSystem->GetIThreadTaskManager()->MarkThisThreadForDebugging(RENDER_THREAD_NAME, false);
+    }
 }
 
 void CRenderThreadLoading::Run()
@@ -75,13 +97,23 @@ void CRenderThreadLoading::Run()
     gRenDev->m_pRT->m_nRenderThreadLoading = renderThreadId;
     CNameTableR::m_nRenderThread = renderThreadId;
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION RENDERTHREAD_CPP_SECTION_2
+#include AZ_RESTRICTED_FILE(RenderThread_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
 
     // We aren't interested in file access from the render loading thread, and this
     // would overwrite the real render thread id
     //gEnv->pCryPak->SetRenderThreadId( renderThreadId );
     m_started.Set();
+
     gRenDev->m_pRT->ProcessLoading();
-    gEnv->pSystem->GetIThreadTaskManager()->MarkThisThreadForDebugging(RENDER_LOADING_THREAD_NAME, false);
+
+    // Check pointers, it's not guaranteed that system is still valid.
+    if (gEnv && gEnv->pSystem && gEnv->pSystem->GetIThreadTaskManager())
+    {
+        gEnv->pSystem->GetIThreadTaskManager()->MarkThisThreadForDebugging(RENDER_LOADING_THREAD_NAME, false);
+    }
 }
 
 void SRenderThread::SwitchMode(bool bEnableVideo)
@@ -119,6 +151,10 @@ SRenderThread::SRenderThread()
     m_bEndFrameCalled = false;
     m_bBeginFrameCalled = false;
     m_bQuitLoading = false;
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION RENDERTHREAD_CPP_SECTION_3
+#include AZ_RESTRICTED_FILE(RenderThread_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
 #if defined(USE_HANDLE_FOR_FINAL_FLUSH_SYNC)
     m_FlushFinishedCondition = CreateEvent(NULL, FALSE, FALSE, "FlushFinishedCondition");
 #endif
@@ -237,6 +273,10 @@ void SRenderThread::RC_ResetDevice()
 #endif
 }
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION RENDERTHREAD_CPP_SECTION_4
+#include AZ_RESTRICTED_FILE(RenderThread_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
 
 void SRenderThread::RC_PreloadTextures()
 {
@@ -362,7 +402,7 @@ void SRenderThread::RC_UpdateShaderItem (SShaderItem* pShaderItem, _smart_ptr<IM
     AZ_TRACE_METHOD();
     if (IsRenderThread(true))
     {
-        return gRenDev->RT_UpdateShaderItem(pShaderItem);
+        return gRenDev->RT_UpdateShaderItem(pShaderItem, pMaterial.get());
     }
 
     if (!IsMainThread(true))
@@ -377,6 +417,9 @@ void SRenderThread::RC_UpdateShaderItem (SShaderItem* pShaderItem, _smart_ptr<IM
     }
 
     LOADINGLOCK_COMMANDQUEUE
+    // We pass the raw pointer instead of the smart_ptr because writing/reading smart pointers from
+    // the render thread queue causes the ref count to be increased incorrectly in some platforms (e.g. 32 bit architectures). 
+    // Because of this we manually increment the reference count before adding it to the queue and decrement it when we finish using it in the RenderThread.
     IMaterial* materialRawPointer = pMaterial.get();
     if (materialRawPointer)
     {
@@ -2169,6 +2212,10 @@ void SRenderThread::ProcessCommands()
 
     int threadId = m_nCurThreadProcess;
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION RENDERTHREAD_CPP_SECTION_5
+#include AZ_RESTRICTED_FILE(RenderThread_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
     int n = 0;
     m_bSuccessful = true;
     m_hResult = S_OK;
@@ -2201,6 +2248,10 @@ void SRenderThread::ProcessCommands()
                 gRenDev->RT_Reset();
             }
             break;
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION RENDERTHREAD_CPP_SECTION_6
+#include AZ_RESTRICTED_FILE(RenderThread_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
         case eRC_ReleasePostEffects:
             if (gRenDev->m_pPostProcessMgr)
             {
@@ -2355,15 +2406,11 @@ void SRenderThread::ProcessCommands()
         case eRC_UpdateShaderItem:
         {
             SShaderItem* pShaderItem = ReadCommand<SShaderItem*>(n);
-            //Note the read command is a blit of the memory so it won't over increment the smart pointer.
-            //But we need to let this pointer go out of scope to deref correctly
-            //It is unclear why this material is even necessary to pass at this point.
-            //Further investigation is warranted.
-            // MSR - The material is necessary at this point because an UpdateShaderItem may have been queued 
+            // The material is necessary at this point because an UpdateShaderItem may have been queued 
             // for a material that was subsequently released and would have been deleted, thus resulting in a
             // dangling pointer and a crash; this keeps it alive until this render command can complete
             IMaterial* pMaterial = ReadCommand<IMaterial*>(n);
-            gRenDev->RT_UpdateShaderItem(pShaderItem);
+            gRenDev->RT_UpdateShaderItem(pShaderItem, pMaterial);
             if (pMaterial)
             {
                 // Release the reference we added when we submitted the command.
@@ -3210,6 +3257,10 @@ void SRenderThread::Process()
 
                 while (m_eVideoThreadMode != eVTM_ProcessingStop)
                 {
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION RENDERTHREAD_CPP_SECTION_7
+#include AZ_RESTRICTED_FILE(RenderThread_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
 
                     frameId += 1;
                     CTimeValue curTime = gEnv->pTimer->GetAsyncTime();
@@ -3527,7 +3578,21 @@ void SRenderThread::WaitFlushFinishedCond()
             m_nFlush = 0;
         }
 #else
-        m_FlushFinishedCondition.Wait(m_LockFlushNotify);
+        const int OneHunderdMilliseconds = 100;
+        bool timedOut = !(m_FlushFinishedCondition.TimedWait(m_LockFlushNotify, OneHunderdMilliseconds));
+#if defined(AZ_PLATFORM_APPLE_IOS) && !defined(_RELEASE)
+        // When we trigger asserts or warnings from a thread other than the main thread, the dialog box has to be
+        // presented from the main thread. So, we need to pump the system event loop while the main thread is waiting.
+        // We're using locks for waiting on iOS. This means that once the main thread goes into the wait, it's not
+        // going to be able to pump system events. To handle this, we use a timed wait with 100ms. In most cases,
+        // the render thread will complete within 100ms. But, when we need to display a dialog from the render thread,
+        // it times out and pumps the system event loop so we can display the dialog. After that, since m_nFlush is still
+        // true, we will go back into the wait and let the render thread complete.
+        if (timedOut)
+        {
+            AzFramework::ApplicationRequests::Bus::Broadcast(&AzFramework::ApplicationRequests::PumpSystemEventLoopUntilEmpty);
+        }
+#endif
 #endif
     }
     m_LockFlushNotify.Unlock();

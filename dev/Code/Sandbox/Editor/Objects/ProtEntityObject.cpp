@@ -162,7 +162,7 @@ void CProtEntityObject::SetPrototype(REFGUID guid, bool bForceReload)
     }
     SetPrototype(prototype, bForceReload);
 
-    IEntityPoolManager* pPoolManager = gEnv->pEntitySystem->GetIEntityPoolManager();
+    IEntityPoolManager* pPoolManager = gEnv->pEntitySystem ? gEnv->pEntitySystem->GetIEntityPoolManager() : nullptr;
     if (pPoolManager && pPoolManager->IsClassDefaultBookmarked(prototype->GetEntityClassName().toUtf8().data()))
     {
         mv_createdThroughPool = true;
@@ -221,7 +221,7 @@ void CProtEntityObject::Serialize(CObjectArchive& ar)
 
     if (ar.bLoading)
     {
-        // If baseobject loading overided some variables.
+        // If baseobject loading overrided some variables.
         SyncVariablesFromPrototype(true);
     }
 }

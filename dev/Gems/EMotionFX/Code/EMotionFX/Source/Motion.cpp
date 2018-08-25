@@ -22,18 +22,19 @@
 #include "EventManager.h"
 #include "EventHandler.h"
 #include "MotionEventTable.h"
-#include <MCore/Source/AttributeSet.h>
-
+#include <EMotionFX/Source/Allocators.h>
 
 namespace EMotionFX
 {
+    AZ_CLASS_ALLOCATOR_IMPL(Motion, MotionAllocator, 0)
+
+
     // constructor
     Motion::Motion(const char* name)
         : BaseObject()
     {
         mCustomData             = nullptr;
         mDefaultPlayBackInfo    = nullptr;
-        mAttributeSet           = MCore::AttributeSet::Create();
         mNameID                 = MCORE_INVALIDINDEX32;
         mID                     = MCore::GetIDGenerator().GenerateID();
         mEventTable             = MotionEventTable::Create();
@@ -79,11 +80,6 @@ namespace EMotionFX
         {
             mEventTable->Destroy();
         }
-
-        if (mAttributeSet)
-        {
-            mAttributeSet->Destroy();
-        }
     }
 
 
@@ -91,7 +87,7 @@ namespace EMotionFX
     void Motion::SetName(const char* name)
     {
         // calculate the ID
-        mNameID = MCore::GetStringIDGenerator().GenerateIDForString(name);
+        mNameID = MCore::GetStringIdPool().GenerateIdForString(name);
     }
 
 
@@ -149,13 +145,13 @@ namespace EMotionFX
 
     const char* Motion::GetName() const
     {
-        return MCore::GetStringIDGenerator().GetName(mNameID).AsChar();
+        return MCore::GetStringIdPool().GetName(mNameID).c_str();
     }
 
 
-    const MCore::String& Motion::GetNameString() const
+    const AZStd::string& Motion::GetNameString() const
     {
-        return MCore::GetStringIDGenerator().GetName(mNameID);
+        return MCore::GetStringIdPool().GetName(mNameID);
     }
 
 
@@ -202,12 +198,6 @@ namespace EMotionFX
     }
 
 
-    MCore::AttributeSet* Motion::GetAttributeSet() const
-    {
-        return mAttributeSet;
-    }
-
-
     bool Motion::GetDirtyFlag() const
     {
         return mDirtyFlag;
@@ -251,11 +241,11 @@ namespace EMotionFX
 
     const char* Motion::GetFileName() const
     {
-        return mFileName.AsChar();
+        return mFileName.c_str();
     }
 
 
-    const MCore::String& Motion::GetFileNameString() const
+    const AZStd::string& Motion::GetFileNameString() const
     {
         return mFileName;
     }

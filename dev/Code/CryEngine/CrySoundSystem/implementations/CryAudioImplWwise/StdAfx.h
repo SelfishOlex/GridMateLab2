@@ -27,7 +27,6 @@
 
 
 #if defined(AZ_PLATFORM_WINDOWS)
-    #include <windows.h>
     #if defined(AZ_PLATFORM_WINDOWS_X64)
     ///////////////////////////////////////////////////////////////////////////////////////////////
     // Windows64
@@ -37,7 +36,9 @@
     #endif
 #endif
 
-
+#if defined(AZ_RESTRICTED_PLATFORM)
+#include AZ_RESTRICTED_FILE(StdAfx_h, AZ_RESTRICTED_PLATFORM)
+#endif
 
 #if defined(AZ_PLATFORM_APPLE_OSX)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -57,6 +58,7 @@
 #if defined(AZ_PLATFORM_ANDROID)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Android
+    #include <AzCore/Android/AndroidEnv.h>
 #endif
 
 #if defined(AZ_PLATFORM_LINUX_X64)

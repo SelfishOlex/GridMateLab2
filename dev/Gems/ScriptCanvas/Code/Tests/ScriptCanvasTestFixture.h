@@ -27,6 +27,7 @@
 #include <AzCore/Memory/MemoryComponent.h>
 #include <AzCore/Asset/AssetManagerComponent.h>
 #include <ScriptCanvas/SystemComponent.h>
+#include <Asset/RuntimeAssetSystemComponent.h>
 #include <AzFramework/IO/LocalFileIO.h>
 
 // disable test bodies to see if there's anything wrong with the system or test framework not related to ScriptCanvas testing
@@ -40,6 +41,9 @@
 #else
 #define RETURN_IF_TEST_BODIES_ARE_DISABLED(isException) if (isException) { return; }
 #endif
+
+#define SC_EXPECT_DOUBLE_EQ(candidate, reference) EXPECT_NEAR(candidate, reference, 0.001)
+#define SC_EXPECT_FLOAT_EQ(candidate, reference) EXPECT_NEAR(candidate, reference, 0.001f)
 
 namespace ScriptCanvasTests
 {
@@ -98,6 +102,7 @@ namespace ScriptCanvasTests
             systemEntity->CreateComponent<AZ::MemoryComponent>();
             systemEntity->CreateComponent<AZ::AssetManagerComponent>();
             systemEntity->CreateComponent<ScriptCanvas::SystemComponent>();
+            systemEntity->CreateComponent<ScriptCanvas::RuntimeAssetSystemComponent>();
             systemEntity->CreateComponent<TraceMessageComponent>();
 
             systemEntity->Init();
@@ -159,7 +164,7 @@ namespace ScriptCanvasTests
         AZStd::unique_ptr<AZ::IO::FileIOBase> m_fileIO;
         AZ::SerializeContext* m_serializeContext;
         AZ::BehaviorContext* m_behaviorContext;
-
+        UnitTestEntityContext m_entityContext;
     };
 
     class AsyncScriptCanvasTestFixture

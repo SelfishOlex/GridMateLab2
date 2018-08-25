@@ -215,7 +215,7 @@ void GridHub::UpdateMembers()
             GridMate::GridMember* member = session->GetMemberByIndex(i);
             ui.members->setItem(i,0,new QTableWidgetItem(member->GetId().ToString().c_str()));
             ui.members->setItem(i,1,new QTableWidgetItem(member->GetName().c_str()));
-            ui.members->setItem(i,2,new QTableWidgetItem(member->GetConnectionId()==GridMate::InvalidConnectionID ? "--" : tr("%1").arg(reinterpret_cast<unsigned int>(member->GetConnectionId()))));
+            ui.members->setItem(i,2,new QTableWidgetItem(member->GetConnectionId()==GridMate::InvalidConnectionID ? "--" : QString::number((size_t)member->GetConnectionId())));
             ui.members->setItem(i,3,new QTableWidgetItem(member->IsHost()?"Yes":"No"));
             ui.members->setItem(i,4,new QTableWidgetItem(member->IsLocal()?"Yes":"No"));
             ui.members->setItem(i,5,new QTableWidgetItem(member->IsReady()?"Yes":"No"));
@@ -621,7 +621,7 @@ bool GridHubComponent::StartSession(bool isRestarting)
     GridMate::string machineIP = GridMate::Utils::GetMachineAddress();
     if( machineIP == "127.0.0.1" || machineIP.compare(0,4,"169.") == 0 )
     {
-        AZ_Warning("GridHub","\nCurrent IP %s might be invalid.\n",machineIP.c_str());
+        AZ_Warning("GridHub", false, "\nCurrent IP %s might be invalid.\n",machineIP.c_str());
     }
     
     GridMate::CarrierDesc carrierDesc;

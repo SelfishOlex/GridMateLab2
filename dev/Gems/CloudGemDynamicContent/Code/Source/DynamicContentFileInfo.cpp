@@ -133,7 +133,7 @@ namespace CloudCanvas
             if ( IsMounted())
             {
                 AZ_TracePrintf("CloudCanvas", "Unmounting pak for %s.", GetFileName().c_str());
-                gEnv->pCryPak->ClosePack(GetAliasedFilePath().c_str());
+                gEnv->pCryPak->ClosePack(GetFullLocalFileName().c_str());
             }
             else
             {
@@ -161,9 +161,10 @@ namespace CloudCanvas
 
         void DynamicContentFileInfo::ResolveLocalFileName() 
         {
-            m_localFileName = FileTransferSupport::ResolvePath(m_outputDir.c_str());
+            m_localFileName = m_outputDir.c_str();
             FileTransferSupport::MakeEndInSlash(m_localFileName);
             m_localFileName += GetFileName();
+            m_localFileName = FileTransferSupport::ResolvePath(m_localFileName.c_str());
         }
 
         AZStd::string DynamicContentFileInfo::MakeBucketHashName() const

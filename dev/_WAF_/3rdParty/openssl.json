@@ -1,6 +1,6 @@
 {
     "name": "openssl",
-    "source": "@ROOT@/Code/SDKs/OpenSSL",
+    "source": "@3P:OpenSSL@",
     "description": "OpenSSL Library",
     "includes": [
         "include"
@@ -38,6 +38,7 @@
                 "/ignore:4099"
             ]
         },
+        "win_x64_vs2017": "@win_x64_vs2015",
         "linux_x64": {
             "libpath_debug": [
                 "lib/linux-x86_64-clang-debug"
@@ -56,6 +57,48 @@
             ],
             "libpath_release": [
                 "lib/ios_arm64_release"
+            ],
+            "lib": [
+                "libssl.a",
+                "libcrypto.a"
+            ]
+        },
+        "android_armv7_clang": {
+            "libpath_debug": [
+                "lib/android_ndk_r12/android-19/armeabi-v7a/clang-3.8/debug"
+            ],
+            "libpath_release": [
+                "lib/android_ndk_r12/android-19/armeabi-v7a/clang-3.8/release"
+            ],
+            "libpath_debug/android-21": [
+                "lib/android_ndk_r12/android-21/armeabi-v7a/clang-3.8/debug"
+            ],
+            "libpath_release/android-21": [
+                "lib/android_ndk_r12/android-21/armeabi-v7a/clang-3.8/release"
+            ],
+            "lib": [
+                "libssl.a",
+                "libcrypto.a"
+            ]
+        },
+        "android_armv8_clang": {
+            "libpath_debug": [
+                "lib/android_ndk_r12/android-21/arm64-v8a/clang-3.8/debug"
+            ],
+            "libpath_release": [
+                "lib/android_ndk_r12/android-21/arm64-v8a/clang-3.8/release"
+            ],
+            "lib": [
+                "libssl.a",
+                "libcrypto.a"
+            ]
+        },
+        "darwin_x64": {
+            "libpath_debug": [
+                "lib/darwin-x86_64-debug"
+            ],
+            "libpath_release": [
+                "lib/darwin-x86_64-release"
             ],
             "lib": [
                 "libssl.a",

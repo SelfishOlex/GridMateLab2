@@ -25,15 +25,6 @@
 #include <stdio.h>
 
 #if defined(AZ_PLATFORM_WINDOWS)
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>   // needed for DbgHelp.h
-
-#pragma warning(push)
-#pragma warning(disable : 4091) // Needed to bypass the "'typedef ': ignored on left of '' when no variable is declared" brought in by DbgHelp.h
-#include <DbgHelp.h>
-#pragma warning(pop)
-
-#include <io.h>
 #include "CpuInfo.h"
 #include "MathHelpers.h"
 #include <psapi.h>       // GetProcessMemoryInfo()
@@ -53,7 +44,7 @@
 #include "ListFile.h"
 #include "Util.h"
 #include "ICryXML.h"
-#include "IXmlSerializer.h"
+#include "IXMLSerializer.h"
 
 #include "NameConvertor.h"
 #include "CryCrc32.h"
@@ -70,9 +61,10 @@
 #include <ParseEngineConfig.h>
 #include <AzCore/Module/Environment.h>
 #include <AzFramework/StringFunc/StringFunc.h>
+#include <AzFramework/CommandLine/CommandLine.h>
 
-#include <AzCore/debug/TraceMessageBus.h>
-#include <AzCore/debug/TraceMessagesDrillerBus.h>
+#include <AzCore/Debug/TraceMessageBus.h>
+#include <AzCore/Debug/TraceMessagesDrillerBus.h>
 #include <AzCore/base.h>
 #include <AzCore/std/parallel/mutex.h>
 #include <AzFramework/IO/LocalFileIO.h>
@@ -101,6 +93,10 @@ const char* const ResourceCompiler::m_filenameCreatedFileList  = "rc_createdfile
 
 const size_t ResourceCompiler::s_internalBufferSize;
 const size_t ResourceCompiler::s_environmentBufferSize;
+
+#if defined(AZ_PLATFORM_WINDOWS)
+static CrashHandler s_crashHandler;
+#endif
 
 namespace
 {
@@ -163,7 +159,7 @@ ResourceCompiler::ResourceCompiler()
     m_pPakManager = 0;
     m_systemDll = nullptr;
     InitializeThreadIds();
-    
+
     // install our ctrl handler by default, before we load system modules.  Unfortunately
     // some modules may install their own, so we will install ours again after loading perforce and crysystem.
 #if defined(AZ_PLATFORM_WINDOWS)
@@ -209,7 +205,7 @@ ResourceCompiler::~ResourceCompiler()
             m_systemDll = nullptr;
         }
     }
-    
+
     TLSFREE(m_tlsIndex_pThreadData);
 }
 
@@ -456,7 +452,7 @@ static void CompileFilesMultiThreaded(
                     0,                           //unsigned initflag,
                     0);                          //unsigned *thrdaddr
 
-            QObject::connect(threads[threadIndex], &QThread::finished, [&waiter, threadIndex, &threads]()
+            QObject::connect(threads[threadIndex], &QThread::finished, threads[threadIndex], [&waiter, threadIndex, &threads]()
             {
                 threads.remove(threadIndex);
                 if (threads.isEmpty())
@@ -472,7 +468,7 @@ static void CompileFilesMultiThreaded(
         {
             // Show progress
 
-            // unfortunately the below call to processEvents(...), 
+            // unfortunately the below call to processEvents(...),
             // even with a 'wait for more events' flag applied, causes it to still use up an entire CPU core
             // on windows platforms due to implementation details.
             // To avoid this, we will periodically pump events, but we will also wait on a semaphore to be raised to let us quit instantly
@@ -495,9 +491,9 @@ static void CompileFilesMultiThreaded(
         std::vector<AZStd::thread> threads(threadCount);
         for (int threadIndex = 0; threadIndex < threadCount; ++threadIndex)
         {
-        	threads[threadIndex] = AZStd::thread(AZStd::bind(ThreadFunc, &threadData[threadIndex]));
+            threads[threadIndex] = AZStd::thread(AZStd::bind(ThreadFunc, &threadData[threadIndex]));
         }
-        
+
         //TODO:: Implement an atomic counter to track progress for these threads
         //and switch the windows version to use this implementation.
         for (int threadIndex = 0; threadIndex < threadCount; ++threadIndex)
@@ -702,7 +698,7 @@ bool ResourceCompiler::CollectFilesToCompile(const string& filespec, std::vector
                 for (size_t t = 0; t < tokens.size(); ++t)
                 {
                     // Scan directory and accumulate matching filenames in the list.
-                    const string path = PathHelpers::Join(sourceRoot, PathHelpers::GetDirectory(tokens[t]));
+                    const string path = PathHelpers::ToPlatformPath(PathHelpers::Join(sourceRoot, PathHelpers::GetDirectory(tokens[t])));
                     const string pattern = PathHelpers::GetFilename(tokens[t]);
                     RCLog("Scanning directory '%s' for '%s'...", path.c_str(), pattern.c_str());
                     std::vector<string> filenames;
@@ -721,7 +717,16 @@ bool ResourceCompiler::CollectFilesToCompile(const string& filespec, std::vector
                             sourceLeftPath = sourceRoot;
                             sourceInnerPathAndName = PathHelpers::Join(PathHelpers::GetDirectory(tokens[t]), filenames[i]);
                         }
-                        AddRcFile(files, addedFiles, sourceRootsReversed, sourceLeftPath, sourceInnerPathAndName, targetLeftPath);
+
+                        const DWORD dwFileSpecAttr = GetFileAttributes(PathHelpers::Join(sourceLeftPath, sourceInnerPathAndName));
+                        if (dwFileSpecAttr & FILE_ATTRIBUTE_DIRECTORY)
+                        {
+                            RCLog("Skipping adding file '%s' matched by wildcard '%s' because it is a directory", sourceInnerPathAndName.c_str(), filespec.c_str());
+                        }
+                        else
+                        {
+                            AddRcFile(files, addedFiles, sourceRootsReversed, sourceLeftPath, sourceInnerPathAndName, targetLeftPath);
+                        }
                     }
                 }
             }
@@ -846,7 +851,7 @@ bool ResourceCompiler::CompileFilesBySingleProcess(const std::vector<RcFile>& fi
 
     if (config->GetAsBool("copyonly", false, true) || config->GetAsBool("copyonlynooverwrite", false, true))
     {
-        const string targetroot = PathHelpers::CanonicalizePath(config->GetAsString("targetroot", "", ""));
+        const string targetroot = PathHelpers::ToPlatformPath(PathHelpers::CanonicalizePath(config->GetAsString("targetroot", "", "")));
         if (targetroot.empty() && config->GetAsBool("copyonly", false, true))
         {
             RCLogError("/copyonly: you must specify /targetroot.");
@@ -904,7 +909,7 @@ bool ResourceCompiler::CompileFilesBySingleProcess(const std::vector<RcFile>& fi
             RCLogError("Cannot find convertor for %s", filenameForConvertorSearch.c_str());
             filesToConvert.m_failedFiles.push_back(filesToConvert.m_allFiles[i]);
             filesToConvert.m_allFiles.erase(filesToConvert.m_allFiles.begin() + i);
-            
+
             --i;
             continue;
         }
@@ -1026,12 +1031,12 @@ void EnableFloatingPointExceptions()
 unsigned int WINAPI ThreadFunc(void* threadDataMemory)
 {
     EnableFloatingPointExceptions();
-    
+
     RcThreadData* const data = static_cast<RcThreadData*>(threadDataMemory);
 
     // Initialize the thread local storage, so the log can prepend the thread id to each line.
     TLSSET(data->tlsIndex_pThreadData, static_cast<void *>(data));
-    
+
     data->compiler->BeginProcessing(&data->rc->GetMultiplatformConfig().getConfig());
 
     for (;; )
@@ -1153,7 +1158,7 @@ bool ResourceCompiler::CompileFile(
 {
     {
         RcThreadData* const pThreadData = static_cast<RcThreadData*>(TLSGET(m_tlsIndex_pThreadData));
-        
+
         if (!pThreadData)
         {
             RCLogError("Unexpected threading failure");
@@ -1243,7 +1248,7 @@ bool ResourceCompiler::CompileFile(
     // file name changed - print new header for warnings and errors
     {
         RcThreadData* const pThreadData = static_cast<RcThreadData*>(TLSGET(m_tlsIndex_pThreadData));
-        
+
         if (!pThreadData)
         {
             RCLogError("Unexpected threading failure");
@@ -1309,22 +1314,22 @@ void ResourceCompiler::MarkOutputFileForRemoval(const char* outputFilename)
 void ResourceCompiler::InitializeThreadIds()
 {
     TLSALLOC(&m_tlsIndex_pThreadData);
-    
-#if defined(AZ_PLATFORM_WINDOW)
+
+#if defined(AZ_PLATFORM_WINDOWS)
     if (m_tlsIndex_pThreadData == TLS_OUT_OF_INDEXES)
     {
         printf("RC Initialization error");
         exit(eRcExitCode_FatalError);
     }
 #endif
-    
+
     TLSSET(m_tlsIndex_pThreadData, static_cast<void *>(0));
 }
 
 void ResourceCompiler::LogLine(const IRCLog::EType eType, const char* szText)
 {
     AZStd::lock_guard<AZStd::mutex> lock(m_logLock);
-    
+
     if (eType == IRCLog::eType_Warning)
     {
         ++m_numWarnings;
@@ -1337,10 +1342,10 @@ void ResourceCompiler::LogLine(const IRCLog::EType eType, const char* szText)
     FILE* fLog = 0;
     if (!m_mainLogFileName.empty())
     {
-        fLog = fopen( m_mainLogFileName.c_str(), "a+t");
+        azfopen(&fLog, m_mainLogFileName.c_str(), "a+t");
     }
 
-    
+
     if (m_bQuiet)
     {
         if (fLog)
@@ -1352,7 +1357,7 @@ void ResourceCompiler::LogLine(const IRCLog::EType eType, const char* szText)
     }
 
     RcThreadData* const pThreadData = static_cast<RcThreadData*>(TLSGET(m_tlsIndex_pThreadData));
-    
+
     // if pThreadData is 0, then probably RC is just not running threads yet
 
     char threadString[10];
@@ -1417,7 +1422,7 @@ void ResourceCompiler::LogLine(const IRCLog::EType eType, const char* szText)
     FILE* fAdditionalLog = 0;
     if (additionalLogFileName)
     {
-        fAdditionalLog = fopen( additionalLogFileName, "a+t");
+        azfopen(&fAdditionalLog, additionalLogFileName, "a+t");
     }
 
     if (fAdditionalLog)
@@ -1577,7 +1582,7 @@ void ResourceCompiler::RemovePluginDLL(HMODULE pluginDLL)
 static bool RegisterConvertors(ResourceCompiler* pRc)
 {
     const string strDir = pRc->GetExePath();
-    
+
     AZ::IO::LocalFileIO localFile;
     bool foundOK = localFile.FindFiles(strDir.c_str(), CryLibraryDefName("ResourceCompiler*"), [&](const char* pluginFilename) -> bool
     {
@@ -1607,14 +1612,14 @@ static bool RegisterConvertors(ResourceCompiler* pRc)
             // it might not be the DLL that is required for this particular compile.
             return true;
         }
-        
+
         FnInitializeModule fnInitializeAzEnvironment =
             hPlugin ? (FnInitializeModule)CryGetProcAddress(hPlugin, "InitializeAzEnvironment") : NULL;
         if (fnInitializeAzEnvironment)
         {
             fnInitializeAzEnvironment(AZ::Environment::GetInstance());
         }
-        
+
         FnRegisterConvertors fnRegister =
             hPlugin ? (FnRegisterConvertors)CryGetProcAddress(hPlugin, "RegisterConvertors") : NULL;
         if (!fnRegister)
@@ -1626,11 +1631,11 @@ static bool RegisterConvertors(ResourceCompiler* pRc)
             // it might not be the DLL that is required for this particular compile.
             return true;
         }
-        
+
         RCLog("  Loaded \"%s\"", pluginFilename);
-        
+
         pRc->AddPluginDLL(hPlugin);
-        
+
         const int oldErrorCount = pRc->GetNumErrors();
         fnRegister(pRc);
         const int newErrorCount = pRc->GetNumErrors();
@@ -1647,7 +1652,7 @@ static bool RegisterConvertors(ResourceCompiler* pRc)
             // this return controls whether to keep going on other converters or stop the entire process here.
             return true;
         }
-        
+
         // Grab unit test function if the convertor has it
         FnRunUnitTests runUnitTestsFunction = hPlugin ? reinterpret_cast<FnRunUnitTests>(CryGetProcAddress(hPlugin, "RunUnitTests")) : nullptr;
         if (runUnitTestsFunction)
@@ -1657,7 +1662,7 @@ static bool RegisterConvertors(ResourceCompiler* pRc)
 
         return true; // continue iterating to all plugins
     });
-    
+
     return true;
 }
 
@@ -1685,6 +1690,12 @@ static string GetResourceCompilerGenericInfo(const ResourceCompiler& rc, const s
     s += newline;
 
     s += "Platform support: PC";
+#if defined(AZ_TOOLS_EXPAND_FOR_RESTRICTED_PLATFORMS)
+#define AZ_TOOLS_RESTRICTED_PLATFORM_EXPANSION(PrivateName, PRIVATENAME, privatename, PublicName, PUBLICNAME, publicname, PublicAuxName1, PublicAuxName2, PublicAuxName3)\
+    s += ", " #PublicAuxName3;
+    AZ_TOOLS_EXPAND_FOR_RESTRICTED_PLATFORMS
+#undef AZ_TOOLS_RESTRICTED_PLATFORM_EXPANSION
+#endif
 #if defined(TOOLS_SUPPORT_POWERVR)
     s += ", PowerVR";
 #endif
@@ -1963,7 +1974,8 @@ void GetCommandLineArguments(std::vector<string>& resArgs, int argc, char** argv
 
 void AddCommandLineArgumentsFromFile(std::vector<string>& args, const char* const pFilename)
 {
-    FILE* const f = fopen(pFilename, "rt");
+    FILE* f = nullptr; 
+    azfopen(&f, pFilename, "rt");
     if (!f)
     {
         return;
@@ -1999,7 +2011,8 @@ static void GetFileSizeAndCrc32(int64& size, uint32& crc32, const char* pFilenam
         return;
     }
 
-    FILE* const f = fopen(pFilename, "rb");
+    FILE* f = nullptr; 
+    azfopen(&f, pFilename, "rb");
     if (!f)
     {
         size = -1;
@@ -2029,11 +2042,8 @@ static void GetFileSizeAndCrc32(int64& size, uint32& crc32, const char* pFilenam
     crc32 = c.Get();
 }
 
-#if defined(AZ_PLATFORM_WINDOWS)
-static CrashHandler s_crashHandler;
-#endif
 
-std::unique_ptr<QApplication> CreateQApplication(int &argc, char** argv)
+std::unique_ptr<QCoreApplication> CreateQApplication(int &argc, char** argv)
 {
 #if defined(WIN32) || defined(WIN64)
     char modulePath[_MAX_PATH] = { 0 };
@@ -2041,7 +2051,7 @@ std::unique_ptr<QApplication> CreateQApplication(int &argc, char** argv)
     char drive[_MAX_DRIVE] = { 0 };
     char dir[_MAX_DIR] = { 0 };
     _splitpath_s(modulePath, drive, _MAX_DRIVE, dir, _MAX_DIR, NULL, 0, NULL, 0);
-    strcat_s(dir, R"(..\qtlibs\plugins)");
+    azstrcat(dir, R"(..\qtlibs\plugins)");
     char pluginPath[_MAX_PATH] = { 0 };
     _makepath_s(pluginPath, drive, dir, NULL, NULL);
     char pluginFullPath[_MAX_PATH] = { 0 };
@@ -2058,7 +2068,14 @@ std::unique_ptr<QApplication> CreateQApplication(int &argc, char** argv)
 #endif // #if defined(WIN32) || defined(WIN64)
 
     //we are not going to start a mesg loop. so exec will not be called on the qapp
-    auto qApplication = std::make_unique<QApplication>(argc, argv);
+
+    // special circumsance  - if 'userDialog' is present on the command line, we need an interactive app:
+    AzFramework::CommandLine cmdLine;
+    cmdLine.Parse(argc, argv);
+    bool userDialog = cmdLine.HasSwitch("userdialog") &&
+        ((cmdLine.GetNumSwitchValues("userdialog") == 0) || (cmdLine.GetSwitchValue("userdialog", 0) == "1"));
+    
+    std::unique_ptr<QCoreApplication> qApplication = userDialog? std::make_unique<QApplication>(argc, argv) : std::make_unique<QCoreApplication>(argc, argv);
 
     // now that QT is initialized, we can use its path manip to set the rest up:
     QDir appPath(qApp->applicationDirPath());
@@ -2226,13 +2243,11 @@ int __cdecl main_impl(int argc, char** argv, char** envp)
         // initialize rc (also initializes logs)
         rc.Init(mainConfig);
 
+        AZ::Debug::Trace::HandleExceptions(true);
 #if defined(AZ_PLATFORM_WINDOWS)
-        s_crashHandler.SetFiles(
-            rc.GetMainLogFileName(),
-            rc.GetErrorLogFileName(),
-            rc.FormLogFileName(ResourceCompiler::m_filenameCrashDump));
+        s_crashHandler.SetDumpFile(rc.FormLogFileName(ResourceCompiler::m_filenameCrashDump));
 #endif
-        
+
         if (mainConfig.GetAsBool("version", false, true))
         {
             ShowResourceCompilerVersionInfo(rc);
@@ -2348,25 +2363,6 @@ int __cdecl main_impl(int argc, char** argv, char** envp)
                 RCLogError("Unknown platform specified: '%s'", platformStr.c_str());
                 return eRcExitCode_FatalError;
             }
-
-            // Error if the platform specified is not supported by RC
-	    // TODO: this should probably go away, but we need to be sure
-	    // That the platform is not somehow listed as supported
-	    // above, rather than unknown.
-            const char* const unsupportedPlatforms[] =
-            {
-                "XOne", "XboxOne", "Durango",  // ACCEPTED_USE
-                "PS4", "Orbis", // ACCEPTED_USE
-                ""
-            };
-            for (int i = 0; i < sizeof(unsupportedPlatforms) / sizeof(unsupportedPlatforms[0]); ++i)
-            {
-                if (rc.GetPlatformInfo(platform)->HasName(unsupportedPlatforms[i]))
-                {
-                    RCLogError("Platform specified ('%s') is not supported by this RC", platformStr.c_str());
-                    return eRcExitCode_FatalError;
-                }
-            }
         }
 
         // Load configs for every platform
@@ -2402,7 +2398,10 @@ int __cdecl main_impl(int argc, char** argv, char** envp)
             ".",
             rc.GetExePath()
         };
-        CEngineConfig cfg(configSearchPaths, sizeof(configSearchPaths) / sizeof(configSearchPaths[0]));
+        // If RC is running inside a .app (like it does on macOS inside the AssetProcessor.app bundle)
+        // we need to look a few levels higher than the default of 3
+        const int maxLevelsToSearchUp = 6;
+        CEngineConfig cfg(configSearchPaths, sizeof(configSearchPaths) / sizeof(configSearchPaths[0]), maxLevelsToSearchUp);
 
 
         cfg.CopyToStartupParams(systemInitParams);
@@ -2700,7 +2699,7 @@ void ResourceCompiler::QueryVersionInfo()
     m_exePath = moduleName;
 #endif
 
-    
+
     if (m_exePath.empty())
     {
         printf("RC module name: fatal error");
@@ -2788,16 +2787,39 @@ void ResourceCompiler::InitPaths()
     }
     m_initialCurrentDir = PathHelpers::AddSeparator(m_initialCurrentDir);
 
-    // Add Bin64 (one level up from rc.exe) to the path, so child dlls
-    // can find engine or dependency dlls.
+    // Prepend Bin64 (one level up from rc.exe) to the path, so child dlls
+    // can find engine or dependency dlls. -> Prepend so that our directory gets searched first!
 #if defined(AZ_PLATFORM_WINDOWS)
     char pathEnv[s_environmentBufferSize] = {'\0'};
     GetEnvironmentVariable("PATH", pathEnv, s_environmentBufferSize);
-    string pathEnvNew = pathEnv;
-    pathEnvNew.append(";");
-    pathEnvNew.append(m_exePath);
-    pathEnvNew.append("..\\");
+
+    string pathEnvNew = m_exePath;
+    pathEnvNew.append("..\\;");
+    pathEnvNew.append(pathEnv);
+
     SetEnvironmentVariable("PATH", pathEnvNew.c_str());
+
+    // On Windows, force it to load dlls from the directory that the executable is in
+    // and from the Bin64* directory one up, if it's there.
+    // That way all of the dlls that RC uses don't have to be copied into the RC
+    // sub-directory to work
+    QDir tempDir(m_exePath.c_str());
+    tempDir.cdUp();
+    if (tempDir.dirName().contains("Bin64"))
+    {
+        // Calling this forces default dll loading to only occur from and in the following order:
+        // 1) the directory containing the currently loading dll (in this case, dll dependent)
+        // 2) the host exe's directory (Bin64./rc
+        // 3) Directories registered with AddDllDirectory (Bin64*, added below)
+        // 4) System32 (usually C:\Windows\System32)
+        //
+        // This should make it so that the current working directory no longer matters, and things
+        // referenced on the environment PATH variable won't accidentally get loaded instead of
+        // from our directories.
+        // https://msdn.microsoft.com/en-us/library/windows/desktop/hh310515(v=vs.85).aspx
+        SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+        AddDllDirectory(tempDir.absolutePath().toStdWString().c_str());
+    }
 #elif defined(AZ_PLATFORM_APPLE) || defined(AZ_PLATFORM_LINUX)
     const char * pathEnv = getenv("PATH");
     string pathEnvNew = pathEnv;
@@ -2813,10 +2835,22 @@ bool ResourceCompiler::LoadIniFile()
 {
 #if defined(AZ_PLATFORM_WINDOWS)
     const string filename = PathHelpers::ToDosPath(m_exePath) + m_filenameRcIni;
+#elif defined(AZ_PLATFORM_APPLE_OSX)
+    // Handle the case where RC is inside an App Bundle (for the Editor or AssetProcessor)
+    string filename = PathHelpers::ToUnixPath(m_exePath);
+    string::size_type appBundleDirPosition = filename.rfind(".app");
+    if (appBundleDirPosition != string::npos)
+    {
+        // ini file should be in the Resources directory. Doing the substr cuts
+        // off the .app part so add it back in as well.
+        filename = filename.substr(0, appBundleDirPosition);
+        filename += ".app/Contents/Resources/";
+    }
+    filename = filename + m_filenameRcIni;
 #else
     const string filename = PathHelpers::ToUnixPath(m_exePath) + m_filenameRcIni;
 #endif
-    
+
     RCLog("Loading \"%s\"", filename.c_str());
 
     if (!FileUtil::FileExists(filename.c_str()))
@@ -2850,7 +2884,7 @@ void ResourceCompiler::InitSystem(SSystemInitParams& startupParams)
         m_systemDll = CryLoadLibrary("../libCrySystem.dylib");
 #elif defined(AZ_PLATFORM_LINUX)
         m_systemDll = CryLoadLibrary("../libCrySystem.so");
-#else.
+#else
         m_systemDll = CryLoadLibrary("../crysystem.dll");
 #endif
         if (!m_systemDll)
@@ -3291,7 +3325,7 @@ void ResourceCompiler::LogV(const IRCLog::EType eType, const char* szFormat, va_
     char str[s_internalBufferSize];
     azvsnprintf(str, s_internalBufferSize, szFormat, args);
     str[s_internalBufferSize - 1] = 0;
-    
+
     // remove non-printable characters except newlines and tabs
     char* p = str;
     while (*p)
@@ -3520,7 +3554,7 @@ void ResourceCompiler::CopyFiles(const std::vector<RcFile>& files, bool bNoOverw
 
             //////////////////////////////////////////////////////////////////////////
             // Compare source and target files modify timestamps.
-            if (FileUtil::FileTimesAreEqual(srcFilename, trgFilename) && !bRefresh)
+            if (bTargetFileExists && FileUtil::FileTimesAreEqual(srcFilename, trgFilename) && !bRefresh)
             {
                 // Up to date file already exists in target folder
                 ++numFilesUpToDate;
@@ -3656,12 +3690,6 @@ void ResourceCompiler::ScanForAssetReferences(std::vector<string>& outReferences
 {
     const IConfig* const config = &m_multiConfig.getConfig();
 
-    const string targetroot = config->GetAsString("targetroot", "", "");
-    if (targetroot.empty())
-    {
-        return;
-    }
-
     const char* const scanRoot = ".";
 
     RCLog("Scanning for asset references in \"%s\"", scanRoot);
@@ -3740,7 +3768,7 @@ void ResourceCompiler::ScanForAssetReferences(std::vector<string>& outReferences
 #else
             const string dosPath = PathHelpers::ToUnixPath(*it);
 #endif
-            
+
             if (StringHelpers::EqualsIgnoreCase(ext, ddsExt))
             {
                 string fullPath;
@@ -3815,7 +3843,8 @@ void ResourceCompiler::SaveAssetReferences(const std::vector<string>& references
     std::vector<string> excludeMasks;
     StringHelpers::Split(excludeMasksStr, ";", false, excludeMasks);
 
-    FILE* const f = fopen(filename.c_str(), "wt");
+    FILE* f = nullptr; 
+    azfopen(&f, filename.c_str(), "wt");
     if (!f)
     {
         RCLogError("Unable to open %s for writing", filename.c_str());
@@ -3843,7 +3872,7 @@ void ResourceCompiler::CleanTargetFolder(bool bUseOnlyInputFiles)
     const IConfig* const config = &m_multiConfig.getConfig();
 
     {
-        const string targetroot = config->GetAsString("targetroot", "", "");
+        const string targetroot = PathHelpers::ToPlatformPath(PathHelpers::CanonicalizePath(config->GetAsString("targetroot", "", "")));
         if (targetroot.empty())
         {
             return;
@@ -3941,7 +3970,7 @@ void ResourceCompiler::CleanTargetFolder(bool bUseOnlyInputFiles)
         {
             RCLog("Deleting file \"%s\"", filename.c_str());
             AZ::IO::LocalFileIO().Remove(filename.c_str());
-            
+
         }
     }
 
@@ -3961,7 +3990,8 @@ void ResourceCompiler::CleanTargetFolder(bool bUseOnlyInputFiles)
         const string filename = FormLogFileName(m_filenameDeletedFileList);
         RCLog("Saving %s", filename.c_str());
 
-        FILE* const f = fopen(filename.c_str(), "wt");
+        FILE* f = nullptr; 
+        azfopen(&f, filename.c_str(), "wt");
         if (f)
         {
             for (size_t i = 0; i < deletedTargetFiles.size(); ++i)
@@ -4263,7 +4293,7 @@ int ResourceCompiler::EvaluateJobXmlNode(CPropertyVars& properties, XmlNodeRef& 
 
             string propValue;
             properties.GetProperty(key, propValue);
-            if (_stricmp(value, propValue.c_str()) == 0)
+            if (azstricmp(value, propValue.c_str()) == 0)
             {
                 // match.
                 bIf = true;
@@ -4313,22 +4343,22 @@ int ResourceCompiler::EvaluateJobXmlNode(CPropertyVars& properties, XmlNodeRef& 
             string valueStr = value;
             properties.ExpandProperties(valueStr);
 
-            if (_stricmp(key, "input") == 0)
+            if (azstricmp(key, "input") == 0)
             {
                 jobLog += string("/") + key + "=" + valueStr + " ";
                 continue;
             }
-            else if (_stricmp(key, "clean_targetroot") == 0)
+            else if (azstricmp(key, "clean_targetroot") == 0)
             {
                 bCleanTargetRoot = true;
                 continue;
             }
-            else if (_stricmp(key, "refs_scan") == 0)
+            else if (azstricmp(key, "refs_scan") == 0)
             {
                 RCLogError("refs_scan is not supported anymore");
                 return eRcExitCode_Error;
             }
-            else if (_stricmp(key, "refs_save") == 0)
+            else if (azstricmp(key, "refs_save") == 0)
             {
                 if (valueStr.empty())
                 {
@@ -4338,17 +4368,17 @@ int ResourceCompiler::EvaluateJobXmlNode(CPropertyVars& properties, XmlNodeRef& 
                 refsSaveFilename = valueStr;
                 continue;
             }
-            else if (_stricmp(key, "refs_root") == 0)
+            else if (azstricmp(key, "refs_root") == 0)
             {
                 refsRoot = valueStr;
                 continue;
             }
-            else if (_stricmp(key, "refs_save_include") == 0)
+            else if (azstricmp(key, "refs_save_include") == 0)
             {
                 refsSaveInclude = valueStr;
                 continue;
             }
-            else if (_stricmp(key, "refs_save_exclude") == 0)
+            else if (azstricmp(key, "refs_save_exclude") == 0)
             {
                 refsSaveExclude = valueStr;
                 continue;
@@ -4470,7 +4500,7 @@ void ResourceCompiler::LogMemoryUsage(bool bReportProblemsOnly)
         RCLogError("Cannot obtain memory info");
         return;
     }
-    
+
     static const float megabyte = 1024 * 1024;
     const float peakSizeMb = p.PeakWorkingSetSize / megabyte;
 #if defined(WIN64)
@@ -4547,7 +4577,7 @@ int ResourceCompiler::RunUnitTests()
 int __cdecl main(int argc, char** argv, char** envp)
 {
 #ifdef AZ_TESTS_ENABLED
-    if (argc == 2 && 0 == stricmp(argv[1], "--unittest"))
+    if (argc == 2 && 0 == azstricmp(argv[1], "--unittest"))
     {
         return AzMainUnitTests();
     }

@@ -13,7 +13,7 @@
 #define QCOLLAPSEWIDGET_H
 
 #include <QWidget>
-#include "qmenu.h"
+#include "QMenu"
 #include "QCopyableWidget.h"
 
 class QVBoxLayout;
@@ -44,7 +44,6 @@ private slots:
 private:
     Ui::QCollapseWidget* ui;
     CAttributeItem* m_attributeItem;
-    QMenu* menu;
 };
 
 #endif // QCOLLAPSEWIDGET_H

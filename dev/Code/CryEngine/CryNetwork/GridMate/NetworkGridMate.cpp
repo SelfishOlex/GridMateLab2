@@ -31,6 +31,17 @@
 #include "NetworkGridMateEntityEventBus.h"
 
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#undef AZ_RESTRICTED_SECTION
+#define NETWORKGRIDMATE_CPP_SECTION_1 1
+#define NETWORKGRIDMATE_CPP_SECTION_2 2
+#endif
+
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION NETWORKGRIDMATE_CPP_SECTION_1
+#include AZ_RESTRICTED_FILE(NetworkGridMate_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+
 namespace GridMate
 {
     //-----------------------------------------------------------------------------
@@ -49,7 +60,6 @@ namespace GridMate
         , m_session(nullptr)
         , m_gameContextReplica(nullptr)
         , m_levelLoadState(LevelLoadState_None)
-        , m_isUpdatingGridMate(false)
         , m_allowMinimalUpdate(false)
     {
         s_instance = this;
@@ -65,9 +75,9 @@ namespace GridMate
         Debug::UnregisterCVars();
 #endif
 
-        if (GetGameFramework() && GetGameFramework()->GetILevelSystem())
+        if (GetLevelSystem())
         {
-            GetGameFramework()->GetILevelSystem()->RemoveListener(this);
+            GetLevelSystem()->RemoveListener(this);
         }
 
         if (gEnv && gEnv->pEntitySystem)
@@ -125,10 +135,10 @@ namespace GridMate
     //-----------------------------------------------------------------------------
     void Network::SetGameContext(IGameContext* gameContext)
     {
-        if (GetGameFramework() && GetGameFramework()->GetILevelSystem())
+        if (GetLevelSystem())
         {
             // try to add ourselves (in case we are not already)
-            GetGameFramework()->GetILevelSystem()->AddListener(this);
+            GetLevelSystem()->AddListener(this);
         }
 
         m_gameContext = gameContext;
@@ -245,11 +255,9 @@ namespace GridMate
     //-----------------------------------------------------------------------------
     void Network::UpdateGridMate(ENetworkGameSync syncType)
     {
-        if (m_gridMate && !m_isUpdatingGridMate)
+        if (m_gridMate && m_mutexUpdatingGridMate.try_lock() )
         {
             FRAME_PROFILER("GridMate Update", GetISystem(), PROFILE_NETWORK);
-
-            m_isUpdatingGridMate = true;
 
             GridMate::ReplicaManager* replicaManager = GetCurrentSession() ? GetCurrentSession()->GetReplicaMgr() : nullptr;
             if (replicaManager)
@@ -286,7 +294,7 @@ namespace GridMate
             }
 
             m_gridMate->Update();
-            m_isUpdatingGridMate = false;
+            m_mutexUpdatingGridMate.unlock();
         }
     }
 
@@ -595,6 +603,10 @@ namespace GridMate
             ReplicaChunkDescriptorTable::Get().RegisterChunkType<GameContextReplica, GridMate::BasicHostChunkDescriptor<GameContextReplica>>();
         }
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION NETWORKGRIDMATE_CPP_SECTION_2
+#include AZ_RESTRICTED_FILE(NetworkGridMate_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
     }
 
     //-----------------------------------------------------------------------------

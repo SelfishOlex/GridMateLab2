@@ -51,8 +51,8 @@ namespace MCommon
         mBaseRadius     = mSize / 15.0f;
 
         // positions for the plane selectors
-        mFirstPlaneSelectorPos  = mScaledSize * 0.3;
-        mSecPlaneSelectorPos    = mScaledSize * 0.6;
+        mFirstPlaneSelectorPos  = mScaledSize * 0.3f;
+        mSecPlaneSelectorPos    = mScaledSize * 0.6f;
 
         // set the bounding volumes of the axes selection
         mXAxisAABB.SetMax(mPosition + mSignX * AZ::Vector3(mScaledSize.GetX() + mArrowLength, mBaseRadius, mBaseRadius));
@@ -64,11 +64,11 @@ namespace MCommon
 
         // set bounding volumes for the plane selectors
         mXYPlaneAABB.SetMax(mPosition + AZ::Vector3(mSecPlaneSelectorPos.GetX() * mSignX, mSecPlaneSelectorPos.GetY() * mSignY, mBaseRadius * mSignZ));
-        mXYPlaneAABB.SetMin(mPosition + 0.3 * AZ::Vector3(mSecPlaneSelectorPos.GetX() * mSignX, mSecPlaneSelectorPos.GetY() * mSignY, 0) - AZ::Vector3(mBaseRadius * mSignX, mBaseRadius * mSignY, mBaseRadius * mSignZ));
+        mXYPlaneAABB.SetMin(mPosition + 0.3f * AZ::Vector3(mSecPlaneSelectorPos.GetX() * mSignX, mSecPlaneSelectorPos.GetY() * mSignY, 0) - AZ::Vector3(mBaseRadius * mSignX, mBaseRadius * mSignY, mBaseRadius * mSignZ));
         mXZPlaneAABB.SetMax(mPosition + AZ::Vector3(mSecPlaneSelectorPos.GetX() * mSignX, mBaseRadius * mSignY, mSecPlaneSelectorPos.GetZ() * mSignZ));
-        mXZPlaneAABB.SetMin(mPosition + 0.3 * AZ::Vector3(mSecPlaneSelectorPos.GetX() * mSignX, 0, mSecPlaneSelectorPos.GetZ() * mSignZ) - AZ::Vector3(mBaseRadius * mSignX, mBaseRadius * mSignY, mBaseRadius * mSignZ));
+        mXZPlaneAABB.SetMin(mPosition + 0.3f * AZ::Vector3(mSecPlaneSelectorPos.GetX() * mSignX, 0, mSecPlaneSelectorPos.GetZ() * mSignZ) - AZ::Vector3(mBaseRadius * mSignX, mBaseRadius * mSignY, mBaseRadius * mSignZ));
         mYZPlaneAABB.SetMax(mPosition + AZ::Vector3(mBaseRadius * mSignX, mSecPlaneSelectorPos.GetY() * mSignY, mSecPlaneSelectorPos.GetZ() * mSignZ));
-        mYZPlaneAABB.SetMin(mPosition + 0.3 * AZ::Vector3(0, mSecPlaneSelectorPos.GetY() * mSignY, mSecPlaneSelectorPos.GetZ() * mSignZ) - AZ::Vector3(mBaseRadius * mSignX, mBaseRadius * mSignY, mBaseRadius * mSignZ));
+        mYZPlaneAABB.SetMin(mPosition + 0.3f * AZ::Vector3(0, mSecPlaneSelectorPos.GetY() * mSignY, mSecPlaneSelectorPos.GetZ() * mSignZ) - AZ::Vector3(mBaseRadius * mSignX, mBaseRadius * mSignY, mBaseRadius * mSignZ));
 
         // set bounding volume for the box selector
         mXYZBoxAABB.SetMin(mPosition - AZ::Vector3(mBaseRadius * mSignX, mBaseRadius * mSignY, mBaseRadius * mSignZ));
@@ -256,8 +256,8 @@ namespace MCommon
         if (mMode != SCALE_NONE)
         {
             const AZ::Vector3& currScale = mCallback->GetCurrValueVec();
-            mTempString.Format("Abs. Scale X: %.3f, Y: %.3f, Z: %.3f", MCore::Max(float(currScale.GetX()), 0.0f), MCore::Max(float(currScale.GetY()), 0.0f), MCore::Max(float(currScale.GetZ()), 0.0f));
-            renderUtil->RenderText(10, 10, mTempString.AsChar(), ManipulatorColors::mSelectionColor, 9.0f);
+            mTempString = AZStd::string::format("Abs. Scale X: %.3f, Y: %.3f, Z: %.3f", MCore::Max(float(currScale.GetX()), 0.0f), MCore::Max(float(currScale.GetY()), 0.0f), MCore::Max(float(currScale.GetZ()), 0.0f));
+            renderUtil->RenderText(10, 10, mTempString.c_str(), ManipulatorColors::mSelectionColor, 9.0f);
         }
 
         // calculate the position offset of the relative text
@@ -273,14 +273,14 @@ namespace MCommon
             AZ::Vector3 scaleFactor = ((AZ::Vector3(mSize, mSize, mSize) + mScale) / (float)mSize);
 
             // render the scaling value below the gizmo
-            mTempString.Format("X: %.3f, Y: %.3f, Z: %.3f", MCore::Max(float(scaleFactor.GetX()), 0.0f), MCore::Max(float(scaleFactor.GetY()), 0.0f), MCore::Max(float(scaleFactor.GetZ()), 0.0f));
-            renderUtil->RenderText(textPos.GetX(), textPos.GetY() + yOffset, mTempString.AsChar(), ManipulatorColors::mSelectionColor, 9.0f, true);
+            mTempString = AZStd::string::format("X: %.3f, Y: %.3f, Z: %.3f", MCore::Max(float(scaleFactor.GetX()), 0.0f), MCore::Max(float(scaleFactor.GetY()), 0.0f), MCore::Max(float(scaleFactor.GetZ()), 0.0f));
+            renderUtil->RenderText(textPos.GetX(), textPos.GetY() + yOffset, mTempString.c_str(), ManipulatorColors::mSelectionColor, 9.0f, true);
         }
         else
         {
-            if (mName.GetLength() > 0)
+            if (mName.size() > 0)
             {
-                renderUtil->RenderText(textPos.GetX(), textPos.GetY() + yOffset, mName.AsChar(), ManipulatorColors::mSelectionColor, 9.0f, true);
+                renderUtil->RenderText(textPos.GetX(), textPos.GetY() + yOffset, mName.c_str(), ManipulatorColors::mSelectionColor, 9.0f, true);
             }
         }
     }

@@ -65,6 +65,7 @@ HierarchyWidget::HierarchyWidget(EditorWindow* editorWindow)
 
     QObject::connect(this,
         &QTreeWidget::itemClicked,
+        this,
         [this](QTreeWidgetItem* item, int column)
         {
             HierarchyItem* i = dynamic_cast<HierarchyItem*>(item);
@@ -85,6 +86,7 @@ HierarchyWidget::HierarchyWidget(EditorWindow* editorWindow)
 
     QObject::connect(this,
         &QTreeWidget::itemExpanded,
+        this,
         [this](QTreeWidgetItem* item)
         {
             CommandHierarchyItemToggleIsExpanded::Push(m_editorWindow->GetActiveStack(),
@@ -94,6 +96,7 @@ HierarchyWidget::HierarchyWidget(EditorWindow* editorWindow)
 
     QObject::connect(this,
         &QTreeWidget::itemCollapsed,
+        this,
         [this](QTreeWidgetItem* item)
         {
             CommandHierarchyItemToggleIsExpanded::Push(m_editorWindow->GetActiveStack(),

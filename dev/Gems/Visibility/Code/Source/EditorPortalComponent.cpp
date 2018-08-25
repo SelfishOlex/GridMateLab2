@@ -18,7 +18,7 @@
 // Include files needed for writing DisplayEntity functions that access the DisplayContext directly.
 #include <EditorCoreAPI.h>
 
-#include <AZCore/Math/Crc.h>
+#include <AzCore/Math/Crc.h>
 #include <AzFramework/Math/MathUtils.h>
 #include <Editor/Objects/BaseObject.h>
 #include <Editor/Objects/VisAreaShapeObject.h>
@@ -429,6 +429,8 @@ namespace Visibility
             dc->DrawLine(portalUpperRightBack, portalUpperLeftBack);
             dc->DrawLine(portalUpperLeftBack, floorLeftBack);
         }
+
+        AzToolsFramework::EditorVertexSelectionUtil::DisplayVertexContainerIndices(*dc, m_vertexSelection, GetWorldTM(), IsSelected());
 
         dc->PopMatrix();
 

@@ -12,9 +12,8 @@
 
 #pragma once
 
-#include "../StandardPluginsConfig.h"
 #include <AzCore/std/string/string.h>
-#include <MCore/Source/UnicodeString.h>
+#include "../StandardPluginsConfig.h"
 #include <QPushButton>
 #include <QTreeWidget>
 #include <QWidget>
@@ -48,11 +47,11 @@ namespace EMStudio
         void OnHideSelected()                                       { SetVisibilityFlags(false); }
 
     protected:
-        virtual void contextMenuEvent(QContextMenuEvent* event) override;
+        void contextMenuEvent(QContextMenuEvent* event) override;
 
     private:
-        virtual void keyPressEvent(QKeyEvent* event) override;
-        virtual void keyReleaseEvent(QKeyEvent* event) override;
+        void keyPressEvent(QKeyEvent* event) override;
+        void keyReleaseEvent(QKeyEvent* event) override;
 
         void SetControlsEnabled();
         uint32 GetIDFromTreeItem(QTreeWidgetItem* item);

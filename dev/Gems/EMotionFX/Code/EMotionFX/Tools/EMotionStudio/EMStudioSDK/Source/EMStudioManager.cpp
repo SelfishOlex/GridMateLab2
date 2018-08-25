@@ -11,11 +11,13 @@
 */
 
 #include "EMStudioManager.h"
+#include <AzCore/Component/ComponentApplicationBus.h>
 #include <AzCore/IO/FileIO.h>
-#include <AzFramework/StringFunc/StringFunc.h>
+#include <AzCore/Serialization/SerializeContext.h>
 #include "RecoverFilesWindow.h"
 #include "MotionEventPresetManager.h"
 #include <EMotionFX/Tools/EMotionStudio/EMStudioSDK/Source/Commands.h>
+#include <EMotionStudio/EMStudioSDK/Source/Allocators.h>
 
 #ifdef MCORE_PLATFORM_WINDOWS
     #include <shlobj.h>
@@ -25,8 +27,6 @@
 
 // include MCore related
 #include <MCore/Source/LogManager.h>
-#include <MCore/Source/UnicodeStringIterator.h>
-#include <MCore/Source/UnicodeCharacter.h>
 #include <MCore/Source/CommandManager.h>
 #include <MCore/Source/FileSystem.h>
 #include <EMotionFX/Source/AnimGraphManager.h>
@@ -43,10 +43,10 @@
 #include <QMessageBox>
 #include <QLabel>
 #include <QStandardPaths>
+#include <QPushButton>
 
 // include AzCore required headers
 #include <AzFramework/API/ApplicationAPI.h>
-
 
 namespace EMStudio
 {
@@ -63,15 +63,33 @@ namespace EMStudio
     // constructor
     EMStudioManager::EMStudioManager(QApplication* app, int& argc, char* argv[])
     {
-        mHTMLLinkString.Reserve(32768);
+        mHTMLLinkString.reserve(32768);
         mEventProcessingCallback = nullptr;
         mAutoLoadLastWorkspace = false;
         mAvoidRendering = false;
 
         mApp = app;
 
+        {
+            UIAllocator::Descriptor uiAllocatorDescriptor;
+            uiAllocatorDescriptor.m_custom = &AZ::AllocatorInstance<AZ::SystemAllocator>::Get();
+            AZ::AllocatorInstance<UIAllocator>::Create();
+        }
+
+        AZ::SerializeContext* serializeContext = nullptr;
+        AZ::ComponentApplicationBus::BroadcastResult(serializeContext, &AZ::ComponentApplicationBus::Events::GetSerializeContext);
+        if (!serializeContext)
+        {
+            AZ_Error("EMotionFX", false, "Can't get serialize context from component application.");
+        }
+        else
+        {
+            MainWindow::Reflect(serializeContext);
+        }
+
+
         // create and setup a log file
-        MCore::GetLogManager().CreateLogFile(MCore::String(GetAppDataFolder() + "EMStudioLog.txt").AsChar());
+        MCore::GetLogManager().CreateLogFile(AZStd::string(GetAppDataFolder() + "EMStudioLog.txt").c_str());
         //#ifdef MCORE_DEBUG
         MCore::GetLogManager().SetLogLevels(MCore::LogCallback::LOGLEVEL_ALL);
         //#endif
@@ -89,7 +107,7 @@ namespace EMStudio
         mLayoutManager              = new LayoutManager();
         mOutlinerManager            = new OutlinerManager();
         mNotificationWindowManager  = new NotificationWindowManager();
-        mCompileDate.Format("%s", MCORE_DATE);
+        mCompileDate = AZStd::string::format("%s", MCORE_DATE);
 
         // log some information
         LogInfo();
@@ -115,9 +133,11 @@ namespace EMStudio
         delete mOutlinerManager;
         delete mMainWindow;
         delete mCommandManager;
+
+        AZ::AllocatorInstance<UIAllocator>::Destroy();
     }
 
-    MainWindow* EMStudioManager::GetMainWindow() 
+    MainWindow* EMStudioManager::GetMainWindow()
     {
         if (mMainWindow.isNull())
         {
@@ -126,7 +146,7 @@ namespace EMStudio
             mEventPresetManager->Load();
             mMainWindow->Init();
         }
-        return mMainWindow; 
+        return mMainWindow;
     }
 
 
@@ -158,14 +178,31 @@ namespace EMStudio
 
 #if !defined(EMFX_EMSTUDIOLYEMBEDDED)
         // try to load all plugins
-        MCore::String pluginDir = MysticQt::GetAppDir() + "Plugins/";
+        AZStd::string pluginDir = MysticQt::GetAppDir() + "Plugins/";
 
-        mPluginManager->LoadPluginsFromDirectory(pluginDir.AsChar());
+        mPluginManager->LoadPluginsFromDirectory(pluginDir.c_str());
 #endif // EMFX_EMSTUDIOLYEMBEDDED
 
-        // Register dirty workspace files callback.
-        mMainWindow->RegisterDirtyWorkspaceCallback();
-
+        // Give a chance to every plugin to reflect data
+        const uint32 numPlugins = mPluginManager->GetNumPlugins();
+        if (numPlugins)
+        {
+            AZ::SerializeContext* serializeContext = nullptr;
+            AZ::ComponentApplicationBus::BroadcastResult(serializeContext, &AZ::ComponentApplicationBus::Events::GetSerializeContext);
+            if (!serializeContext)
+            {
+                AZ_Error("EMotionFX", false, "Can't get serialize context from component application.");
+            }
+            else
+            {
+                for (uint32 i = 0; i < numPlugins; ++i)
+                {
+                    EMStudioPlugin* plugin = mPluginManager->GetPlugin(i);
+                    plugin->Reflect(serializeContext);
+                }
+            }
+        }
+        
         // Register the command event processing callback.
         mEventProcessingCallback = new EventProcessingCallback();
         EMStudio::GetCommandManager()->RegisterCallback(mEventProcessingCallback);
@@ -174,7 +211,7 @@ namespace EMStudio
         mMainWindow->UpdateCreateWindowMenu();
 
         // Set the recover save path.
-        MCore::FileSystem::mSecureSavePath = GetManager()->GetRecoverFolder().AsChar();
+        MCore::FileSystem::mSecureSavePath = GetManager()->GetRecoverFolder().c_str();
 
         // Show the main dialog and wait until it closes.
         MCore::LogInfo("EMotion Studio initialized...");
@@ -237,8 +274,8 @@ namespace EMStudio
         int32 g = color.g * 256;
         int32 b = color.b * 256;
 
-        mHTMLLinkString.Format("<qt><style>a { color: rgb(%i, %i, %i); } a:hover { color: rgb(40, 40, 40); }</style><a href='%s'>%s</a></qt>", r, g, b, text, text);
-        return mHTMLLinkString.AsChar();
+        mHTMLLinkString = AZStd::string::format("<qt><style>a { color: rgb(%i, %i, %i); } a:hover { color: rgb(40, 40, 40); }</style><a href='%s'>%s</a></qt>", r, g, b, text, text);
+        return mHTMLLinkString.c_str();
     }
 
 
@@ -309,7 +346,7 @@ namespace EMStudio
 
 
     // after executing a command
-    void EMStudioManager::EventProcessingCallback::OnPostExecuteCommand(MCore::CommandGroup* group, MCore::Command* command, const MCore::CommandLine& commandLine, bool wasSuccess, const MCore::String& outResult)
+    void EMStudioManager::EventProcessingCallback::OnPostExecuteCommand(MCore::CommandGroup* group, MCore::Command* command, const MCore::CommandLine& commandLine, bool wasSuccess, const AZStd::string& outResult)
     {
         MCORE_UNUSED(group);
         MCORE_UNUSED(command);
@@ -322,7 +359,7 @@ namespace EMStudio
     }
 
 
-    MCore::String EMStudioManager::GetAppDataFolder() const
+    AZStd::string EMStudioManager::GetAppDataFolder() const
     {
         AZStd::string appDataFolder = QStandardPaths::standardLocations(QStandardPaths::DataLocation).at(0).toUtf8().data();
         appDataFolder += "/EMotionStudio/";
@@ -335,28 +372,28 @@ namespace EMStudio
     }
 
 
-    MCore::String EMStudioManager::GetRecoverFolder() const
+    AZStd::string EMStudioManager::GetRecoverFolder() const
     {
         // Set the recover path
-        const MCore::String recoverPath = GetAppDataFolder() + "Recover" + MCore::FileSystem::mFolderSeparatorChar;
+        const AZStd::string recoverPath = GetAppDataFolder() + "Recover" + MCore::FileSystem::mFolderSeparatorChar;
 
         // create all folders needed
         QDir dir;
-        dir.mkpath(recoverPath.AsChar());
+        dir.mkpath(recoverPath.c_str());
 
         // return the recover path
         return recoverPath;
     }
 
 
-    MCore::String EMStudioManager::GetAutosavesFolder() const
+    AZStd::string EMStudioManager::GetAutosavesFolder() const
     {
         // Set the autosaves path
-        const MCore::String autosavesPath = GetAppDataFolder() + "Autosaves" + MCore::FileSystem::mFolderSeparatorChar;
+        const AZStd::string autosavesPath = GetAppDataFolder() + "Autosaves" + MCore::FileSystem::mFolderSeparatorChar;
 
         // create all folders needed
         QDir dir;
-        dir.mkpath(autosavesPath.AsChar());
+        dir.mkpath(autosavesPath.c_str());
 
         // return the autosaves path
         return autosavesPath;

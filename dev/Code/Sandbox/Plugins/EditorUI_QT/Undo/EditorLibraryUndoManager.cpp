@@ -32,26 +32,64 @@ namespace EditorUIPlugin
 
     ScopedLibraryModifyUndo::ScopedLibraryModifyUndo(const AZStd::string& libId)
     {
-        m_modifyCmd = aznew LibraryModifyCommand(libId);
-        static_cast<LibraryModifyCommand*>(m_modifyCmd)->CaptureStart();
+        m_libId = libId;
+
+        m_modifyCmd = aznew LibraryModifyCommand(m_libId);
+        m_modifyCmd->CaptureStart();
+
+        m_deleteCmd = aznew LibraryDeleteCommand();
+        m_deleteCmd->Capture(m_libId);
     }
 
-    ScopedLibraryModifyUndo::~ScopedLibraryModifyUndo()        
+    ScopedLibraryModifyUndo::~ScopedLibraryModifyUndo()
     {
-        static_cast<LibraryModifyCommand*>(m_modifyCmd)->CaptureEnd();
-        EBUS_EVENT(EditorLibraryUndoRequestsBus, AddUndo, m_modifyCmd);
+        IDataBaseLibrary* lib = nullptr;
+        EBUS_EVENT_RESULT(lib, EditorLibraryUndoRequestsBus, GetLibrary, m_libId);
+
+        // If the library still exists go ahead with the Modify Undo Command.
+        if (lib)
+        {
+            delete m_deleteCmd;
+            m_modifyCmd->CaptureEnd();
+            EBUS_EVENT(EditorLibraryUndoRequestsBus, AddUndo, m_modifyCmd);
+        }
+        // Else add the Delete Undo command, the user will be able to recover the library to the original state.
+        else
+        {
+            delete m_modifyCmd;
+            EBUS_EVENT(EditorLibraryUndoRequestsBus, AddUndo, m_deleteCmd);
+        }
     }
 
     ScopedLibraryMoveUndo::ScopedLibraryMoveUndo(const AZStd::string& libId)
     {
-        m_moveCmd = aznew LibraryMoveCommand(libId);
-        static_cast<LibraryMoveCommand*>(m_moveCmd)->CaptureStart();
+        m_libId = libId;
+
+        m_moveCmd = aznew LibraryMoveCommand(m_libId);
+        m_moveCmd->CaptureStart();
+
+        m_deleteCmd = aznew LibraryDeleteCommand();
+        m_deleteCmd->Capture(m_libId);
     }
 
     ScopedLibraryMoveUndo::~ScopedLibraryMoveUndo()
     {
-        static_cast<LibraryMoveCommand*>(m_moveCmd)->CaptureEnd();
-        EBUS_EVENT(EditorLibraryUndoRequestsBus, AddUndo, m_moveCmd);
+        IDataBaseLibrary* lib = nullptr;
+        EBUS_EVENT_RESULT(lib, EditorLibraryUndoRequestsBus, GetLibrary, m_libId);
+
+        // If the library still exists go ahead with the Move Undo Command.
+        if (lib)
+        {
+            delete m_deleteCmd;
+            m_moveCmd->CaptureEnd();
+            EBUS_EVENT(EditorLibraryUndoRequestsBus, AddUndo, m_moveCmd);
+        }
+        // Else add the Delete Undo command, the user will be able to recover the library to the original state.
+        else
+        {
+            delete m_moveCmd;
+            EBUS_EVENT(EditorLibraryUndoRequestsBus, AddUndo, m_deleteCmd);
+        }
     }
 
     ScopedSuspendUndo::ScopedSuspendUndo()
@@ -105,21 +143,21 @@ namespace EditorUIPlugin
         }
         if (!m_curUndoBatch)
         {
-            m_curUndoBatch = aznew UndoSystem::URSequencePoint(label, 0);
+            m_curUndoBatch = aznew UndoSystem::BatchCommand(label, 0);
         }
         else
         {
             //use tree stucture for undo batch so it can have right label for the undo operation
             UndoSystem::URSequencePoint* pCurrent = m_curUndoBatch;
 
-            m_curUndoBatch = aznew UndoSystem::URSequencePoint(label, 0);
+            m_curUndoBatch = aznew UndoSystem::BatchCommand(label, 0);
             m_curUndoBatch->SetParent(pCurrent);
         }
     }
-   
+
     void EditorLibraryUndoManager::EndUndoBatch()
     {
-        //Note, if there is not a current batch then we return directly and treat this as expected. 
+        //Note, if there is not a current batch then we return directly and treat this as expected.
         //There is a situation where a batch could be ended twice with no adverse effect, in CLibraryTreeView::EndRename().
         if (IsSuspend() || !m_curUndoBatch)
         {
@@ -202,7 +240,7 @@ namespace EditorUIPlugin
             delete sequecePoint;
             return;
         }
-        
+
         if (m_curUndoBatch == nullptr)
         {
             m_undoStack->Post(sequecePoint);
@@ -239,7 +277,7 @@ namespace EditorUIPlugin
     {
         m_itemsCache->Clear();
     }
-    
+
     IDataBaseItem* EditorLibraryUndoManager::GetItem(const AZStd::string& itemId)
     {
         return m_libMgr->FindItemByName(itemId.c_str());
@@ -249,7 +287,7 @@ namespace EditorUIPlugin
     {
         return m_libMgr->FindLibrary(libId.c_str());
     }
-    
+
     IBaseLibraryManager* EditorLibraryUndoManager::GetLibraryManager()
     {
         return m_libMgr;
@@ -300,7 +338,7 @@ namespace EditorUIPlugin
         command->Capture(itemIds);
         AddUndo(command);
     }
-    
+
     ScopedLibraryMoveUndoPtr EditorLibraryUndoManager::AddScopedLibraryMoveUndo(const AZStd::string& libName)
     {
         if (IsSuspend())

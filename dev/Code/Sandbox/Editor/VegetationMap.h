@@ -90,6 +90,9 @@ public:
     //! Remove all objects.
     void ClearObjects();
 
+    //! Remove everything.
+    void ClearAll();
+
     //! Hide all instances of this object.
     void HideObject(CVegetationObject* object, bool bHide);
     void HideAllObjects(bool bHide);
@@ -242,6 +245,8 @@ private:
     //! Create new object instance in map.
     CVegetationInstance* CreateObjInstance(CVegetationObject* object, const Vec3& pos, CVegetationInstance* pCopy = nullptr);
     void DeleteObjInstance(CVegetationInstance* obj, SectorInfo* sector);
+    void DeleteObjInstanceNoUndo(CVegetationInstance* obj, SectorInfo* sector);
+
     //! Only to be used by undo/redo.
     void AddObjInstance(CVegetationInstance* obj);
 
@@ -254,7 +259,6 @@ private:
     //! Returns true if theres no any objects within radius from given position.
     bool IsPlaceEmpty(const Vec3& pos, float radius, CVegetationInstance* ignore);
 
-    void ClearAll();
     void ClearSectors();
 
     void LoadOldStuff(CXmlArchive& xmlAr);

@@ -41,7 +41,7 @@ def build(bld):
         defines                     = [ 'UNICODE', 'WOODPECKER_ENABLE_LUA_IDE' ],
         copy_dependent_files        = [ 'Bin64/d3dcompiler_47.dll'],
         # Platform Specific
-        win_cxxflags            = [
+        msvc_cxxflags           = [
             '/W4', # warning level
         ],
         win_lib                 = [ 'shell32' ],
@@ -51,10 +51,9 @@ def build(bld):
                                     'AWS_CPP_SDK_IDENTITY_MANAGEMENT' ],
 
         darwin_rpath    =         ['@executable_path', '@executable_path/qtlibs/lib'],
-        darwin_frameworkpath    = [bld.CreateRootRelativePath('Code/Sandbox/SDKs/Qt/lib')],
-        darwin_cxxflags         = [
-            '-Werror',  # warnings as errors
-            '-Wall',  # warning level
+        darwin_frameworkpath    = [bld.ThirdPartyPath('qt','lib')],
+        clang_cxxflags          = [
+            '-Wno-writable-strings',
         ]
 
     )
@@ -74,7 +73,7 @@ def build(bld):
                                        './Woodpecker/Driller',
                                        './Woodpecker/Driller/Carrier',
                                        './Woodpecker/Driller/Profiler',
-                                       './WoodPecker/Driller/IO'],
+                                       './Woodpecker/Driller/IO'],
         use                         = ['AzCore',
                                        'AzFramework',
                                        'AzToolsFramework',
@@ -91,7 +90,7 @@ def build(bld):
         defines                 = [ 'UNICODE', 'WOODPECKER_ENABLE_PROFILER' ],
 
         # Platform Specific
-        win_cxxflags = [
+        msvc_cxxflags           = [
             '/W4', # warning level
             ],
         darwin_uselib           = [ 'AWS_CPP_SDK_CORE',
@@ -99,10 +98,9 @@ def build(bld):
                                     'AWS_CPP_SDK_MOBILEANALYTICS',
                                     'AWS_CPP_SDK_IDENTITY_MANAGEMENT' ],
         darwin_rpath    =         ['@executable_path', '@executable_path/qtlibs/lib'],
-        darwin_frameworkpath    = [bld.CreateRootRelativePath('Code/Sandbox/SDKs/Qt/lib')],
-        darwin_cxxflags = [
-            '-Werror', # warnings as errors
-            '-Wall', # warning level
+        darwin_frameworkpath    = [bld.ThirdPartyPath('qt','lib')],
+        clang_cxxflags          = [
+            '-Wno-writable-strings',
             ],
 
         win_lib =[ 'shell32' ]

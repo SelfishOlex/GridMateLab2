@@ -41,6 +41,8 @@ namespace AZ
 
         TICK_PHYSICS        = 200,     ///< Suggested tick handler position for physics components.
 
+        TICK_ATTACHMENT     = 500,     ///< Suggested tick handler position for attachment components.
+
         TICK_DEFAULT        = 1000,    ///< Default tick handler position when the handler is constructed.
 
         TICK_UI             = 2000,    ///< Suggested tick handler position for UI components.
@@ -94,7 +96,7 @@ namespace AZ
          * Specifies the mutex that is used when adding and removing events from the event queue.
          * This mutex is for the event queue, not TickEvents. Do not add a mutex to TickEvents.
          */
-        typedef AZStd::mutex EventQueueMutexType; 
+        typedef AZStd::recursive_mutex EventQueueMutexType; 
         
         /**
          * Determines the order in which handlers receive tick events. 

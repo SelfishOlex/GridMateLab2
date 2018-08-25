@@ -58,6 +58,31 @@ namespace UnitTest
 
     int MyCtorClass::s_numConstructedObjects = 0;
 
+    struct VectorMoveOnly
+    {
+        VectorMoveOnly() = default;
+        VectorMoveOnly(int num)
+            : m_num(num)
+        {
+        }
+        VectorMoveOnly(const VectorMoveOnly&) = delete;
+        VectorMoveOnly& operator=(const VectorMoveOnly&) = delete;
+
+        VectorMoveOnly(VectorMoveOnly&& other)
+            : m_num(other.m_num)
+        {
+            other.m_num = 0;
+        }
+        VectorMoveOnly& operator=(VectorMoveOnly&& other)
+        {
+            m_num = other.m_num;
+            other.m_num = 0;
+            return *this;
+        }
+
+        int m_num = 0;
+    };
+
     class Arrays
         : public AllocatorsFixture
     {
@@ -435,6 +460,27 @@ namespace UnitTest
         AZ_TEST_ASSERT(myclass_vector[1].m_isMoved == true);
         AZ_TEST_ASSERT(myclass_vector[2].m_data == 23);
 #endif // AZ_HAS_RVALUE_REFS
+
+        // move iterator
+        AZStd::vector<VectorMoveOnly> move_only_vector;
+        move_only_vector.push_back(1);
+        move_only_vector.push_back(2);
+        move_only_vector.push_back(3);
+        move_only_vector.push_back(4);
+
+        AZStd::vector<VectorMoveOnly> result_move_only_vector{ AZStd::make_move_iterator(move_only_vector.begin()), AZStd::make_move_iterator(move_only_vector.end()) };
+        
+        for (const auto& move_only1 : move_only_vector)
+        {
+            EXPECT_EQ(0, move_only1.m_num);
+        }
+
+        int uniquePtrIntValue = 1;
+        for (const auto& result_move_only : result_move_only_vector)
+        {
+            EXPECT_EQ(uniquePtrIntValue, result_move_only.m_num);
+            ++uniquePtrIntValue;
+        }
         // VectorContainerTest-End
     }
 
@@ -628,18 +674,18 @@ namespace UnitTest
     TEST_F(Arrays, VectorSwap)
     {
         vector<void*> vec1(42, nullptr);
-        vector<void*> vec2(3, (void*)0xdeadbeef);
-        vector<void*> vec3(3, (void*)0xcdcdcdcd);
+        vector<void*> vec2(3, reinterpret_cast<void*>((intptr_t)0xdeadbeef));
+        vector<void*> vec3(3, reinterpret_cast<void*>((intptr_t)0xcdcdcdcd));
 
         vec1.swap(vec2);
         EXPECT_EQ(3, vec1.size());
-        EXPECT_EQ((void*)0xdeadbeef, vec1[0]);
+        EXPECT_EQ(reinterpret_cast<void*>((intptr_t)0xdeadbeef), vec1[0]);
         EXPECT_EQ(42, vec2.size());
         EXPECT_EQ(nullptr, vec2[0]);
 
         vec2.swap(vec3);
         EXPECT_EQ(3, vec2.size());
-        EXPECT_EQ((void*)0xcdcdcdcd, vec2.back());
+        EXPECT_EQ(reinterpret_cast<void*>((intptr_t)0xcdcdcdcd), vec2.back());
         EXPECT_EQ(42, vec3.size());
         EXPECT_EQ(nullptr, vec3.back());
 
@@ -659,6 +705,24 @@ namespace UnitTest
         AZ_TEST_ASSERT(myArr.back() == 0);
         AZ_TEST_ASSERT(myArr[1] == 2);
         AZ_TEST_ASSERT(myArr.at(2) == 3);
+
+        using iteratorType = int;
+        auto testValue = myArr;
+        reverse_iterator<iteratorType*> rend = testValue.rend();
+        reverse_iterator<const iteratorType*> crend1 = testValue.rend();
+        reverse_iterator<const iteratorType*> crend2 = testValue.crend();
+
+        reverse_iterator<iteratorType*> rbegin = testValue.rbegin();
+        reverse_iterator<const iteratorType*> crbegin1 = testValue.rbegin();
+        reverse_iterator<const iteratorType*> crbegin2 = testValue.crbegin();
+
+        AZ_TEST_ASSERT(rend == crend1);
+        AZ_TEST_ASSERT(crend1 == crend2);
+
+        AZ_TEST_ASSERT(rbegin == crbegin1);
+        AZ_TEST_ASSERT(crbegin1 == crbegin2);
+
+        AZ_TEST_ASSERT(rbegin != rend);
 
         array<int, 10> myArr1 = {
             {10, 11, 12, 13}

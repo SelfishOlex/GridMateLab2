@@ -13,7 +13,6 @@
 #pragma once
 
 #include <MCore/Source/StandardHeaders.h>
-#include <MCore/Source/UnicodeString.h>
 #include <EMotionFX/Source/MemoryCategories.h>
 #include "EMStudioConfig.h"
 #include <MysticQt/Source/KeyboardShortcutManager.h>
@@ -64,7 +63,7 @@ namespace EMStudio
         : public QWidget
     {
         Q_OBJECT
-                 MCORE_MEMORYOBJECTCATEGORY(KeyboardShortcutsWindow, EMFX_DEFAULT_ALIGNMENT, MEMCATEGORY_EMSTUDIOSDK);
+        MCORE_MEMORYOBJECTCATEGORY(KeyboardShortcutsWindow, EMFX_DEFAULT_ALIGNMENT, MEMCATEGORY_EMSTUDIOSDK);
 
     public:
         KeyboardShortcutsWindow(QWidget* parent);
@@ -76,10 +75,11 @@ namespace EMStudio
         static QString ConstructStringFromShortcut(int key, bool ctrl, bool alt);
         MysticQt::KeyboardShortcutManager::Group* GetCurrentGroup() const;
 
+        void setVisible(bool visible) override;
+
     private slots:
         void OnGroupSelectionChanged();
         void OnShortcutChange(int row, int column);
-        void OnSetVisible(bool isVisible);
         void OnResetToDefault();
         void OnAssignNewKey();
 

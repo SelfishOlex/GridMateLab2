@@ -15,6 +15,8 @@
 
 #include <QDesktopWidget>
 #include <QSignalBlocker>
+#include <QMouseEvent>
+#include <QWheelEvent>
 
 namespace AzToolsFramework
 {
@@ -191,6 +193,7 @@ namespace AzToolsFramework
                 {
                     QWheelEvent* wheelEvent = static_cast<QWheelEvent*>(event);
                     QDoubleSpinBox::wheelEvent(wheelEvent);
+                    return true;
                 }
                 else
                 {

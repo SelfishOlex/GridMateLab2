@@ -29,11 +29,14 @@
 
 namespace EMStudio
 {
+    AZ_CLASS_ALLOCATOR_IMPL(RenderWidget::EventHandler, EMotionFX::EventHandlerAllocator, 0)
+
+
     // constructor
     RenderWidget::RenderWidget(RenderPlugin* renderPlugin, RenderViewWidget* viewWidget)
     {
         // create our event handler
-        mEventHandler = new EventHandler(this);
+        mEventHandler = aznew EventHandler(this);
         EMotionFX::GetEventManager().AddEventHandler(mEventHandler);
 
         mLines.SetMemoryCategory(MEMCATEGORY_EMSTUDIOSDK_RENDERPLUGINBASE);
@@ -160,28 +163,31 @@ namespace EMStudio
         // calculate cam distance for the orthographic cam mode
         if (mCamera->GetProjectionMode() == MCommon::Camera::PROJMODE_ORTHOGRAPHIC)
         {
-            // reduced size for the rotation gizmo in ortho mode
-            float gizmoScale = 0.75f;
-            if (activeManipulator->GetType() == MCommon::TransformationManipulator::GIZMOTYPE_ROTATION)
+            camDist = 0.75f; 
+            switch (GetCameraMode())
             {
-                gizmoScale = 0.6f;
-            }
-
-            uint32 camMode = GetCameraMode();
-            if (camMode == CAMMODE_FRONT || camMode == CAMMODE_BACK)
-            {
-                camDist = MCore::Math::Abs(mCamera->GetPosition().GetY()) * gizmoScale;
-            }
-            else if (camMode == CAMMODE_LEFT || camMode == CAMMODE_RIGHT)
-            {
-                camDist = MCore::Math::Abs(mCamera->GetPosition().GetX()) * gizmoScale;
-            }
-            else
-            {
-                camDist = MCore::Math::Abs(mCamera->GetPosition().GetZ()) * gizmoScale;
+            case CAMMODE_FRONT:
+            case CAMMODE_BOTTOM:
+                // -(scale.x)
+                camDist *= (-2.0 / mCamera->GetViewProjMatrix().m16[0]);
+                break;
+            case CAMMODE_BACK:
+            case CAMMODE_TOP:
+                // scale.x
+                camDist *= (2.0 / mCamera->GetViewProjMatrix().m16[0]);
+                break;
+            case CAMMODE_LEFT:
+                // -(scale.y)
+                camDist *= (-2.0 / mCamera->GetViewProjMatrix().m16[4]);
+                break;
+            case CAMMODE_RIGHT:
+                // scale.y
+                camDist *= (2.0 / mCamera->GetViewProjMatrix().m16[4]);
+                break;
+            default:
+                break;
             }
         }
-
         // calculate cam distance for perspective cam
         else
         {
@@ -725,21 +731,7 @@ namespace EMStudio
 
         if (shortcutManger->Check(event, "Toggle Selection Box Rendering", "Render Window"))
         {
-            mPlugin->GetRenderOptions()->mRenderSelectionBox ^= true;
-            event->accept();
-            return;
-        }
-
-        if (shortcutManger->Check(event, "Select All Actor Instances", "Render Window"))
-        {
-            GetMainWindow()->OnSelectAllActorInstances();
-            event->accept();
-            return;
-        }
-
-        if (shortcutManger->Check(event, "Unselect All Actor Instances", "Render Window"))
-        {
-            GetMainWindow()->OnUnselectAllActorInstances();
+            mPlugin->GetRenderOptions()->SetRenderSelectionBox(mPlugin->GetRenderOptions()->GetRenderSelectionBox() ^ true);
             event->accept();
             return;
         }
@@ -768,18 +760,6 @@ namespace EMStudio
         }
 
         if (shortcutManger->Check(event, "Show Entire Scene", "Render Window"))
-        {
-            event->accept();
-            return;
-        }
-
-        if (shortcutManger->Check(event, "Select All Actor Instances", "Render Window"))
-        {
-            event->accept();
-            return;
-        }
-
-        if (shortcutManger->Check(event, "Unselect All Actor Instances", "Render Window"))
         {
             event->accept();
             return;
@@ -1210,9 +1190,9 @@ namespace EMStudio
         RenderOptions* renderOptions = mPlugin->GetRenderOptions();
 
         // update the camera
-        mCamera->SetNearClipDistance(renderOptions->mNearClipPlaneDistance);
-        mCamera->SetFarClipDistance(renderOptions->mFarClipPlaneDistance);
-        mCamera->SetFOV(renderOptions->mFOV);
+        mCamera->SetNearClipDistance(renderOptions->GetNearClipPlaneDistance());
+        mCamera->SetFarClipDistance(renderOptions->GetFarClipPlaneDistance());
+        mCamera->SetFOV(renderOptions->GetFOV());
         mCamera->SetAspectRatio(mWidth / (float)mHeight);
         mCamera->SetScreenDimensions(mWidth, mHeight);
         mCamera->AutoUpdateLimits();
@@ -1251,7 +1231,7 @@ namespace EMStudio
             return;
         }
 
-        const float unitSize = renderOptions->mGridUnitSize;
+        const float unitSize = renderOptions->GetGridUnitSize();
         AZ::Vector3  gridNormal   = AZ::Vector3(0.0f, 0.0f, 1.0f);
 
         if (mCamera->GetType() == MCommon::OrthographicCamera::TYPE_ID)
@@ -1278,7 +1258,7 @@ namespace EMStudio
         renderUtil->CalcVisibleGridArea(mCamera, mWidth, mHeight, unitSize, &gridStart, &gridEnd);
         if (mViewWidget->GetRenderFlag(RenderViewWidget::RENDER_GRID))
         {
-            renderUtil->RenderGrid(gridStart, gridEnd, gridNormal, unitSize, renderOptions->mMainAxisColor, renderOptions->mGridColor, renderOptions->mSubStepColor, true);
+            renderUtil->RenderGrid(gridStart, gridEnd, gridNormal, unitSize, renderOptions->GetMainAxisColor(), renderOptions->GetGridColor(), renderOptions->GetSubStepColor(), true);
         }
 
         renderUtil->SetDepthMaskWrite(true);

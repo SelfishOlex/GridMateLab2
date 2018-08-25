@@ -22,6 +22,7 @@ namespace PrefabHelpers
         QAction* action = new QAction("(Deprecated) Save as Prefab...", hierarchy);
         QObject::connect(action,
             &QAction::triggered,
+            hierarchy,
             [ hierarchy ](bool checked)
             {
                 // Note that selectedItems() can be expensive, so call it once and save the value.
@@ -152,12 +153,12 @@ namespace PrefabHelpers
                 // file.filename because the former preserves case
                 AZStd::string filename;
                 AzFramework::StringFunc::Path::GetFileName(fullFileName.toUtf8().data(), filename);
-                qint64 fileSize = file.size;
 
                 QAction* action = new QAction(filename.c_str(), prefabMenu);
                 QObject::connect(action,
                     &QAction::triggered,
-                    [filepath, fileSize, hierarchy, addAtRoot, optionalPos](bool checked)
+                    hierarchy,
+                    [filepath, hierarchy, addAtRoot, optionalPos](bool checked)
                     {
                         if (addAtRoot)
                         {

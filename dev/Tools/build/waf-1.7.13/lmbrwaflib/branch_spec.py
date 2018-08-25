@@ -15,7 +15,7 @@
 #
 ########### Below are various getter to expose the global values ############
 from waflib.Configure import conf, ConfigurationContext
-from waflib import Context, Utils, Logs
+from waflib import Context, Utils, Logs, Errors
 from cry_utils import append_to_unique_list, split_comma_delimited_string
 
 from waf_branch_spec import BINTEMP_FOLDER
@@ -31,7 +31,8 @@ from waf_branch_spec import PLATFORM_CONFIGURATION_FILTER
 from waf_branch_spec import ADDITIONAL_COPYRIGHT_TABLE
 import json
 import os
-
+import copy
+import subprocess
 
 
 # Copyright table lookup by copyright organization ( copyright_org for the wscript keyword. )
@@ -54,6 +55,8 @@ for additional_copyright_org in ADDITIONAL_COPYRIGHT_TABLE:
 # dictionary
 PLATFORM_SHORTCUT_ALIASES = {
     'win': [
+        'win_x64_clang',
+        'win_x64_vs2017',
         'win_x64_vs2015',
         'win_x64_vs2013',
     ],
@@ -72,6 +75,8 @@ PLATFORM_SHORTCUT_ALIASES = {
         'darwin_x64',
         'ios',
         'appletv',
+        'win_x64_clang',
+        'win_x64_vs2017',
         'win_x64_vs2015',
         'win_x64_vs2013',
         'android_armv7_gcc',
@@ -81,10 +86,12 @@ PLATFORM_SHORTCUT_ALIASES = {
 
     # Compilers
     'msvc': [
+        'win_x64_vs2017',
         'win_x64_vs2015',
         'win_x64_vs2013',
     ],
     'clang': [
+        'win_x64_clang',
         'darwin_x64',
         'ios',
         'appletv',
@@ -100,6 +107,7 @@ PLATFORM_SHORTCUT_ALIASES = {
 # Only allow specific build platforms to be included in specific versions of MSVS since not all target platforms are
 # compatible with all MSVS version
 MSVS_PLATFORM_VERSION = {
+    'win_x64_vs2017'     : ['15'],
     'win_x64_vs2015'     : ['14'],
     'win_x64_vs2013'     : ['2013'],
     'android_armv7_clang': ['2013', '14']
@@ -107,10 +115,11 @@ MSVS_PLATFORM_VERSION = {
 
 # Table of mapping between WAF target platforms and MSVS target platforms
 WAF_PLATFORM_TO_VS_PLATFORM_PREFIX_AND_TOOL_SET_DICT = {
-    'win_x86'               :   ('Win32', 'win', ['v120']),
-    'win_x64_vs2015'        :   ('x64 vs2015', 'win', ['v140']),
-    'win_x64_vs2013'        :   ('x64 vs2013', 'win', ['v120']),
-    'android_armv7_clang'   :   ('ARM', 'android', ['v120', 'v140']),
+    'win_x86'               :   ('Win32', 'win', ['v120'], 'Win32'),
+    'win_x64_vs2017'        :   ('x64 vs2017', 'win', ['v141'], 'Win32'),
+    'win_x64_vs2015'        :   ('x64 vs2015', 'win', ['v140'], 'Win32'),
+    'win_x64_vs2013'        :   ('x64 vs2013', 'win', ['v120'], 'Win32'),
+    'android_armv7_clang'   :   ('ARM', 'android', ['v120', 'v140'], 'ARM'),
 }
 
 # Helper method to reverse the waf platform to vs platform and prefix dict (WAF_PLATFORM_TO_VS_PLATFORM_AND_PREFIX_DICT)
@@ -157,7 +166,10 @@ def get_bintemp_folder_node(self):
 #############################################################################
 @conf
 def get_dep_proj_folder_name(self, msvs_ver):
-    return self.options.visual_studio_solution_name + '_vc' + msvs_ver + '0.depproj'
+    if msvs_ver == "14":
+        return self.options.visual_studio_solution_name + '_vc' + msvs_ver + '0.depproj'
+    else:
+        return self.options.visual_studio_solution_name + '_vs' + msvs_ver + '.depproj'
 
 #############################################################################
 @conf
@@ -169,7 +181,10 @@ def get_project_output_folder(self, msvs_ver):
 #############################################################################
 @conf
 def get_solution_name(self, msvs_ver):
-    return self.options.visual_studio_solution_folder + '/' + self.options.visual_studio_solution_name + '_vc' + msvs_ver + '0.sln'
+    if msvs_ver == "14":
+        return self.options.visual_studio_solution_folder + '/' + self.options.visual_studio_solution_name + '_vc' + msvs_ver + '0.sln'
+    else:
+        return self.options.visual_studio_solution_folder + '/' + self.options.visual_studio_solution_name + '_vs' + msvs_ver + '.sln'
 
 #############################################################################
 @conf
@@ -279,18 +294,36 @@ def get_msbuild_root(toolset_version):
     return root_path.encode('utf-8')
 
 
-def check_cpp_platform_tools(toolsetVer, platform_tool_name):
+def find_vswhere():
+    vs_path = os.environ['ProgramFiles(x86)']
+    vswhere_exe = os.path.join(vs_path, 'Microsoft Visual Studio\\Installer\\vswhere.exe')
+    if not os.path.isfile(vswhere_exe):
+        vswhere_exe = ''
+    return vswhere_exe
+
+
+def check_cpp_platform_tools(toolsetVer, platform_tool_name, vs2017vswhereOptions):
     """
     Check the cpp tools for a platform based on the presence of a platform specific 'Platform.props' folder
     """
 
     try:
-        platform_root_dir = os.path.join(get_msbuild_root(toolsetVer),
-                                         'Microsoft.Cpp','v4.0','V{}0'.format(toolsetVer),
-                                         'Platforms',
-                                         platform_tool_name)
-        platform_props_file = os.path.join(platform_root_dir,'Platform.props')
-        return os.path.exists(platform_props_file)
+        if toolsetVer == '15':
+            vswhere_exe = find_vswhere()
+            if vswhere_exe == '':
+                return False
+            installation_path = subprocess.check_output([vswhere_exe, '-property', 'installationPath'] + vs2017vswhereOptions)
+            installation_path = installation_path[:len(installation_path)-2]
+            build_root = os.path.join(installation_path, 'MSBuild', toolsetVer+'.0')
+            props_file = os.path.join(build_root, 'Microsoft.common.props')
+            return os.path.exists(props_file)
+        else:
+            platform_root_dir = os.path.join(get_msbuild_root(toolsetVer),
+                                             'Microsoft.Cpp','v4.0','V{}0'.format(toolsetVer),
+                                             'Platforms',
+                                             platform_tool_name)
+            platform_props_file = os.path.join(platform_root_dir,'Platform.props')
+            return os.path.exists(platform_props_file)
     except Exception as err:
         Logs.warn("[WARN] Unable to determine toolset path for platform vetting : {}".format(err.message))
         return True
@@ -307,12 +340,9 @@ def check_msvs_compatibility(self, waf_platform, version):
         return False
 
     # Additionally filter out platforms that do not have a valid installed toolset
-    if waf_platform.startswith('win_x'):
-        msvs_toolset_name = 'Win32'
-    else:
-        msvs_toolset_name = WAF_PLATFORM_TO_VS_PLATFORM_PREFIX_AND_TOOL_SET_DICT[waf_platform][0]
+    msvs_toolset_name = WAF_PLATFORM_TO_VS_PLATFORM_PREFIX_AND_TOOL_SET_DICT[waf_platform][3]
 
-    if not check_cpp_platform_tools(self.msvs_version, msvs_toolset_name):
+    if not check_cpp_platform_tools(self.msvs_version, msvs_toolset_name, self.options.win_vs2017_vswhere_args.split()):
         Logs.warn("[WARN] Skipping platform '{}' because it is not installed "
                   "properly for this version of visual studio".format(waf_platform))
         return False
@@ -329,8 +359,31 @@ def get_supported_configurations(self, platform=None):
 
 #############################################################################
 @conf
-def get_available_launchers(self):
-    return AVAILABLE_LAUNCHERS
+def get_available_launchers(self, project):
+    # Get the dictionary for the launchers
+    available_launchers = copy.deepcopy(AVAILABLE_LAUNCHERS)
+
+    # Get the list of all the launchers
+    projects_settings = self.get_project_settings_map()
+    additional_launchers = projects_settings.get(project, {}).get('additional_launchers', [])
+
+    # Update the modules in the dictionary to include the additional launchers
+    for additional_launcher in additional_launchers:
+        if additional_launcher not in available_launchers['modules']:
+            available_launchers['modules'].append(additional_launcher)
+
+    # Check if there is a list of restricted launchers
+    restricted_launchers = projects_settings.get(project, {}).get('restricted_launchers', [])
+
+    # Remove the modules in the dictionary if there is a restricted list
+    if len(restricted_launchers) > 0:
+        for key in available_launchers:
+            modules = available_launchers[key]
+            launchers = [launcher for launcher in modules if launcher in restricted_launchers]
+            available_launchers[key] = launchers
+
+    return available_launchers
+
 
 #############################################################################
 #############################################################################
@@ -665,18 +718,56 @@ def spec_visual_studio_name(ctx, spec_name = None):
     return visual_studio_name[0]
 
 
+# The GAME_FOLDER_MAP is used as an optional dictionary that maps a game name to a specific folder.  This dictionary is
+# populated based on the current spec that is used.  By default, the game name and the folder name are the same.
+GAME_FOLDER_MAP = {}
+
+
+@conf
+def get_game_asset_folder(_, game_name):
+    global GAME_FOLDER_MAP
+    return GAME_FOLDER_MAP.get(game_name,game_name)
+
+
+@conf
+def spec_override_gems_json(ctx, spec_name = None):
+    return _spec_entry(ctx, 'override_gems_json', spec_name)
+
+
+@conf
+def spec_additional_code_folders(ctx, spec_name = None):
+    return _spec_entry(ctx, 'additional_code_folders', spec_name)
+
+
 @conf
 def spec_game_projects(ctx, spec_name=None):
     """
     Get and game projects defined for the spec.  Will strip out duplicate entries
     """
+    project_settings_map = ctx.get_project_settings_map()
 
     game_projects = _spec_entry(ctx, 'game_projects', spec_name)
     if game_projects is None:
         return []
     unique_list = list()
     for game_project in game_projects:
-        append_to_unique_list(unique_list, game_project)
+        if game_project in project_settings_map:
+            append_to_unique_list(unique_list, game_project)
+
+    # Check if this spec has any game->folder map
+    global GAME_FOLDER_MAP
+    spec_game_folder_map_list = _spec_entry(ctx, 'game_folders', spec_name)
+    if spec_game_folder_map_list and len(spec_game_folder_map_list) > 0:
+        # If there is an override game folder map in the spec, then validate its uniqueness and add it to the map
+        spec_game_folder_map = spec_game_folder_map_list[0]
+        for game_name, game_folder in spec_game_folder_map.items():
+            if game_name in GAME_FOLDER_MAP:
+                current_game_folder = GAME_FOLDER_MAP[game_name]
+                if current_game_folder != game_folder:
+                    raise Errors.WafError('Conflicting game name to folder map detected in spec {}'.format(spec_name))
+            else:
+                GAME_FOLDER_MAP[game_name] = game_folder
+
     return unique_list
 
 
@@ -703,7 +794,7 @@ def spec_disable_games(ctx, spec_name = None):
     """ For a given spec, are game projects disabled?  For example, tool-only specs do this."""
 
     # If no spec is supplied, then no games are disabled
-    if len(ctx.options.project_spec)==0:
+    if len(ctx.options.project_spec)==0 and not spec_name:
         return False
 
     disable_games = _spec_entry(ctx, 'disable_game_projects', spec_name)
@@ -868,14 +959,20 @@ def preprocess_configuration_list(ctx, target, target_platform, configurations, 
 
 VC120_CAPABILITY = ('vc120','Visual Studio 2013')
 VC140_CAPABILITY = ('vc140','Visual Studio 2015')
+VC141_CAPABILITY = ('vc141','Visual Studio 2017')
 ANDROID_CAPABILITY = ('compileandroid','Compile For Android')
+IOS_CAPABILITY = ('compileios','Compile for iOS')
 
 PLATFORM_TO_CAPABILITY_MAP = {
+    'win_x64_clang':        VC140_CAPABILITY,
+    'win_x64_vs2017':       VC141_CAPABILITY,
     'win_x64_vs2015':       VC140_CAPABILITY,
     'win_x64_vs2013':       VC120_CAPABILITY,
     'android_armv7_gcc':    ANDROID_CAPABILITY,
     'android_armv7_clang':  ANDROID_CAPABILITY,
     'android_armv8_clang':  ANDROID_CAPABILITY,
+    'ios':                  IOS_CAPABILITY,
+    'appletv':              IOS_CAPABILITY,
 }
 
 VALIDATED_CONFIGURATIONS_FILENAME = "valid_configuration_platforms.json"
@@ -912,8 +1009,10 @@ def get_available_platforms(conf):
             platform_capability = PLATFORM_TO_CAPABILITY_MAP.get(platform,None)
             if platform_capability is not None:
                 if len(enabled_capabilities) > 0 and platform_capability[0] not in enabled_capabilities:
-                    Logs.warn('[WARN] Removing target platform {} due to "{}" not checked in Setup Assistant.'
-                              .format(platform, platform_capability[1]))
+                    # Only log the target platform removal during the configure process
+                    if isinstance(conf, ConfigurationContext):
+                        Logs.info('[INFO] Removing target platform {} due to "{}" not checked in Setup Assistant.'
+                                  .format(platform, platform_capability[1]))
                     continue
 
             # Perform extra validation of platforms that can be disabled through options

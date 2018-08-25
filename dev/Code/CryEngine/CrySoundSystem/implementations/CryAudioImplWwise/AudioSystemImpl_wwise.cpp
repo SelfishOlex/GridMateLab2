@@ -1,4 +1,4 @@
-/*
+﻿/*
 * All or portions of this file Copyright (c) Amazon.com, Inc. or its affiliates or
 * its licensors.
 *
@@ -26,13 +26,26 @@
 #include <AK/SoundEngine/Common/AkMemoryMgr.h>          // Memory Manager
 #include <AK/SoundEngine/Common/AkModule.h>             // Default memory and stream managers
 
-#include <AK/Plugin/AllPluginsRegistrationHelpers.h>
+#include <PluginRegistration_wwise.h>                   // Registration of default set of plugins, customize this header to your needs.
+
+#if defined(AZ_RESTRICTED_PLATFORM)
+#undef AZ_RESTRICTED_SECTION
+#define AUDIOSYSTEMIMPL_WWISE_CPP_SECTION_1 1
+#define AUDIOSYSTEMIMPL_WWISE_CPP_SECTION_2 2
+#define AUDIOSYSTEMIMPL_WWISE_CPP_SECTION_3 3
+#endif
 
 #if !defined(WWISE_FOR_RELEASE)
     #include <AK/Comm/AkCommunication.h>    // Communication between Wwise and the game (excluded in release build)
     #include <AK/Tools/Common/AkMonitorError.h>
     #include <AK/Tools/Common/AkPlatformFuncs.h>
 #endif // WWISE_FOR_RELEASE
+
+#if defined(AK_MAX_AUX_PER_OBJ)
+    #define LY_MAX_AUX_PER_OBJ  AK_MAX_AUX_PER_OBJ
+#else
+    #define LY_MAX_AUX_PER_OBJ  (4)
+#endif
 
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -68,6 +81,10 @@ namespace AK
         azfree(in_pMemAddress, Audio::AudioImplAllocator);
     }
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION AUDIOSYSTEMIMPL_WWISE_CPP_SECTION_1
+#include AZ_RESTRICTED_FILE(AudioSystemImpl_wwise_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
 }
 
 
@@ -88,6 +105,7 @@ namespace Audio
     const char* const CAudioSystemImpl_wwise::sWwiseMutiplierAttribute = "atl_mult";
     const char* const CAudioSystemImpl_wwise::sWwiseShiftAttribute = "atl_shift";
     const char* const CAudioSystemImpl_wwise::sWwiseLocalisedAttribute = "wwise_localised";
+    const char* const CAudioSystemImpl_wwise::sWwiseGlobalAudioObjectName = "LY-GlobalAudioObject";
     const float CAudioSystemImpl_wwise::sObstructionOcclusionMin = 0.0f;
     const float CAudioSystemImpl_wwise::sObstructionOcclusionMax = 1.0f;
 
@@ -161,7 +179,8 @@ namespace Audio
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     CAudioSystemImpl_wwise::CAudioSystemImpl_wwise()
-        : m_nDummyGameObjectID(static_cast<AkGameObjectID>(-2))
+        : m_globalGameObjectID(static_cast<AkGameObjectID>(GLOBAL_AUDIO_OBJECT_ID))
+        , m_defaultListenerGameObjectID(AK_INVALID_GAME_OBJECT)
         , m_nInitBankID(AK_INVALID_BANK_ID)
 #if !defined(WWISE_FOR_RELEASE)
         , m_bCommSystemInitialized(false)
@@ -172,7 +191,7 @@ namespace Audio
         m_sLocalizedSoundBankFolder = m_sRegularSoundBankFolder;
 
 #if defined(INCLUDE_WWISE_IMPL_PRODUCTION_CODE)
-        m_sFullImplString = WWISE_IMPL_INFO_STRING " (" WWISE_IMPL_BASE_PATH ")";
+        m_sFullImplString = WWISE_IMPL_VERSION_STRING " (" WWISE_IMPL_BASE_PATH ")";
 #endif // INCLUDE_WWISE_IMPL_PRODUCTION_CODE
 
         AudioSystemImplementationRequestBus::Handler::BusConnect();
@@ -348,6 +367,10 @@ namespace Audio
         AK::StreamMgr::GetDefaultDeviceSettings(oDeviceSettings);
         oDeviceSettings.uIOMemorySize = g_audioImplCVars_wwise.m_nStreamDeviceMemoryPoolSize << 10; // 2 MiB is the default value!
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION AUDIOSYSTEMIMPL_WWISE_CPP_SECTION_2
+#include AZ_RESTRICTED_FILE(AudioSystemImpl_wwise_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
 
         eResult = m_oFileIOHandler.Init(oDeviceSettings);
 
@@ -380,21 +403,36 @@ namespace Audio
 
 #if defined(AZ_PLATFORM_WINDOWS)
         // Turn off XAudio2 output type due to rare startup crashes.  Prefers WASAPI or DirectSound.
-        // Only do this when Wwise version >= 2015.
-    #if (AK_WWISESDK_VERSION_MAJOR > 2015)
         oPlatformInitSettings.eAudioAPI = static_cast<AkAudioAPI>(oPlatformInitSettings.eAudioAPI & ~AkAPI_XAudio2);
-    #elif (AK_WWISESDK_VERSION_MAJOR == 2015)
-        oInitSettings.eMainOutputType = static_cast<AkAudioAPI>(oInitSettings.eMainOutputType & ~AkAPI_XAudio2);
-    #endif // AK_WWISESDK_VERSION_MAJOR
-
         oPlatformInitSettings.threadBankManager.dwAffinityMask = 0;
         oPlatformInitSettings.threadLEngine.dwAffinityMask = 0;
         oPlatformInitSettings.threadMonitor.dwAffinityMask = 0;
+#define AZ_RESTRICTED_SECTION_IMPLEMENTED
+#elif defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION AUDIOSYSTEMIMPL_WWISE_CPP_SECTION_3
+#include AZ_RESTRICTED_FILE(AudioSystemImpl_wwise_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
 #elif defined(AZ_PLATFORM_APPLE_OSX)
 #elif defined(AZ_PLATFORM_APPLE_IOS) || defined(AZ_PLATFORM_APPLE_TV)
         oInitSettings.uDefaultPoolSize = 1.5 * 1024 * 1024;
         oPlatformInitSettings.uLEngineDefaultPoolSize = 1.5 * 1024 * 1024;
 #elif defined(AZ_PLATFORM_ANDROID)
+
+    #if (AK_WWISESDK_VERSION_MAJOR >= 2017)
+        JNIEnv* jniEnv = AZ::Android::AndroidEnv::Get()->GetJniEnv();
+        jobject javaActivity = AZ::Android::AndroidEnv::Get()->GetActivityRef();
+        JavaVM* javaVM = nullptr;
+        if (jniEnv)
+        {
+            jniEnv->GetJavaVM(&javaVM);
+        }
+
+        oPlatformInitSettings.pJavaVM = javaVM;
+        oPlatformInitSettings.jNativeActivity = javaActivity;
+    #endif // AK_WWISESDK_VERSION_MAJOR
+
 #elif defined(AZ_PLATFORM_LINUX_X64)
 #else
     #error "Unsupported platform."
@@ -447,43 +485,15 @@ namespace Audio
         }
 #endif // !WWISE_FOR_RELEASE
 
-        //
-        // Registration of plugins via AK::SoundEngine::RegisterAllPlugins()
-        // or AK::SoundEngine::RegisterPlugin(...) is deprecated as of
-        // AK_WWISESDK_VERSION_MAJOR >= 2016.  See 2016 migration page:
-        // https://www.audiokinetic.com/library/edge/?source=SDK&id=whatsnew__2016__1__migration.html
-        //
-
-    #if (AK_WWISESDK_VERSION_MAJOR <= 2015)
-        /// Note: RegisterAllPlugins is a convenience method for development.
-        /// To reduce executable code size, register/link only the plug-ins required by your game
-        /// For example:
-        ///eResult = AK::SoundEngine::RegisterPlugin(
-        ///  AkPluginTypeEffect,
-        ///  AKCOMPANYID_AUDIOKINETIC,
-        ///  AKEFFECTID_CONVOLUTIONREVERB,
-        ///  CreateConvolutionReverbFX,
-        ///  CreateConvolutionReverbFXParams
-        ///);
-
-        eResult = AK::SoundEngine::RegisterAllPlugins();
-
-        if (!IS_WWISE_OK(eResult))
-        {
-            g_audioImplLogger_wwise.Log(eALT_WARNING, "AK::SoundEngine::RegisterAllPlugins() returned AKRESULT %d", eResult);
-        }
-
-    #endif // AK_WWISESDK_VERSION_MAJOR
-
         // Initialize the AudioSourceManager
         AudioSourceManager::Get().Initialize();
 
         // Register the DummyGameObject used for the events that don't need a location in the game world
-        eResult = AK::SoundEngine::RegisterGameObj(m_nDummyGameObjectID, "DummyObject");
+        eResult = AK::SoundEngine::RegisterGameObj(m_globalGameObjectID, sWwiseGlobalAudioObjectName);
 
         if (!IS_WWISE_OK(eResult))
         {
-            g_audioImplLogger_wwise.Log(eALT_WARNING, "AK::SoundEngine::RegisterGameObject() failed for the Dummyobject with AKRESULT %d", eResult);
+            g_audioImplLogger_wwise.Log(eALT_WARNING, "AK::SoundEngine::RegisterGameObject() failed for '%s' with AKRESULT %d", sWwiseGlobalAudioObjectName, eResult);
         }
 
         // Load Init.bnk before making the system available to the users
@@ -529,11 +539,11 @@ namespace Audio
         if (AK::SoundEngine::IsInitialized())
         {
             // UnRegister the DummyGameObject
-            eResult = AK::SoundEngine::UnregisterGameObj(m_nDummyGameObjectID);
+            eResult = AK::SoundEngine::UnregisterGameObj(m_globalGameObjectID);
 
             if (!IS_WWISE_OK(eResult))
             {
-                g_audioImplLogger_wwise.Log(eALT_WARNING, "AK::SoundEngine::UnregisterGameObject() failed for the Dummyobject with AKRESULT %d", eResult);
+                g_audioImplLogger_wwise.Log(eALT_WARNING, "AK::SoundEngine::UnregisterGameObject() failed for '%s' with AKRESULT %d", sWwiseGlobalAudioObjectName, eResult);
             }
 
             eResult = AK::SoundEngine::ClearBanks();
@@ -634,7 +644,7 @@ namespace Audio
         }
         else
         {
-            g_audioImplLogger_wwise.Log(eALT_WARNING, "Wwise RegisterGameObj failed, pObjectData was null");
+            g_audioImplLogger_wwise.Log(eALT_WARNING, "Wwise UnregisterGameObj failed, pObjectData was null");
             return eARS_FAILURE;
         }
     }
@@ -734,7 +744,7 @@ namespace Audio
             }
             else
             {
-                nAKObjectID = m_nDummyGameObjectID;
+                nAKObjectID = m_globalGameObjectID;
             }
 
             const AkPlayingID nAKPlayingID = AK::SoundEngine::PostEvent(
@@ -815,7 +825,7 @@ namespace Audio
 
         if (pAKObjectData)
         {
-            const AkGameObjectID nAKObjectID = pAKObjectData->bHasPosition ? pAKObjectData->nAKID : m_nDummyGameObjectID;
+            const AkGameObjectID nAKObjectID = pAKObjectData->bHasPosition ? pAKObjectData->nAKID : m_globalGameObjectID;
 
             AK::SoundEngine::StopAll(nAKObjectID);
 
@@ -983,7 +993,7 @@ namespace Audio
             {
                 case eWST_SWITCH:
                 {
-                    const AkGameObjectID nAKObjectID = pAKObjectData->bHasPosition ? pAKObjectData->nAKID : m_nDummyGameObjectID;
+                    const AkGameObjectID nAKObjectID = pAKObjectData->bHasPosition ? pAKObjectData->nAKID : m_globalGameObjectID;
 
                     const AKRESULT eAKResult = AK::SoundEngine::SetSwitch(
                             pAKSwitchStateData->nAKSwitchID,
@@ -1099,7 +1109,11 @@ namespace Audio
         {
             const AKRESULT eAKResult = AK::SoundEngine::SetObjectObstructionAndOcclusion(
                     pAKObjectData->nAKID,
-                    0, // only set the obstruction/occlusion for the default listener for now
+#if (AK_WWISESDK_VERSION_MAJOR <= 2016)
+                    0,  // only set the obstruction/occlusion for the default listener for now
+#else
+                    m_defaultListenerGameObjectID,  // only set the obstruction/occlusion for the default listener for now
+#endif // AK_WWISESDK_VERSION_MAJOR
                     static_cast<AkReal32>(fObstruction),
                     static_cast<AkReal32>(fOcclusion));
 
@@ -1139,7 +1153,12 @@ namespace Audio
             AkListenerPosition oAKListenerPos;
             ATLTransformToAKTransform(oNewPosition, oAKListenerPos);
 
+#if (AK_WWISESDK_VERSION_MAJOR <= 2016)
             const AKRESULT eAKResult = AK::SoundEngine::SetListenerPosition(oAKListenerPos, pAKListenerData->nAKID);
+#else
+            const AKRESULT eAKResult = AK::SoundEngine::SetPosition(pAKListenerData->nAKListenerObjectId, oAKListenerPos);
+#endif // AK_WWISESDK_VERSION_MAJOR
+
             if (IS_WWISE_OK(eAKResult))
             {
                 eResult = eARS_SUCCESS;
@@ -1153,6 +1172,7 @@ namespace Audio
         {
             g_audioImplLogger_wwise.Log(eALT_ERROR, "Invalid ATLListenerData passed to the Wwise implementation of SetListenerPosition");
         }
+
         return eResult;
     }
 
@@ -1315,6 +1335,7 @@ namespace Audio
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     SATLAudioObjectData_wwise* CAudioSystemImpl_wwise::NewGlobalAudioObjectData(const TAudioObjectID nObjectID)
     {
+        AZ_UNUSED(nObjectID);
         auto pNewObjectData = azcreate(SATLAudioObjectData_wwise, (AK_INVALID_GAME_OBJECT, false), Audio::AudioImplAllocator, "ATLAudioObjectData_wwise-Global");
         return pNewObjectData;
     }
@@ -1333,22 +1354,79 @@ namespace Audio
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    SATLListenerData_wwise* CAudioSystemImpl_wwise::NewDefaultAudioListenerObjectData()
+    SATLListenerData_wwise* CAudioSystemImpl_wwise::NewDefaultAudioListenerObjectData(const TATLIDType nListenerID)
     {
-        auto pNewObject = azcreate(SATLListenerData_wwise, (0), Audio::AudioImplAllocator, "ATLListenerData_wwise-Default");
+    #if (AK_WWISESDK_VERSION_MAJOR <= 2016)
+        auto pNewObject = azcreate(SATLListenerData_wwise, (static_cast<AkUniqueID>(0)), Audio::AudioImplAllocator, "ATLListenerData_wwise-Default");
+    #else
+        auto pNewObject = azcreate(SATLListenerData_wwise, (static_cast<AkGameObjectID>(nListenerID)), Audio::AudioImplAllocator, "ATLListenerData_wwise-Default");
+        if (pNewObject)
+        {
+            auto listenerName = AZStd::string::format("DefaultAudioListener(%" PRISIZE_T ")", pNewObject->nAKListenerObjectId);
+            AKRESULT eAKResult = AK::SoundEngine::RegisterGameObj(pNewObject->nAKListenerObjectId, listenerName.c_str());
+            if (IS_WWISE_OK(eAKResult))
+            {
+                eAKResult = AK::SoundEngine::SetDefaultListeners(&pNewObject->nAKListenerObjectId, 1);
+                if (IS_WWISE_OK(eAKResult))
+                {
+                    m_defaultListenerGameObjectID = pNewObject->nAKListenerObjectId;
+                }
+                else
+                {
+                    g_audioImplLogger_wwise.Log(eALT_WARNING, "Wwise failed in SetDefaultListeners to set AkGameObjectID %" PRISIZE_T " as default with AKRESULT: %d", pNewObject->nAKListenerObjectId, eAKResult);
+                }
+            }
+            else
+            {
+                g_audioImplLogger_wwise.Log(eALT_WARNING, "Wwise failed in RegisterGameObj registering a DefaultAudioListener with AKRESULT: %d", eAKResult);
+            }
+        }
+    #endif // AK_WWISESDK_VERSION_MAJOR
         return pNewObject;
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
-    SATLListenerData_wwise* CAudioSystemImpl_wwise::NewAudioListenerObjectData(const uint nIndex)
+    SATLListenerData_wwise* CAudioSystemImpl_wwise::NewAudioListenerObjectData(const TATLIDType nListenerID)
     {
-        auto pNewObject = azcreate(SATLListenerData_wwise, (nIndex), Audio::AudioImplAllocator, "ATLListenerData_wwise");
+    #if (AK_WWISESDK_VERSION_MAJOR <= 2016)
+        auto pNewObject = azcreate(SATLListenerData_wwise, (static_cast<AkUniqueID>(nListenerID)), Audio::AudioImplAllocator, "ATLListenerData_wwise");
+    #else
+        auto pNewObject = azcreate(SATLListenerData_wwise, (static_cast<AkGameObjectID>(nListenerID)), Audio::AudioImplAllocator, "ATLListenerData_wwise");
+        if (pNewObject)
+        {
+            auto listenerName = AZStd::string::format("AudioListener(%" PRISIZE_T ")", pNewObject->nAKListenerObjectId);
+            AKRESULT eAKResult = AK::SoundEngine::RegisterGameObj(pNewObject->nAKListenerObjectId, listenerName.c_str());
+            if (!IS_WWISE_OK(eAKResult))
+            {
+                g_audioImplLogger_wwise.Log(eALT_WARNING, "Wwise failed in RegisterGameObj registering an AudioListener with AKRESULT: %d", eAKResult);
+            }
+        }
+    #endif // AK_WWISESDK_VERSION_MAJOR
         return pNewObject;
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     void CAudioSystemImpl_wwise::DeleteAudioListenerObjectData(IATLListenerData* const pOldListenerData)
     {
+    #if (AK_WWISESDK_VERSION_MAJOR >= 2017)
+        auto listenerData = static_cast<SATLListenerData_wwise*>(pOldListenerData);
+        if (listenerData)
+        {
+            AKRESULT eAKResult = AK::SoundEngine::UnregisterGameObj(listenerData->nAKListenerObjectId);
+            if (IS_WWISE_OK(eAKResult))
+            {
+                if (listenerData->nAKListenerObjectId == m_defaultListenerGameObjectID)
+                {
+                    m_defaultListenerGameObjectID = AK_INVALID_GAME_OBJECT;
+                }
+            }
+            else
+            {
+                g_audioImplLogger_wwise.Log(eALT_WARNING, "Wwise failed in UnregisterGameObj unregistering an AudioListener(%" PRISIZE_T ") with AKRESULT: %d", listenerData->nAKListenerObjectId, eAKResult);
+            }
+        }
+    #endif // AK_WWISESDK_VERSION_MAJOR
+
         azdestroy(pOldListenerData, Audio::AudioImplAllocator, SATLListenerData_wwise);
     }
 
@@ -1747,14 +1825,14 @@ namespace Audio
 
         if (pAKObjectData)
         {
-            AkAuxSendValue aAuxValues[AK_MAX_AUX_PER_OBJ];
+            AkAuxSendValue aAuxValues[LY_MAX_AUX_PER_OBJ];
             uint32 nAuxCount = 0;
 
             SATLAudioObjectData_wwise::TEnvironmentImplMap::iterator iEnvPair = pAKObjectData->cEnvironmentImplAmounts.begin();
             const SATLAudioObjectData_wwise::TEnvironmentImplMap::const_iterator iEnvStart = pAKObjectData->cEnvironmentImplAmounts.begin();
             const SATLAudioObjectData_wwise::TEnvironmentImplMap::const_iterator iEnvEnd = pAKObjectData->cEnvironmentImplAmounts.end();
 
-            if (pAKObjectData->cEnvironmentImplAmounts.size() <= AK_MAX_AUX_PER_OBJ)
+            if (pAKObjectData->cEnvironmentImplAmounts.size() <= LY_MAX_AUX_PER_OBJ)
             {
                 for (; iEnvPair != iEnvEnd; ++nAuxCount)
                 {
@@ -1762,6 +1840,9 @@ namespace Audio
 
                     aAuxValues[nAuxCount].auxBusID = iEnvPair->first;
                     aAuxValues[nAuxCount].fControlValue = fAmount;
+                #if (AK_WWISESDK_VERSION_MAJOR >= 2017)
+                    aAuxValues[nAuxCount].listenerID = m_defaultListenerGameObjectID;  // TODO: Expand api to allow specify listeners
+                #endif // AK_WWISESDK_VERSION_MAJOR
 
                     // If an amount is zero, we still want to send it to the middleware, but we also want to remove it from the map.
                     if (fAmount == 0.0f)
@@ -1776,17 +1857,20 @@ namespace Audio
             }
             else
             {
-                // sort the environments in order of decreasing amounts and take the first AK_MAX_AUX_PER_OBJ worth
+                // sort the environments in order of decreasing amounts and take the first LY_MAX_AUX_PER_OBJ worth
                 using TEnvPairSet = AZStd::set<SATLAudioObjectData_wwise::TEnvironmentImplMap::value_type, SEnvPairCompare, Audio::AudioImplStdAllocator>;
                 TEnvPairSet cEnvPairs(iEnvStart, iEnvEnd);
 
                 TEnvPairSet::const_iterator iSortedEnvPair = cEnvPairs.begin();
                 const TEnvPairSet::const_iterator iSortedEnvEnd = cEnvPairs.end();
 
-                for (; (iSortedEnvPair != iSortedEnvEnd) && (nAuxCount < AK_MAX_AUX_PER_OBJ); ++iSortedEnvPair, ++nAuxCount)
+                for (; (iSortedEnvPair != iSortedEnvEnd) && (nAuxCount < LY_MAX_AUX_PER_OBJ); ++iSortedEnvPair, ++nAuxCount)
                 {
                     aAuxValues[nAuxCount].auxBusID = iSortedEnvPair->first;
                     aAuxValues[nAuxCount].fControlValue = iSortedEnvPair->second;
+                #if (AK_WWISESDK_VERSION_MAJOR >= 2017)
+                    aAuxValues[nAuxCount].listenerID = m_defaultListenerGameObjectID;      // TODO: Expand api to allow specify listeners
+                #endif // AK_WWISESDK_VERSION_MAJOR
                 }
 
                 // remove all Environments with 0.0 amounts
@@ -1803,7 +1887,7 @@ namespace Audio
                 }
             }
 
-            AZ_Assert(nAuxCount <= AK_MAX_AUX_PER_OBJ, "WwiseImpl PostEnvironmentAmounts - Exceeded the allowed number of aux environments that can be set!");
+            AZ_Assert(nAuxCount <= LY_MAX_AUX_PER_OBJ, "WwiseImpl PostEnvironmentAmounts - Exceeded the allowed number of aux environments that can be set!");
 
             const AKRESULT eAKResult = AK::SoundEngine::SetGameObjectAuxSendValues(pAKObjectData->nAKID, aAuxValues, nAuxCount);
 

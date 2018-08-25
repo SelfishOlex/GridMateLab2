@@ -25,8 +25,8 @@
 
 ResourceGroupListStatusWidget::ResourceGroupListStatusWidget(
     ResourceManagementView* view,
-    QSharedPointer<IResourceGroupListStatusModel> resourceGroupListStatusModel)
-    : StackEventsSplitter{resourceGroupListStatusModel->GetActiveDeploymentStatusModel()->GetStackEventsModel()}
+    QSharedPointer<IResourceGroupListStatusModel> resourceGroupListStatusModel, QWidget* parent)
+    : StackEventsSplitter{resourceGroupListStatusModel->GetActiveDeploymentStatusModel()->GetStackEventsModel(), parent}
     , m_view{view}
     , m_resourceGroupListStatusModel{resourceGroupListStatusModel}
 {
@@ -39,7 +39,7 @@ ResourceGroupListStatusWidget::ResourceGroupListStatusWidget(
 void ResourceGroupListStatusWidget::CreateUI()
 {
     auto stackListWidget = new StackListWidget {
-        m_resourceGroupListStatusModel
+        m_resourceGroupListStatusModel, this
     };
     SetTopWidget(stackListWidget);
 
@@ -50,13 +50,6 @@ void ResourceGroupListStatusWidget::CreateUI()
     m_updateButton->setToolTip(m_resourceGroupListStatusModel->GetUpdateButtonToolTip());
     connect(m_updateButton, &QPushButton::clicked, this, &ResourceGroupListStatusWidget::UpdateActiveDeployment);
     stackListWidget->AddButton(m_updateButton);
-
-    auto addButton = new QPushButton {
-        m_resourceGroupListStatusModel->GetAddButtonText()
-    };
-    addButton->setToolTip(m_resourceGroupListStatusModel->GetAddButtonToolTip());
-    connect(addButton, &QPushButton::clicked, m_view, &ResourceManagementView::OnMenuNewResourceGroup);
-    stackListWidget->AddButton(addButton);
 
     UpdateUI();
 }

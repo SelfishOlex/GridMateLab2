@@ -47,7 +47,7 @@ void CRenderPipelineProfiler::BeginFrame()
 
     if (m_recordData)
     {
-        CSimpleGPUTimer::EnableTiming();
+        CD3DProfilingGPUTimer::EnableTiming();
     }
 
     uint32 nextSectionsFrameIdx = (m_sectionsFrameIdx + 1) % NumSectionsFrames;
@@ -632,7 +632,7 @@ namespace DebugUI
     void DrawText(float x, float y, float size, ColorF color, const char* format, va_list args)
     {
         char buffer[512];
-        if (vsnprintf(buffer, sizeof(buffer), format, args) == -1)
+        if (azvsnprintf(buffer, sizeof(buffer), format, args) == -1)
         {
             buffer[sizeof(buffer) - 1] = 0;
         }
@@ -728,7 +728,14 @@ void CRenderPipelineProfiler::DisplayBasicStats()
         float frameTime = m_threadTimings.frameTime;
         float mainThreadTime = max(m_threadTimings.frameTime - m_threadTimings.waitForRender, 0.0f);
         float renderThreadTime = max(m_threadTimings.renderTime - m_threadTimings.waitForGPU, 0.0f);
+#if defined(AZ_RESTRICTED_PLATFORM)
+#include AZ_RESTRICTED_FILE(PipelineProfiler_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#else
         float gpuTime = max(m_threadTimings.gpuFrameTime, 0.0f);
+#endif
         float waitForGPU = max(m_threadTimings.waitForGPU, 0.0f);
 
         DebugUI::DrawTableBar(0.335f, 0.1f, 0, mainThreadTime / frameTime, Col_Yellow);

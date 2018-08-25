@@ -161,6 +161,7 @@ public:
     virtual void PostLoad();
 
     int GetId() const { return m_id; }
+    void SetId(int id) { m_id = id; }
     const char* GetNameFast() const { return m_name.c_str(); }
 
     virtual void Render(){}
@@ -168,6 +169,9 @@ public:
     void UpdateDynamicParams() final;
 
     void TimeChanged(float newTime) override;
+
+    void SetExpanded(bool expanded) override;
+    bool GetExpanded() const override;
 
     static void Reflect(AZ::SerializeContext* serializeContext);
 
@@ -214,6 +218,7 @@ protected:
 
     typedef AZStd::vector<AZStd::intrusive_ptr<IAnimTrack> > AnimTracks;
     AnimTracks m_tracks;
+    bool m_expanded;
 
 private:
     void SortTracks();

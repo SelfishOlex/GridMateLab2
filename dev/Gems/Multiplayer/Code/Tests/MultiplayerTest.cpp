@@ -35,9 +35,19 @@
 #include <Multiplayer/GridMateServiceWrapper/GridMateServiceWrapper.h>
 #include <Multiplayer/BehaviorContext/GridSearchContext.h>
 #include <Multiplayer/BehaviorContext/GridSystemContext.h>
+#include <MultiplayerGameLiftClient.h>
+
+#include "MultiplayerMocks.h"
+#include <gmock/gmock.h>
 
 #include <INetwork.h>
 #include <ISystem.h>
+
+#if defined(AZ_RESTRICTED_PLATFORM)
+#undef AZ_RESTRICTED_SECTION
+#define MULTIPLAYERTEST_CPP_SECTION_1 1
+#define MULTIPLAYERTEST_CPP_SECTION_2 2
+#endif
 
 // see also: dev/Code/Framework/AzCore/Tests/TestTypes.h
 namespace UnitTest
@@ -56,9 +66,9 @@ namespace UnitTest
         void GetProfilingStatistics(SNetworkProfilingStats* const pStats) override {}
         void SyncWithGame(ENetworkGameSync syncType) override {}
         const char* GetHostName() override { return "testhostname"; }
-        GridMate::IGridMate* GetGridMate() override 
-        { 
-            return m_gridMate; 
+        GridMate::IGridMate* GetGridMate() override
+        {
+            return m_gridMate;
         }
         ChannelId GetChannelIdForSessionMember(GridMate::GridMember* member) const override { return ChannelId(); }
         ChannelId GetServerChannelId() const override { return ChannelId(); }
@@ -88,7 +98,7 @@ namespace UnitTest
 
     public:
         TestingNetworkProcessor()
-            : m_session(nullptr) 
+            : m_session(nullptr)
             , m_gridMate(nullptr)
         {
         }
@@ -269,7 +279,16 @@ public:
         }
         else if (!strcmp(param, "gm_ipversion"))
         {
+
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION MULTIPLAYERTEST_CPP_SECTION_1
+#include AZ_RESTRICTED_FILE(MultiplayerTest_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#else
             p.SetValue(GridMate::Driver::BSD_AF_INET);
+#endif
         }
 
         return p;
@@ -320,6 +339,155 @@ TEST_F(GridMateServiceWrapperTest, Test)
     run();
 }
 
+#if !defined(BUILD_GAMELIFT_SERVER) && defined(BUILD_GAMELIFT_CLIENT)
+class MultiplayerGameLiftClientTest
+    : public UnitTest::AllocatorsFixture
+{
+public:
+    MultiplayerGameLiftClientTest()
+    {
+        m_gameLiftParams.m_useGameLiftLocalServer = false;
+    }
+
+    void SetUp() override
+    {
+        AllocatorsFixture::SetUp();
+        m_console = AZStd::make_unique<testing::NiceMock<UnitTest::MockConsole>>();
+        gEnv->pConsole = m_console.get();
+
+        ON_CALL(m_system, GetIConsole()).WillByDefault(testing::Return(gEnv->pConsole));
+        ON_CALL(m_system, GetINetwork()).WillByDefault(testing::Return(gEnv->pNetwork));
+
+        m_gameLiftClientServiceBus.Start(AllocatorsFixture::GetGridMate());
+    }
+
+    void TearDown() override
+    {
+        m_gameLiftClientServiceBus.Stop();
+
+        m_console.reset();
+        gEnv->pConsole = nullptr;
+        AllocatorsFixture::TearDown();
+    }
+
+protected:
+    void ApplyCVars()
+    {
+        // Setting params used in Multiplayer::Utils
+        m_console->RegisterCVar("cl_clientport", m_clientPort);
+        m_console->RegisterCVar("gm_securityData", m_securityData.c_str());
+        m_console->RegisterCVar("gm_ipversion", m_ipVersion.c_str());
+        m_console->RegisterCVar("gm_version", m_version.c_str());
+        m_console->RegisterCVar("gm_disconnectDetection", m_disconnectDetection);
+
+        // Gamelift specific CVars
+        m_console->RegisterCVar("gamelift_aws_access_key", m_gameLiftParams.m_accessKey.c_str());
+        m_console->RegisterCVar("gamelift_aws_secret_key", m_gameLiftParams.m_secretKey.c_str());
+        m_console->RegisterCVar("gamelift_fleet_id", m_gameLiftParams.m_fleetId.c_str());
+        m_console->RegisterCVar("gamelift_endpoint", m_gameLiftParams.m_endpoint.c_str());
+        m_console->RegisterCVar("gamelift_aws_region", m_gameLiftParams.m_region.c_str());
+        m_console->RegisterCVar("gamelift_alias_id", m_gameLiftParams.m_aliasId.c_str());
+        m_console->RegisterCVar("gamelift_player_id", m_gameLiftParams.m_playerId.c_str());
+        m_console->RegisterCVar("gamelift_uselocalserver", m_gameLiftParams.m_useGameLiftLocalServer);
+    }
+
+    testing::StrictMock<UnitTest::MockGameLiftRequestBus> m_gameLiftRequestBus;
+    testing::StrictMock<UnitTest::MockGameLiftClientServiceBus> m_gameLiftClientServiceBus;
+    testing::StrictMock<UnitTest::MockMultiplayerRequestBus> m_multiplayerRequestBus;
+
+    // System and console are "nice mocks" because testing their calls explicity is not
+    // the aim of this test fixture. Rather, they provide the minimum level of functionality
+    // needed to ensure proper functioning of the MultiplayerGameLiftClient and its dependencies.
+    testing::NiceMock<UnitTest::MockSystem> m_system;
+    AZStd::unique_ptr<testing::NiceMock<UnitTest::MockConsole>> m_console;
+
+    GridMate::GameLiftClientServiceDesc m_gameLiftParams;
+    int m_clientPort = 0;
+    AZStd::string m_securityData = "";
+    AZStd::string m_ipVersion = "IPV4";
+    AZStd::string m_version = "";
+    int m_disconnectDetection = 0;
+};
+
+MATCHER_P3(GameLiftRequestMatch, serverName, mapName, numPlayers, "")
+{
+    return serverName == arg.m_instanceName
+        && numPlayers == arg.m_numPublicSlots
+        && 2 == arg.m_numParams
+        && "sv_name" == arg.m_params[0].m_id
+        && serverName == arg.m_params[0].m_value
+        && "sv_map" == arg.m_params[1].m_id
+        && mapName == arg.m_params[1].m_value;
+}
+
+TEST_F(MultiplayerGameLiftClientTest, GameLiftClient_HostSession)
+{
+    using testing::_;
+    using testing::Invoke;
+
+    ApplyCVars();
+
+    // Start process to host a session on game lift and verify that the client service is started
+    EXPECT_CALL(m_multiplayerRequestBus, GetSession()).Times(1);
+    EXPECT_CALL(m_multiplayerRequestBus, IsNetSecEnabled()).Times(1);
+    EXPECT_CALL(m_gameLiftRequestBus, StartClientService(_)).Times(1);
+    Multiplayer::MultiplayerGameLiftClient gameLiftClient;
+    gameLiftClient.HostGameLiftSession("testServer", "testMap", 12);
+
+    // Simulate successful service start, results in client requesting a session
+    EXPECT_CALL(m_gameLiftClientServiceBus, RequestSession(GameLiftRequestMatch("testServer", "testMap", 12))).Times(1);
+    GridMate::GameLiftClientServiceEventsBus::Broadcast(
+        &GridMate::GameLiftClientServiceEventsBus::Events::OnGameLiftSessionServiceReady, nullptr);
+
+    // Simulate search result complete; this causes the client to join the session and register it
+    auto& gameLiftSearch = *m_gameLiftClientServiceBus.m_search;
+    EXPECT_CALL(gameLiftSearch, GetNumResults()).Times(1);
+    EXPECT_CALL(gameLiftSearch, GetResult(0)).Times(1);
+    EXPECT_CALL(m_multiplayerRequestBus, GetSession()).Times(1);
+    EXPECT_CALL(m_gameLiftClientServiceBus, JoinSessionBySearchInfo(_, _)).Times(1);
+    EXPECT_CALL(m_multiplayerRequestBus, GetSimulator()).Times(1);
+    EXPECT_CALL(m_multiplayerRequestBus, IsNetSecEnabled()).Times(1);
+    EXPECT_CALL(m_multiplayerRequestBus, RegisterSession(testing::NotNull())).Times(1);
+    m_gameLiftClientServiceBus.m_search->AddSearchResult();
+    GridMate::SessionEventBus::Broadcast(
+        &GridMate::SessionEventBus::Events::OnGridSearchComplete, m_gameLiftClientServiceBus.m_search);
+
+}
+
+TEST_F(MultiplayerGameLiftClientTest, GameLiftClient_JoinSession)
+{
+    using testing::_;
+    using testing::Invoke;
+
+    ApplyCVars();
+
+    // Start process to host a session on game lift and verify that the client service is started
+    EXPECT_CALL(m_multiplayerRequestBus, GetSession()).Times(1);
+    EXPECT_CALL(m_multiplayerRequestBus, IsNetSecEnabled()).Times(1);
+    EXPECT_CALL(m_gameLiftRequestBus, StartClientService(_)).Times(1);
+    Multiplayer::MultiplayerGameLiftClient gameLiftClient;
+    gameLiftClient.JoinGameLiftSession();
+
+    // Simulate successful service start, results in client querying for list of sessions
+    EXPECT_CALL(m_gameLiftClientServiceBus, StartSearch(_)).Times(1);
+    GridMate::GameLiftClientServiceEventsBus::Broadcast(
+        &GridMate::GameLiftClientServiceEventsBus::Events::OnGameLiftSessionServiceReady, nullptr);
+
+    // Simulate search result complete; this cause the client to join the session and register it
+    auto& gameLiftSearch = *m_gameLiftClientServiceBus.m_search;
+    EXPECT_CALL(gameLiftSearch, GetNumResults()).Times(1);
+    EXPECT_CALL(gameLiftSearch, GetResult(0)).Times(1);
+    EXPECT_CALL(m_multiplayerRequestBus, GetSession()).Times(1);
+    EXPECT_CALL(m_gameLiftClientServiceBus, JoinSessionBySearchInfo(_, _)).Times(1);
+    EXPECT_CALL(m_multiplayerRequestBus, GetSimulator()).Times(1);
+    EXPECT_CALL(m_multiplayerRequestBus, IsNetSecEnabled()).Times(1);
+    EXPECT_CALL(m_multiplayerRequestBus, RegisterSession(testing::NotNull())).Times(1);
+    m_gameLiftClientServiceBus.m_search->AddSearchResult();
+    GridMate::SessionEventBus::Broadcast(
+        &GridMate::SessionEventBus::Events::OnGridSearchComplete, m_gameLiftClientServiceBus.m_search);
+}
+#endif
+
 namespace LuaTesting
 {
     //////////////////////////////////////////////////////////////////////////
@@ -350,7 +518,6 @@ namespace LuaTesting
         AZStd::string script(onSetUp(behaviorContext));
 
         Multiplayer::MultiplayerEventsComponent::Reflect(behaviorContext);
-        Multiplayer::GridMateSystemContext::Reflect(behaviorContext);
 
         AZ::Data::Asset<AZ::ScriptAsset> scriptAsset = AZ::Data::AssetManager::Instance().CreateAsset<AZ::ScriptAsset>(AZ::Uuid::CreateRandom());
         // put the script into the script asset by all means including a const_cast<>!
@@ -358,7 +525,7 @@ namespace LuaTesting
         buffer.assign(script.begin(), script.end());
 
         AZ::Data::AssetManagerBus::Broadcast(&AZ::Data::AssetManagerBus::Events::OnAssetReady, scriptAsset);
-        app.Tick();
+        app.TickSystem();
 
         AZ::Entity* entity = aznew AZ::Entity();
         entity->CreateComponent<AzFramework::ScriptComponent>()->SetScript(scriptAsset);
@@ -367,7 +534,7 @@ namespace LuaTesting
 
         while (numTicks--)
         {
-            app.Tick();
+            app.TickSystem();
             if (onUpdate())
             {
                 // all done?
@@ -395,7 +562,15 @@ namespace LuaTesting
         }
         else if (!strcmp(param, "gm_ipversion"))
         {
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION MULTIPLAYERTEST_CPP_SECTION_2
+#include AZ_RESTRICTED_FILE(MultiplayerTest_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#else
             p.SetValue(GridMate::Driver::BSD_AF_INET);
+#endif
         }
 
         return p;
@@ -459,8 +634,8 @@ namespace LuaTesting
 
         const char* k_LuaScript;
 
-        GridMateLuaTesting() 
-            : UnitTest::AllocatorsFixture(false) 
+        GridMateLuaTesting()
+            : UnitTest::AllocatorsFixture(false)
             , k_LuaScript(nullptr)
         {
             k_LuaScript = R"(
@@ -478,7 +653,7 @@ function testlua:OnActivate()
 	desc.enableDisconnectDetection = true;
 	desc.connectionTimeoutMS = 499;
 	desc.threadUpdateTimeMS = 51;
-    
+
 	self.sessionManager = SessionManagerBus.Connect(self, self.entityId);
     SessionManagerBus.Event.StartHost(self.entityId, desc);
 end
@@ -516,7 +691,6 @@ return testlua;
             AZ::ComponentApplicationBus::BroadcastResult(behaviorContext, &AZ::ComponentApplicationBus::Events::GetBehaviorContext);
 
             Multiplayer::MultiplayerEventsComponent::Reflect(behaviorContext);
-            Multiplayer::GridMateSystemContext::Reflect(behaviorContext);
 
             AZStd::string script(k_LuaScript);
 
@@ -581,7 +755,7 @@ return testlua;
 	                            desc.enableDisconnectDetection = true;
 	                            desc.connectionTimeoutMS = 499;
 	                            desc.threadUpdateTimeMS = 51;
-    
+
 	                            self.searchManager = GridSearchBusHandler.Connect(self, self.entityId);
                                 self.ticket = GridSearchBusHandler.Event.StartSearch(self.entityId, desc);
                             end
@@ -639,7 +813,7 @@ function testlua:OnActivate()
 	local desc = SessionDesc();
 	desc.gamePort = 8080;
 	desc.serviceType = GridServiceType.LAN;
-    
+
 	self.searchManager = GridSearchBusHandler.Connect(self, self.entityId);
     self.ticket = GridSearchBusHandler.Event.StartSearch(self.entityId, desc);
 end
@@ -686,7 +860,7 @@ return testlua;
 
             auto update = [&]()
             {
-                AZStd::this_thread::sleep_for(AZStd::chrono::milliseconds(400));
+                AZStd::this_thread::sleep_for(AZStd::chrono::milliseconds(10));
                 GetGridMate()->Update();
                 return GridMateLuaListSesionsTesting::s_count > 0;
             };
@@ -697,7 +871,8 @@ return testlua;
                 TearDown();
             };
 
-            RunLuaScript(5, setup, update, teardown);
+            // it can take an average of 2000ms to actually register as session, so we give it up to 500x10ms here.
+            RunLuaScript(400, setup, update, teardown);
             AZ_TEST_ASSERT(GridMateLuaListSesionsTesting::s_count > 0);
         }
     };
@@ -709,7 +884,7 @@ return testlua;
     }
 
     //////////////////////////////////////////////////////////////////////////
-    // 
+    //
 
     class GridMateLuaHostListFindAndJoinTesting
         : public UnitTest::AllocatorsFixture
@@ -725,7 +900,7 @@ return testlua;
             Multiplayer::GridMateLANServiceWrapper gmLANService;
             UnitTest::TestingNetworkProcessor m_processor;
 
-            TestGridMateSessionEventBusHandler(int& joined, int& left) 
+            TestGridMateSessionEventBusHandler(int& joined, int& left)
                 : m_Joined(joined)
                 , m_Left(left)
                 , m_gridMate(nullptr)
@@ -760,15 +935,15 @@ return testlua;
                 m_gridMate = nullptr;
             }
             void OnMemberJoined(GridMate::GridSession* session, GridMate::GridMember* member) override
-            { 
-                (void)session; 
-                (void)member; 
+            {
+                (void)session;
+                (void)member;
                 m_Joined++;
             }
             void OnMemberLeaving(GridMate::GridSession* session, GridMate::GridMember* member) override
-            { 
-                (void)session; 
-                (void)member; 
+            {
+                (void)session;
+                (void)member;
                 m_Left++;
             }
         };

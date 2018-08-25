@@ -468,6 +468,12 @@ namespace AzToolsFramework
         virtual bool IsEngineRootExternal() const = 0;
 
         /**
+        * Creates and adds a new entity to the tools application from components which match at least one of the requiredTags
+        * The tag matching occurs on AZ::Edit::SystemComponentTags attribute from the reflected class data in the serialization context
+        */
+        virtual void CreateAndAddEntityFromComponentTags(const AZStd::vector<AZ::Crc32>& requiredTags, const char* entityName) = 0;
+
+        /**
         * TEMP
         */
         virtual AZ::Outcome<AZStd::string, AZStd::string> ResolveToolPath(const char* currentExecutablePath, const char* toolApplicationName) const = 0;
@@ -640,6 +646,9 @@ namespace AzToolsFramework
         /// Returns whether a level document is open.
         virtual bool IsLevelDocumentOpen() { return false; }
 
+        /// Return the name of a level document.
+        virtual AZStd::string GetLevelName() { return AZStd::string(); }
+
         /// Return default icon to show in the viewport for components that haven't specified an icon.
         virtual AZStd::string GetDefaultComponentViewportIcon() { return AZStd::string(); }
 
@@ -668,13 +677,24 @@ namespace AzToolsFramework
         virtual void GenerateNavigationArea(const AZStd::string& /*name*/, const AZ::Vector3& /*position*/, const AZ::Vector3* /*points*/, size_t /*numPoints*/, float /*height*/) { }
 
         /**
-         * Return all available agent types defined in the Navigation xml file.
+         * Calculate the navigation 2D radius in units of an agent given its Navigation Type Name
+         * @param angentTypeName         the name that identifies the agent navigation type
+         * @return the 2D horizontal radius of the agent, -1 if not found
          */
-        virtual AZStd::vector<AZStd::string> GetAgentTypes() { return AZStd::vector<AZStd::string>(); }
+        virtual float CalculateAgentNavigationRadius(const char* /*angentTypeName*/) { return -1; }
+
+        /**
+         * Retrieve the default agent Navigation Type Name
+         * @return the string identifying an agent navigation type
+         */
+        virtual const char* GetDefaultAgentNavigationTypeName() { return ""; }
         
         virtual void OpenPinnedInspector(const AzToolsFramework::EntityIdList& /*entities*/) { }
 
         virtual void ClosePinnedInspector(AzToolsFramework::EntityPropertyEditor* /*editor*/) {}
+
+        /// Return all available agent types defined in the Navigation xml file.
+        virtual AZStd::vector<AZStd::string> GetAgentTypes() { return AZStd::vector<AZStd::string>(); }
 
         /// Focus all viewports on the list of entities
         virtual void GoToSelectedOrHighlightedEntitiesInViewports() { }
@@ -715,6 +735,9 @@ namespace AzToolsFramework
 
         /// Notify that the Qt Application object is now ready to be used
         virtual void NotifyQtApplicationAvailable(QApplication* /* application */) {}
+
+        /// Notify that the IEditor is ready
+        virtual void NotifyIEditorAvailable(IEditor* /*editor*/) {}
     };
 
     /**
@@ -727,6 +750,8 @@ namespace AzToolsFramework
     class ScopedUndoBatch
     {
     public:
+        AZ_CLASS_ALLOCATOR(ScopedUndoBatch, AZ::SystemAllocator, 0);
+
         explicit ScopedUndoBatch(const char* batchName)
         {
             ToolsApplicationRequests::Bus::BroadcastResult(

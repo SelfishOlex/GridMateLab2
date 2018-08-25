@@ -11,9 +11,8 @@
 */
 
 #include "MotionSetsWindowPlugin.h"
+#include <AzQtComponents/Components/FilteredSearchWidget.h>
 #include <AzCore/IO/FileIO.h>
-#include <AzCore/std/string/conversions.h>
-#include <AzFramework/StringFunc/StringFunc.h>
 #include <QPushButton>
 #include <QLabel>
 #include <QWidget>
@@ -39,9 +38,6 @@
 #include <MCore/Source/FileSystem.h>
 #include "../MotionWindow/MotionListWindow.h"
 #include "MotionSetManagementWindow.h"
-
-// include required AzCore headers
-#include <AzCore/std/string/string.h>
 
 
 namespace EMStudio
@@ -183,7 +179,7 @@ namespace EMStudio
             GetManager()->SetWidgetAsInvalidInput(mLineEdit);
             return;
         }
-        
+
         //mErrorMsg->setVisible(false);
         mOKButton->setEnabled(true);
         mLineEdit->setStyleSheet("");
@@ -204,9 +200,9 @@ namespace EMStudio
         }
 
         AZStd::string commandString = AZStd::string::format("MotionSetAdjustMotion -motionSetID %i -idString \"%s\" -newIDString \"%s\"",
-            mMotionSet->GetID(),
-            m_motionId.c_str(),
-            mLineEdit->text().toUtf8().data());
+                mMotionSet->GetID(),
+                m_motionId.c_str(),
+                mLineEdit->text().toUtf8().data());
 
         if (remapReferences)
         {
@@ -271,7 +267,7 @@ namespace EMStudio
         EMStudioManager::MakeTransparentButton(mLoadButton,         "/Images/Icons/Open.png",       "Add entries by selecting motions.");
         //EMStudioManager::MakeTransparentButton( mMoveUpButton,    "/Images/Icons/UpArrow.png",    "Moves the selected motion up" );
         //EMStudioManager::MakeTransparentButton( mMoveDownButton,  "/Images/Icons/DownArrow.png",  "Moves the selected motion down" );
-        
+
         EMStudioManager::MakeTransparentButton(mRemoveButton,       "/Images/Icons/Minus.png",      "Remove selected entries.");
         EMStudioManager::MakeTransparentButton(mClearButton,        "/Images/Icons/Clear.png",      "Remove all entries.");
         EMStudioManager::MakeTransparentButton(mEditButton,         "/Images/Icons/Edit.png",       "Batch edit selected motion IDs");
@@ -293,15 +289,9 @@ namespace EMStudio
         spacerWidget->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed);
         buttonsLayout->addWidget(spacerWidget);
 
-        mFindWidget = new MysticQt::SearchButton(this, MysticQt::GetMysticQt()->FindIcon("Images/Icons/SearchClearButton.png"));
-        connect(mFindWidget->GetSearchEdit(), SIGNAL(textChanged(const QString&)), this, SLOT(SearchStringChanged(const QString&)));
-
-        QHBoxLayout* searchLayout = new QHBoxLayout();
-        searchLayout->addWidget(new QLabel("Find:"), 0, Qt::AlignRight);
-        searchLayout->addWidget(mFindWidget);
-        searchLayout->setSpacing(6);
-
-        buttonsLayout->addLayout(searchLayout);
+        m_searchWidget = new AzQtComponents::FilteredSearchWidget(this);
+        connect(m_searchWidget, &AzQtComponents::FilteredSearchWidget::TextFilterChanged, this, &MotionSetWindow::OnTextFilterChanged);
+        buttonsLayout->addWidget(m_searchWidget);
 
         connect(mAddButton,     &QPushButton::clicked, this, &MotionSetWindow::OnAddNewEntry);
         connect(mLoadButton,    &QPushButton::clicked, this, &MotionSetWindow::OnLoadEntries);
@@ -471,13 +461,13 @@ namespace EMStudio
         // create the id entry
         if (readOnly)
         {
-            QTableWidgetItem* idTableItem = new QTableWidgetItem(motionEntry->GetID().c_str());
+            QTableWidgetItem* idTableItem = new QTableWidgetItem(motionEntry->GetId().c_str());
             tableWidget->setItem(rowIndex, 1, idTableItem);
             idTableItem->setFlags(Qt::NoItemFlags);
         }
         else
         {
-            QTableWidgetItem* idTableItem = new QTableWidgetItem(motionEntry->GetID().c_str());
+            QTableWidgetItem* idTableItem = new QTableWidgetItem(motionEntry->GetId().c_str());
             tableWidget->setItem(rowIndex, 1, idTableItem);
         }
 
@@ -592,7 +582,7 @@ namespace EMStudio
         }
 
         // check if the current item contains the find text
-        if (QString(motionEntry->GetID().c_str()).contains(mFindWidget->GetSearchEdit()->text(), Qt::CaseInsensitive))
+        if (QString(motionEntry->GetId().c_str()).contains(m_searchWidgetText.c_str(), Qt::CaseInsensitive))
         {
             tableWidget->showRow(rowIndex);
         }
@@ -634,7 +624,7 @@ namespace EMStudio
         for (int i = 0; i < rowCount; ++i)
         {
             QTableWidgetItem* item = tableWidget->item(i, 1);
-            if (item->text() == motionEntry->GetID().c_str())
+            if (item->text() == motionEntry->GetId().c_str())
             {
                 tableWidget->removeRow(i);
                 break;
@@ -697,16 +687,16 @@ namespace EMStudio
         AZStd::string motionFileName;
         AZStd::string tempString;
         int row = 0;
-        const EMotionFX::MotionSet::EntryMap& motionEntries = motionSet->GetMotionEntries();
+        const EMotionFX::MotionSet::MotionEntries& motionEntries = motionSet->GetMotionEntries();
         for (const auto& item : motionEntries)
         {
             const EMotionFX::MotionSet::MotionEntry* motionEntry = item.second;
 
             // Was the motion entry selected before?
-            const bool isSelected = AZStd::find(selectedMotionIds.begin(), selectedMotionIds.end(), motionEntry->GetID().c_str()) != selectedMotionIds.end();
+            const bool isSelected = AZStd::find(selectedMotionIds.begin(), selectedMotionIds.end(), motionEntry->GetId().c_str()) != selectedMotionIds.end();
 
             // Create the table widget item.
-            QTableWidgetItem* idTableItem = new QTableWidgetItem(motionEntry->GetID().c_str());
+            QTableWidgetItem* idTableItem = new QTableWidgetItem(motionEntry->GetId().c_str());
             tableWidget->setItem(row, 1, idTableItem);
 
             if (readOnly)
@@ -829,7 +819,7 @@ namespace EMStudio
             }
 
             // check if the current item contains the find text
-            if (QString(motionEntry->GetID().c_str()).contains(mFindWidget->GetSearchEdit()->text(), Qt::CaseInsensitive))
+            if (QString(motionEntry->GetId().c_str()).contains(m_searchWidgetText.c_str(), Qt::CaseInsensitive))
             {
                 tableWidget->showRow(row);
             }
@@ -936,16 +926,16 @@ namespace EMStudio
         CommandSystem::LoadMotionsCommand(filenames);
         const size_t numFileNames = filenames.size();
 
-        MCore::CommandGroup commandGroup("Motion set add motions");
-
         // Build a list of unique string id values from all motion set entries.
         AZStd::vector<AZStd::string> idStrings;
         idStrings.reserve(selectedSet->GetNumMotionEntries() + (uint32)numFileNames);
         selectedSet->BuildIdStringList(idStrings);
 
+        AZStd::string parameterString;
+
         // iterate over all motions and add them
         AZStd::string idString;
-        MCore::String motionName;
+        AZStd::string motionName;
         bool isAbsoluteMotion = false;
         for (const AZStd::string& filename : filenames)
         {
@@ -953,28 +943,41 @@ namespace EMStudio
             motionName = filename.c_str();
             EMotionFX::GetEMotionFX().GetFilenameRelativeToMediaRoot(&motionName);
 
-            if (EMotionFX::MotionSet::MotionEntry::CheckIfIsAbsoluteFilename(motionName.AsChar()))
+            if (EMotionFX::MotionSet::MotionEntry::CheckIfIsAbsoluteFilename(motionName.c_str()))
             {
                 isAbsoluteMotion = true;
             }
 
-            idString = CommandSystem::AddMotionSetEntry(selectedSet->GetID(), "", idStrings, motionName.AsChar(), &commandGroup);
+            idString = CommandSystem::GenerateMotionId(motionName.c_str(), "", idStrings);
+
+            parameterString += motionName;
+            parameterString += ";";
+            parameterString += idString;
+            parameterString += ";";
 
             // add the id we gave to this motion to the id string list so that the other new motions can't get that one
-            idStrings.push_back(idString);
+            idStrings.emplace_back(idString);
         }
 
-        // Execute the command group.
-        AZStd::string result;
-        if (!EMStudio::GetCommandManager()->ExecuteCommandGroup(commandGroup, result))
+        if (!parameterString.empty())
         {
-            AZ_Error("EMotionFX", false, result.c_str());
-        }
+            parameterString.pop_back(); // remove the last ";"
 
-        if (isAbsoluteMotion)
-        {
-            AZStd::string text = AZStd::string::format("Some of the motions are located outside of the asset folder of your project:\n\n%s\n\nThis means that the motion set cannot store relative filenames and will hold absolute filenames.", EMotionFX::GetEMotionFX().GetMediaRootFolder());
-            QMessageBox::warning(this, "Warning", text.c_str());
+            AZStd::string command = AZStd::string::format("MotionSetAddMotion -motionSetID %i -motionFilenamesAndIds \"", selectedSet->GetID());
+            command += parameterString;
+            command += "\"";
+
+            AZStd::string result;
+            if (!EMStudio::GetCommandManager()->ExecuteCommand(command, result))
+            {
+                AZ_Error("EMotionFX", false, result.c_str());
+            }
+
+            if (isAbsoluteMotion)
+            {
+                AZStd::string text = AZStd::string::format("Some of the motions are located outside of the asset folder of your project:\n\n%s\n\nThis means that the motion set cannot store relative filenames and will hold absolute filenames.", EMotionFX::GetEMotionFX().GetMediaRootFolder());
+                QMessageBox::warning(this, "Warning", text.c_str());
+            }
         }
     }
 
@@ -1007,7 +1010,7 @@ namespace EMStudio
                 // get the complete file name and extract the extension
                 //fileName  = urls[i].toLocalFile().toAscii().data();
                 filename = urls[i].toLocalFile().toUtf8().data();
-                AzFramework::StringFunc::Path::GetExtension(filename.c_str(), extension, false);
+                AzFramework::StringFunc::Path::GetExtension(filename.c_str(), extension, false /* include dot */);
 
                 // check if we are dealing with a valid motion file
                 if (extension == "motion")
@@ -1043,7 +1046,7 @@ namespace EMStudio
                 MCore::CommandLine currentCommandLine(tokens[i].c_str());
 
                 // get the name of the window where the drag came from
-                MCore::String dragWindow;
+                AZStd::string dragWindow;
                 currentCommandLine.GetValue("window", "", &dragWindow);
 
                 // drag&drop coming from the motion window from the standard plugins
@@ -1129,18 +1132,18 @@ namespace EMStudio
             removeMotion = true;
         }
 
-        MCore::CommandGroup commandGroup("Motion set remove motions");
-
         // Create the failed remove motions array.
         AZStd::vector<EMotionFX::Motion*> failedRemoveMotions;
         failedRemoveMotions.reserve(rowIndices.size());
 
         // Iterate over all motions and add them.
+        AZStd::string motionIdsToRemoveString;
+        AZStd::vector<AZStd::string> removeMotionCommands;
         AZStd::string commandString, motionFilename;
         for (uint32 i = 0; i < numRowIndices; ++i)
         {
             QTableWidgetItem* idItem = m_tableWidget->item(rowIndices[i], 1);
-            EMotionFX::MotionSet::MotionEntry* motionEntry = motionSet->FindMotionEntryByStringID(idItem->text().toUtf8().data());
+            EMotionFX::MotionSet::MotionEntry* motionEntry = motionSet->FindMotionEntryById(idItem->text().toUtf8().data());
 
             // check the reference counter if only one reference registered
             // two is needed because the remove motion command has to be called to have the undo/redo possible
@@ -1152,8 +1155,11 @@ namespace EMStudio
             }
 
             // Add the motion set remove motion command.
-            commandString = AZStd::string::format("MotionSetRemoveMotion -motionSetID %i -idString \"%s\"", motionSet->GetID(), motionEntry->GetID().c_str());
-            commandGroup.AddCommandString(commandString);
+            if (!motionIdsToRemoveString.empty())
+            {
+                motionIdsToRemoveString += ';';
+            }
+            motionIdsToRemoveString += motionEntry->GetId();
 
             // remove the actual motion as well?
             // check if the motion is not valid, that means the motion is not loaded
@@ -1167,7 +1173,7 @@ namespace EMStudio
                 {
                     motionFilename = motionSet->ConstructMotionFilename(motionEntry);
                     commandString = AZStd::string::format("RemoveMotion -filename \"%s\"", motionFilename.c_str());
-                    commandGroup.AddCommandString(commandString);
+                    removeMotionCommands.emplace_back(commandString);
                 }
                 else if (numExternalUses > 0)
                 {
@@ -1186,11 +1192,27 @@ namespace EMStudio
             }
         }
 
+
+        MCore::CommandGroup commandGroup("Motion set remove motions");
+
+        // 1. Remove motion entries from the motion set.
+        commandString = AZStd::string::format("MotionSetRemoveMotion -motionSetID %i -motionIds \"", motionSet->GetID());
+        commandString += motionIdsToRemoveString;
+        commandString += '\"';
+        commandGroup.AddCommandString(commandString);
+
+        // 2. Then get rid of the actual motions itself.
+        for (const AZStd::string& command : removeMotionCommands)
+        {
+            commandGroup.AddCommandString(command);
+        }
+
         AZStd::string result;
         if (!EMStudio::GetCommandManager()->ExecuteCommandGroup(commandGroup, result))
         {
             AZ_Error("EMotionFX", false, result.c_str());
         }
+
 
         // selected the next row
         if (lowestRowSelected > (m_tableWidget->rowCount() - 1))
@@ -1217,7 +1239,7 @@ namespace EMStudio
         EMotionFX::MotionSet::MotionEntry* motionEntry = FindMotionEntry(item);
 
         // Show the entry renaming window.
-        RenameMotionEntryWindow window(this, mPlugin->GetSelectedSet(), motionEntry->GetID().c_str());
+        RenameMotionEntryWindow window(this, mPlugin->GetSelectedSet(), motionEntry->GetId().c_str());
         window.exec();
     }
 
@@ -1261,9 +1283,9 @@ namespace EMStudio
             EMotionFX::MotionSet::MotionEntry* motionEntry = FindMotionEntry(item);
 
             commandString = AZStd::string::format("MotionSetAdjustMotion -motionSetID %i -idString \"%s\" -motionFileName \"\"",
-                motionSet->GetID(),
-                motionEntry->GetID().c_str());
-            
+                    motionSet->GetID(),
+                    motionEntry->GetId().c_str());
+
             commandGroup.AddCommandString(commandString);
         }
 
@@ -1296,7 +1318,7 @@ namespace EMStudio
         MCore::CommandGroup commandGroup("Motion set clear motions");
 
         // Increase the reference counter if needed for each motion.
-        const EMotionFX::MotionSet::EntryMap& motionEntries = motionSet->GetMotionEntries();
+        const EMotionFX::MotionSet::MotionEntries& motionEntries = motionSet->GetMotionEntries();
         for (const auto& item : motionEntries)
         {
             const EMotionFX::MotionSet::MotionEntry* motionEntry = item.second;
@@ -1323,7 +1345,7 @@ namespace EMStudio
         {
             AZStd::string motionFileName;
             AZStd::string tempString;
-            const EMotionFX::MotionSet::EntryMap& motionEntries = motionSet->GetMotionEntries();
+            const EMotionFX::MotionSet::MotionEntries& motionEntries = motionSet->GetMotionEntries();
             for (const auto& item : motionEntries)
             {
                 const EMotionFX::MotionSet::MotionEntry* motionEntry = item.second;
@@ -1394,11 +1416,11 @@ namespace EMStudio
         }
         else
         {
-            const EMotionFX::MotionSet::EntryMap& motionEntries = motionSet->GetMotionEntries();
+            const EMotionFX::MotionSet::MotionEntries& motionEntries = motionSet->GetMotionEntries();
             for (const auto& item : motionEntries)
             {
                 const EMotionFX::MotionSet::MotionEntry* motionEntry = item.second;
-                motionIDs.push_back(motionEntry->GetID().c_str());
+                motionIDs.push_back(motionEntry->GetId().c_str());
             }
         }
 
@@ -1445,9 +1467,7 @@ namespace EMStudio
             CommandSystem::LoadMotionsCommand(onlyOneMotionFileNames);
 
             // Remove the media root folder from the absolute motion filename so that we get the relative one to the media root folder.
-            MCore::String relativeFilename = motionFilename.c_str();
-            EMotionFX::GetEMotionFX().GetFilenameRelativeToMediaRoot(&relativeFilename);
-            motionFilename = relativeFilename.AsChar();
+            EMotionFX::GetEMotionFX().GetFilenameRelativeToMediaRoot(&motionFilename);
         }
 
         // Find the motion entry by the table widget item.
@@ -1455,9 +1475,9 @@ namespace EMStudio
 
         // Construct the command and execute it.
         const AZStd::string command = AZStd::string::format("MotionSetAdjustMotion -motionSetID %i -idString \"%s\" -motionFileName \"%s\"",
-            motionSet->GetID(),
-            motionEntry->GetID().c_str(),
-            motionFilename.c_str());
+                motionSet->GetID(),
+                motionEntry->GetId().c_str(),
+                motionFilename.c_str());
 
         AZStd::string result;
         if (!EMStudio::GetCommandManager()->ExecuteCommand(command, result))
@@ -1467,9 +1487,9 @@ namespace EMStudio
     }
 
 
-    void MotionSetWindow::SearchStringChanged(const QString& text)
+    void MotionSetWindow::OnTextFilterChanged(const QString& text)
     {
-        MCORE_UNUSED(text);
+        FromQtString(text, &m_searchWidgetText);
         ReInit();
     }
 
@@ -1546,7 +1566,7 @@ namespace EMStudio
         {
             // Unassign linked motions for the selected entries.
             QAction* unassignMotionAction = menu.addAction("Unassign Motions");
-            connect(unassignMotionAction, &QAction::triggered, this, &MotionSetWindow::OnUnassignMotions);        
+            connect(unassignMotionAction, &QAction::triggered, this, &MotionSetWindow::OnUnassignMotions);
         }
 
         // execute the menu
@@ -1938,17 +1958,17 @@ namespace EMStudio
         mMotionToModifiedMap.clear();
 
         // Copy all motion IDs from the motion set in the modified array.
-        const EMotionFX::MotionSet::EntryMap& motionEntries = mMotionSet->GetMotionEntries();
+        const EMotionFX::MotionSet::MotionEntries& motionEntries = mMotionSet->GetMotionEntries();
         for (const auto& item : motionEntries)
         {
             const EMotionFX::MotionSet::MotionEntry* motionEntry = item.second;
 
-            mModifiedMotionIDs.push_back(motionEntry->GetID().c_str());
+            mModifiedMotionIDs.push_back(motionEntry->GetId().c_str());
         }
 
         // Modify each ID using the operation in the modified array.
         AZStd::string newMotionID;
-        MCore::String tempString;
+        AZStd::string tempString;
         for (uint32 i = 0; i < numMotionIDs; ++i)
         {
             // 0=Replace All, 1=Replace First, 2=Replace Last
@@ -1960,24 +1980,24 @@ namespace EMStudio
                 case 0:
                 {
                     tempString = mMotionIDs[i].c_str();
-                    tempString.Replace(mStringALineEdit->text().toUtf8().data(), mStringBLineEdit->text().toUtf8().data());
-                    newMotionID = tempString.AsChar();
+                    AzFramework::StringFunc::Replace(tempString, mStringALineEdit->text().toUtf8().data(), mStringBLineEdit->text().toUtf8().data(), true /* case sensitive */);
+                    newMotionID = tempString.c_str();
                     break;
                 }
 
                 case 1:
                 {
                     tempString = mMotionIDs[i].c_str();
-                    tempString.ReplaceFirst(mStringALineEdit->text().toUtf8().data(), mStringBLineEdit->text().toUtf8().data());
-                    newMotionID = tempString.AsChar();
+                    AzFramework::StringFunc::Replace(tempString, mStringALineEdit->text().toUtf8().data(), mStringBLineEdit->text().toUtf8().data(), true /* case sensitive */, true /* replace first */, false /* replace last */);
+                    newMotionID = tempString.c_str();
                     break;
                 }
 
                 case 2:
                 {
                     tempString = mMotionIDs[i].c_str();
-                    tempString.ReplaceLast(mStringALineEdit->text().toUtf8().data(), mStringBLineEdit->text().toUtf8().data());
-                    newMotionID = tempString.AsChar();
+                    AzFramework::StringFunc::Replace(tempString, mStringALineEdit->text().toUtf8().data(), mStringBLineEdit->text().toUtf8().data(), true /* case sensitive */, false /* replace first */, true /* replace last */);
+                    newMotionID = tempString.c_str();
                     break;
                 }
             }
@@ -2082,7 +2102,7 @@ namespace EMStudio
         const QTableWidgetItem* idItem = m_tableWidget->item(row, 1);
 
         // Find the motion entry based on the string id and return the result.
-        EMotionFX::MotionSet::MotionEntry* motionEntry = motionSet->FindMotionEntryByStringID(idItem->text().toUtf8().data());
+        EMotionFX::MotionSet::MotionEntry* motionEntry = motionSet->FindMotionEntryById(idItem->text().toUtf8().data());
         AZ_Assert(motionEntry, "Motion entry for item (Text='%s', Row=%d) not found.", item->text().toUtf8().data(), item->row());
         return motionEntry;
     }
@@ -2126,7 +2146,7 @@ namespace EMStudio
                 continue;
             }
 
-            const EMotionFX::MotionSet::EntryMap& motionEntries = motionSet->GetMotionEntries();
+            const EMotionFX::MotionSet::MotionEntries& motionEntries = motionSet->GetMotionEntries();
             for (const auto& item : motionEntries)
             {
                 const EMotionFX::MotionSet::MotionEntry* motionEntry = item.second;

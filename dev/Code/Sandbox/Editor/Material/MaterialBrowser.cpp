@@ -37,7 +37,6 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QPainter>
-#include <QProcess>
 #include <QSortFilterProxyModel>
 #include <QTreeView>
 #if defined(Q_OS_WIN)
@@ -48,6 +47,7 @@
 #include <QtUtil.h>
 #include <Util/AbstractGroupProxyModel.h>
 
+#include <AzQtComponents/Utilities/DesktopUtilities.h>
 #include <AzToolsFramework/AssetBrowser/AssetBrowserBus.h>
 #include <AzToolsFramework/AssetBrowser/AssetBrowserModel.h>
 #include <AzToolsFramework/AssetBrowser/AssetBrowserEntry.h>
@@ -86,6 +86,15 @@ enum
     MENU_SCM_GET_LATEST_TEXTURES,
 };
 
+static QAction* CreateTreeViewAction(const char* text, const QKeySequence& shortcut, QWidget* shortcutContext, MaterialBrowserWidget* widget, void (MaterialBrowserWidget::*slot)())
+{
+    QAction* action = new QAction(text, shortcutContext);
+    action->setShortcut(shortcut);
+    QObject::connect(action, &QAction::triggered, widget, slot);
+    widget->addAction(action);
+    return action;
+}
+
 //////////////////////////////////////////////////////////////////////////
 MaterialBrowserWidget::MaterialBrowserWidget(QWidget* parent)
     : QWidget(parent)
@@ -96,7 +105,14 @@ MaterialBrowserWidget::MaterialBrowserWidget(QWidget* parent)
 
     m_ui->setupUi(this);
 
-    m_ui->treeView->installEventFilter(this);
+    // create some permanent (for the life of this widget) actions for shortcut handling
+    m_cutAction = CreateTreeViewAction("Cut", QKeySequence::Cut, m_ui->treeView, this, &MaterialBrowserWidget::OnCut);
+    m_copyAction = CreateTreeViewAction("Copy", QKeySequence::Copy, m_ui->treeView, this, &MaterialBrowserWidget::OnCopy);
+    m_pasteAction = CreateTreeViewAction("Paste", QKeySequence::Paste, m_ui->treeView, this, &MaterialBrowserWidget::OnPaste);
+    m_duplicateAction = CreateTreeViewAction("Duplicate", QKeySequence(Qt::CTRL + Qt::Key_D), m_ui->treeView, this, &MaterialBrowserWidget::OnDuplicate);
+    m_deleteAction = CreateTreeViewAction("Delete", QKeySequence::Delete, m_ui->treeView, this, &MaterialBrowserWidget::DeleteItem);
+    m_renameItemAction = CreateTreeViewAction("Rename", Qt::Key_F2, m_ui->treeView, this, &MaterialBrowserWidget::OnRenameItem);
+    m_addNewMaterialAction = CreateTreeViewAction("Add New Material", Qt::Key_Insert, m_ui->treeView, this, &MaterialBrowserWidget::OnAddNewMaterial);
 
     MaterialBrowserWidgetBus::Handler::BusConnect();
 
@@ -114,13 +130,22 @@ MaterialBrowserWidget::MaterialBrowserWidget(QWidget* parent)
     m_filterModel->SetSearchFilter(m_ui->m_searchWidget);
     connect(m_ui->m_searchWidget->GetFilter().data(), &AssetBrowserEntryFilter::updatedSignal, m_filterModel.data(), &MaterialBrowserFilterModel::SearchFilterUpdated);
 
+    connect(m_filterModel.data(), &QAbstractItemModel::rowsInserted, this, [this](const QModelIndex &parent, int start, int end)
+    {
+        if (start == end) {
+            const QModelIndex index = parent.child(start, 0);
+            m_ui->treeView->expand(index);
+            m_ui->treeView->setCurrentIndex(index);
+        }
+    });
+
     // Call LoadState to initialize the AssetBrowserTreeView's QTreeViewStateSaver
     // This must be done BEFORE StartRecordUpdateJobs(). A race condition from the update jobs was causing a 5-10% crash/hang when opening the Material Editor.
     m_ui->treeView->LoadState("MaterialBrowserTreeView");
     
     // Override the AssetBrowserTreeView's custom context menu
     disconnect(m_ui->treeView, &QWidget::customContextMenuRequested, 0, 0);
-    connect(m_ui->treeView, &QWidget::customContextMenuRequested, [=](const QPoint& point)
+    connect(m_ui->treeView, &QWidget::customContextMenuRequested, this, [=](const QPoint& point)
         {
             CMaterialBrowserRecord record;
             bool found = TryGetSelectedRecord(record);
@@ -1045,6 +1070,15 @@ void MaterialBrowserWidget::RefreshSelected()
             _smart_ptr<CMaterial> pMultiMtl = nullptr;
             if (pMtl->IsMultiSubMaterial())
             {
+                // It's possible that the currently selected sub-material index is beyond the range of the current multi-material if, for example,
+                // the last sub-material was selected but then the source .mtl file was changed to have fewer total sub-materials
+                if (m_selectedSubMaterialIndex >= pMtl->GetSubMaterialCount())
+                {
+                    // If that's the case, select the last sub-material
+                    // If the sub-material count has dropped to 0, setting m_selectedSubMaterialIndex to -1 will cause the parent material to be selected
+                    m_selectedSubMaterialIndex = pMtl->GetSubMaterialCount() - 1;
+                }
+
                 pMultiMtl = pMtl;
                 if (m_selectedSubMaterialIndex >= 0)
                 {
@@ -1216,6 +1250,7 @@ void MaterialBrowserWidget::AddContextMenuActionsSubMaterial(QMenu& menu, _smart
     action->setShortcut(QKeySequence::Paste);
     action->setData(MENU_PASTE);
     action->setEnabled(CanPaste() && enabled);
+
     action = menu.addAction(tr("Rename\tF2"));
     action->setData(MENU_RENAME);
     action->setEnabled(enabled);
@@ -1385,18 +1420,7 @@ void MaterialBrowserWidget::OnContextMenuAction(int command, _smart_ptr<CMateria
         if (material)
         {
             QString fullPath = material->GetFilename();
-            QString filename = PathUtil::GetFile(fullPath.toUtf8().data());
-#if defined(AZ_PLATFORM_WINDOWS)
-            if (!QProcess::startDetached(QStringLiteral("explorer"), { QStringLiteral("/select,%1").arg(filename) }, Path::GetPath(fullPath)))
-            {
-                QProcess::startDetached(QStringLiteral("explorer"), { Path::GetPath(fullPath) });
-            }
-#else
-            QProcess::startDetached("/usr/bin/osascript", {"-e",
-                QStringLiteral("tell application \"Finder\" to reveal POSIX file \"%1\"").arg(fullPath)});
-            QProcess::startDetached("/usr/bin/osascript", {"-e",
-                QStringLiteral("tell application \"Finder\" to activate")});
-#endif
+            AzQtComponents::ShowFileOnDesktop(fullPath);
         }
     }
     break;
@@ -1410,21 +1434,9 @@ void MaterialBrowserWidget::OnContextMenuAction(int command, _smart_ptr<CMateria
         if (material)
         {
             QString fullPath = material->GetFilename();
-            QString filename = PathUtil::GetFile(fullPath.toUtf8().data());
-
             if (CFileUtil::ExtractFile(fullPath, true, fullPath.toUtf8().data()))
             {
-#if defined(AZ_PLATFORM_WINDOWS)
-                if (!QProcess::startDetached(QStringLiteral("explorer"), { QStringLiteral("/select,%1").arg(filename) }, Path::GetPath(fullPath)))
-                {
-                    QProcess::startDetached(QStringLiteral("explorer"), { Path::GetPath(fullPath) });
-                }
-#else
-                QProcess::startDetached("/usr/bin/osascript", {"-e",
-                    QStringLiteral("tell application \"Finder\" to reveal POSIX file \"%1\"").arg(fullPath)});
-                QProcess::startDetached("/usr/bin/osascript", {"-e",
-                    QStringLiteral("tell application \"Finder\" to activate")});
-#endif
+                AzQtComponents::ShowFileOnDesktop(fullPath);
             }
         }
     }
@@ -1646,51 +1658,6 @@ void MaterialBrowserWidget::OnRefreshSelection()
     {
         m_pListener->OnBrowserSelectItem(GetCurrentMaterial(), true);
     }
-}
-
-//////////////////////////////////////////////////////////////////////////
-bool MaterialBrowserWidget::eventFilter(QObject* watched, QEvent* event)
-{
-    if (event->type() != QEvent::KeyPress || watched != m_ui->treeView)
-    {
-        return QWidget::eventFilter(watched, event);
-    }
-
-    QKeyEvent* ev = static_cast<QKeyEvent*>(event);
-
-    if (ev->matches(QKeySequence::Copy))
-    {
-        OnCopy();   // Ctrl+C
-    }
-    else if (ev->matches(QKeySequence::Paste))
-    {
-        OnPaste(); // Ctrl+V
-    }
-    else if (ev->matches(QKeySequence::Cut))
-    {
-        OnCut(); // Ctrl+X
-    }
-    else if (ev->key() == Qt::Key_D && ev->modifiers() == Qt::ControlModifier)
-    {
-        OnDuplicate(); // Ctrl+D
-    }
-    else if (ev->matches(QKeySequence::Delete))
-    {
-        DeleteItem();
-    }
-    else if (ev->key() == Qt::Key_F2)
-    {
-        OnRenameItem();
-    }
-    else if (ev->key() == Qt::Key_Insert)
-    {
-        OnAddNewMaterial();
-    }
-    else
-    {
-        return QWidget::eventFilter(watched, event);
-    }
-    return true;
 }
 
 void MaterialBrowserWidget::OnSubMaterialSelectedInPreviewPane(const QModelIndex& current, const QModelIndex& previous)

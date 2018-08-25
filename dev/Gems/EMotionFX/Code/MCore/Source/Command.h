@@ -13,7 +13,6 @@
 #pragma once
 
 #include "StandardHeaders.h"
-#include <AzCore/std/string/string.h>
 #include <AzCore/std/containers/vector.h>
 #include "CommandLine.h"
 #include "CommandSyntax.h"
@@ -40,8 +39,8 @@ namespace MCore
         CLASSNAME(MCore::Command * orgCommand = nullptr)                                                               \
             : MCore::Command(COMMANDSTRING, orgCommand) {}                                                             \
         virtual ~CLASSNAME() {}                                                                                        \
-        bool Execute(const MCore::CommandLine & parameters, MCore::String & outResult);                                \
-        bool Undo(const MCore::CommandLine & parameters, MCore::String & outResult);                                   \
+        bool Execute(const MCore::CommandLine & parameters, AZStd::string & outResult);                                \
+        bool Undo(const MCore::CommandLine & parameters, AZStd::string & outResult);                                   \
         void InitSyntax();                                                                                             \
         bool GetIsUndoable() const { return ISUNDOABLE; }                                                              \
         const char* GetHistoryName() const { return HISTORYNAME; }                                                     \
@@ -57,11 +56,10 @@ namespace MCore
     {                                                                                                                  \
         MCORE_MEMORYOBJECTCATEGORY(CLASSNAME, MCore::MCORE_DEFAULT_ALIGNMENT, MCore::MCORE_MEMCATEGORY_COMMANDSYSTEM); \
     public:                                                                                                            \
-        CLASSNAME(MCore::Command * orgCommand = nullptr)                                                               \
-            : MCore::Command(COMMANDSTRING, orgCommand) {}                                                             \
+        CLASSNAME(MCore::Command * orgCommand = nullptr);                                                              \
         virtual ~CLASSNAME();                                                                                          \
-        bool Execute(const MCore::CommandLine & parameters, MCore::String & outResult);                                \
-        bool Undo(const MCore::CommandLine & parameters, MCore::String & outResult);                                   \
+        bool Execute(const MCore::CommandLine & parameters, AZStd::string & outResult);                                \
+        bool Undo(const MCore::CommandLine & parameters, AZStd::string & outResult);                                   \
         void InitSyntax();                                                                                             \
         bool GetIsUndoable() const  { return ISUNDOABLE; }                                                             \
         const char* GetHistoryName() const { return HISTORYNAME; }                                                     \
@@ -70,7 +68,8 @@ namespace MCore
         OLDVALUETYPE& GetData() { return mData; }                                                                      \
     protected:                                                                                                         \
         OLDVALUETYPE mData;                                                                                            \
-    };
+
+#define MCORE_DEFINECOMMAND_1_END };
 
 
     // define for easy command class creation in two steps
@@ -82,8 +81,8 @@ namespace MCore
     public:                                                                                                            \
         CLASSNAME(MCore::Command * orgCommand = nullptr);                                                              \
         virtual ~CLASSNAME();                                                                                          \
-        bool Execute(const MCore::CommandLine & parameters, MCore::String & outResult);                                \
-        bool Undo(const MCore::CommandLine & parameters, MCore::String & outResult);                                   \
+        bool Execute(const MCore::CommandLine & parameters, AZStd::string & outResult);                                \
+        bool Undo(const MCore::CommandLine & parameters, AZStd::string & outResult);                                   \
         void InitSyntax();                                                                                             \
         bool GetIsUndoable() const  { return ISUNDOABLE; }                                                             \
         const char* GetHistoryName() const { return HISTORYNAME; }                                                     \
@@ -195,7 +194,7 @@ namespace MCore
          * @param outResult The result/return value of the command.
          * @return True if the command execution succeeded, false if not.
          */
-        virtual bool Execute(const CommandLine& parameters, String& outResult) = 0;
+        virtual bool Execute(const CommandLine& parameters, AZStd::string& outResult) = 0;
 
         /**
          * This method should undo the work done be the redo it method.
@@ -204,7 +203,7 @@ namespace MCore
          * @param outResult The result/return value of the command.
          * @return True if the command undo succeeded, false if not.
          */
-        virtual bool Undo(const CommandLine& parameters, String& outResult)         { MCORE_UNUSED(parameters); MCORE_UNUSED(outResult); return false; }
+        virtual bool Undo(const CommandLine& parameters, AZStd::string& outResult)         { MCORE_UNUSED(parameters); MCORE_UNUSED(outResult); return false; }
 
         /**
          * This will be called by the CommandManager when the command is executed.

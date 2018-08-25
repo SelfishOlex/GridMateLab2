@@ -560,6 +560,32 @@ namespace EMotionFX
     }
 
 
+    Transform& Transform::ApplyAdditive(const Transform& additive)
+    {
+        mPosition += additive.mPosition;
+        mRotation = mRotation * additive.mRotation;
+
+        EMFX_SCALECODE
+        (
+            mScale += additive.mScale;
+        )
+        return *this;
+    }
+
+
+    Transform& Transform::ApplyAdditive(const Transform& additive, float weight)
+    {
+        mPosition += additive.mPosition * weight;
+        mRotation = mRotation.NLerp(mRotation * additive.mRotation, weight);
+
+        EMFX_SCALECODE
+        (
+            mScale += additive.mScale * weight;
+        )
+        return *this;
+    }
+
+
     // sum the transforms
     Transform& Transform::Add(const Transform& other, float weight)
     {
@@ -618,12 +644,18 @@ namespace EMotionFX
             MCore::LogInfo("Transform(%s):", name);
         }
 
-        MCore::LogInfo("mPosition = %.6f, %.6f, %.6f", mPosition.GetX(), mPosition.GetY(), mPosition.GetZ());
+        MCore::LogInfo("mPosition = %.6f, %.6f, %.6f", 
+            static_cast<float>(mPosition.GetX()), 
+            static_cast<float>(mPosition.GetY()), 
+            static_cast<float>(mPosition.GetZ()));
         MCore::LogInfo("mRotation = %.6f, %.6f, %.6f, %.6f", mRotation.x, mRotation.y, mRotation.z, mRotation.w);
 
         EMFX_SCALECODE
         (
-            MCore::LogInfo("mScale    = %.6f, %.6f, %.6f", mScale.GetX(), mScale.GetY(), mScale.GetZ());
+            MCore::LogInfo("mScale    = %.6f, %.6f, %.6f", 
+                static_cast<float>(mScale.GetX()), 
+                static_cast<float>(mScale.GetY()), 
+                static_cast<float>(mScale.GetZ()));
         )
     }
 

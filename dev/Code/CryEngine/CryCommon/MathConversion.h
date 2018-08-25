@@ -13,7 +13,10 @@
 #pragma once
 
 #include <AzCore/Math/Aabb.h>
+#include <AzCore/Math/Obb.h>
+#include <AzCore/Math/Vector2.h>
 #include <AzCore/Math/Vector3.h>
+#include <AzCore/Math/Vector4.h>
 #include <AzCore/Math/Color.h>
 #include <AzCore/Math/Transform.h>
 #include <AzCore/Math/Matrix3x3.h>
@@ -24,19 +27,29 @@
 #include <Cry_Geo.h>
 #include <Cry_Color.h>
 
+inline AZ::Vector2 LYVec2ToAZVec2(const Vec2& source)
+{
+    return AZ::Vector2(source.x, source.y);
+}
+
+inline Vec2 AZVec2ToLYVec2(const AZ::Vector2& source)
+{
+    return Vec2(source.GetX(), source.GetY());
+}
+
 inline AZ::Vector3 LYVec3ToAZVec3(const Vec3& source)
 {
     return AZ::Vector3(source.x, source.y, source.z);
 }
 
-inline AZ::Vector4 LYVec4ToAZVec4(const Vec4& source)
-{
-    return AZ::Vector4(source.x, source.y, source.z, source.w);
-}
-
 inline Vec3 AZVec3ToLYVec3(const AZ::Vector3& source)
 {
     return Vec3(source.GetX(), source.GetY(), source.GetZ());
+}
+
+inline AZ::Vector4 LYVec4ToAZVec4(const Vec4& source)
+{
+    return AZ::Vector4(source.x, source.y, source.z, source.w);
 }
 
 inline Vec4 AZVec4ToLYVec4(const AZ::Vector4& source)
@@ -68,6 +81,17 @@ inline AZ::Color LYColorFToAZColor(const ColorF& source)
 {
     return AZ::Color(source.r, source.g, source.b, source.a);
 }
+
+inline ColorB AZColorToLYColorB(const AZ::Color& source)
+{
+    return ColorB(source.ToU32());
+}
+
+inline AZ::Color LYColorBToAZColor(const ColorB& source)
+{
+    return AZ::Color(source.r, source.g, source.b, source.a);
+}
+
 
 inline AZ::Quaternion LYQuaternionToAZQuaternion(const Quat& source)
 {
@@ -137,6 +161,29 @@ inline AABB AZAabbToLyAABB(const AZ::Aabb& source)
 inline AZ::Aabb LyAABBToAZAabb(const AABB& source)
 {
     return AZ::Aabb::CreateFromMinMax(LYVec3ToAZVec3(source.min), LYVec3ToAZVec3(source.max));
+}
+
+inline AZ::Obb LyOBBtoAZObb(const OBB& source)
+{
+    return AZ::Obb::CreateFromPositionAndAxes(
+        LYVec3ToAZVec3(source.c),
+        LYVec3ToAZVec3(source.m33.GetColumn0()),
+        source.h.x,
+        LYVec3ToAZVec3(source.m33.GetColumn1()),
+        source.h.y,
+        LYVec3ToAZVec3(source.m33.GetColumn2()),
+        source.h.z);
+}
+
+inline OBB AZObbToLyOBB(const AZ::Obb& source)
+{
+    return OBB::CreateOBB(
+        Matrix33::CreateFromVectors(
+            AZVec3ToLYVec3(source.GetAxisX()),
+            AZVec3ToLYVec3(source.GetAxisY()),
+            AZVec3ToLYVec3(source.GetAxisZ())),
+        Vec3(source.GetHalfLengthX(), source.GetHalfLengthY(), source.GetHalfLengthZ()),
+        AZVec3ToLYVec3(source.GetPosition()));
 }
 
 inline AZ::Plane LyPlaneToAZPlane(const Plane& source)

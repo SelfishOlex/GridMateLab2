@@ -11,8 +11,8 @@
 */
 #pragma once
 
-#include <Components/NodePropertyDisplay/NodePropertyDisplay.h>
-#include <Components/NodePropertyDisplay/ReadOnlyDataInterface.h>
+#include <GraphCanvas/Components/NodePropertyDisplay/NodePropertyDisplay.h>
+#include <GraphCanvas/Components/NodePropertyDisplay/ReadOnlyDataInterface.h>
 
 namespace GraphCanvas
 {
@@ -31,9 +31,9 @@ namespace GraphCanvas
         void RefreshStyle() override;
         void UpdateDisplay() override;
         
-        QGraphicsLayoutItem* GetDisabledGraphicsLayoutItem() const override;
-        QGraphicsLayoutItem* GetDisplayGraphicsLayoutItem() const override;
-        QGraphicsLayoutItem* GetEditableGraphicsLayoutItem() const override;
+        QGraphicsLayoutItem* GetDisabledGraphicsLayoutItem() override;
+        QGraphicsLayoutItem* GetDisplayGraphicsLayoutItem() override;
+        QGraphicsLayoutItem* GetEditableGraphicsLayoutItem() override;
         ////
     
     private:

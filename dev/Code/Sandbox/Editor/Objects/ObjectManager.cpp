@@ -395,8 +395,7 @@ CObjectManager* g_pObjectManager = 0;
 
 //////////////////////////////////////////////////////////////////////////
 CObjectManager::CObjectManager()
-    : m_bVisibleObjectValid(true)
-    , m_lastHideMask(0)
+    : m_lastHideMask(0)
     , m_maxObjectViewDistRatio(0.00001f)
     , m_currSelection(&m_defaultSelection)
     , m_nLastSelCount(0)
@@ -530,7 +529,7 @@ void    CObjectManager::LoadRegistry()
 }
 
 //////////////////////////////////////////////////////////////////////////
-CBaseObject* CObjectManager::NewObject(CObjectClassDesc* cls, CBaseObject* prev, const QString& file)
+CBaseObject* CObjectManager::NewObject(CObjectClassDesc* cls, CBaseObject* prev, const QString& file, const char* newObjectName)
 {
     // Suspend undo operations when initializing object.
     GetIEditor()->SuspendUndo();
@@ -547,9 +546,16 @@ CBaseObject* CObjectManager::NewObject(CObjectClassDesc* cls, CBaseObject* prev,
         GetIEditor()->GetErrorReport()->SetCurrentValidatorObject(obj);
         if (obj->Init(GetIEditor(), prev, file))
         {
-            if (obj->GetName().isEmpty())
+            if ((newObjectName)&&(newObjectName[0]))
             {
-                obj->GenerateUniqueName();
+                obj->SetName(newObjectName);
+            }
+            else
+            {
+                if (obj->GetName().isEmpty())
+                {
+                    obj->GenerateUniqueName();
+                }
             }
 
             // Create game object itself.
@@ -734,7 +740,7 @@ CBaseObject* CObjectManager::NewObject(CObjectArchive& ar, CBaseObject* pUndoObj
 }
 
 //////////////////////////////////////////////////////////////////////////
-CBaseObject* CObjectManager::NewObject(const QString& typeName, CBaseObject* prev, const QString& file)
+CBaseObject* CObjectManager::NewObject(const QString& typeName, CBaseObject* prev, const QString& file, const char* newObjectName)
 {
     // [9/22/2009 evgeny] If it is "Entity", figure out if a CEntity subclass is actually needed
     QString fullName = typeName + "::" + file;
@@ -749,7 +755,7 @@ CBaseObject* CObjectManager::NewObject(const QString& typeName, CBaseObject* pre
         GetIEditor()->GetSystem()->GetILog()->Log("Warning: RuntimeClass %s (as well as %s) not registered", typeName.toUtf8().data(), fullName.toUtf8().data());
         return 0;
     }
-    CBaseObject* pObject = NewObject(cls, prev, file);
+    CBaseObject* pObject = NewObject(cls, prev, file, newObjectName);
     return pObject;
 }
 
@@ -1074,6 +1080,8 @@ bool CObjectManager::AddObject(CBaseObject* obj)
 //////////////////////////////////////////////////////////////////////////
 void CObjectManager::RemoveObject(CBaseObject* obj)
 {
+    AzToolsFramework::EditorMetricsEventBusSelectionChangeHelper selectionChangeMetricsHelper;
+
     assert(obj != 0);
 
     InvalidateVisibleList();
@@ -1431,6 +1439,8 @@ bool CObjectManager::SelectObject(CBaseObject* obj, bool bUseMask)
     }
     */
 
+    AzToolsFramework::EditorMetricsEventBusSelectionChangeHelper selectionChangeMetricsHelper;
+
     m_currSelection->AddObject(obj);
     SetObjectSelected(obj, true);
 
@@ -1441,6 +1451,8 @@ bool CObjectManager::SelectObject(CBaseObject* obj, bool bUseMask)
 
 void CObjectManager::SelectEntities(std::set<CEntityObject*>& s)
 {
+    AzToolsFramework::EditorMetricsEventBusSelectionChangeHelper selectionChangeMetricsHelper;
+
     for (std::set<CEntityObject*>::iterator it = s.begin(), end = s.end(); it != end; ++it)
     {
         SelectObject(*it);
@@ -1449,6 +1461,8 @@ void CObjectManager::SelectEntities(std::set<CEntityObject*>& s)
 
 void CObjectManager::UnselectObject(CBaseObject* obj)
 {
+    AzToolsFramework::EditorMetricsEventBusSelectionChangeHelper selectionChangeMetricsHelper;
+
     /*
     if (GetIEditor()->IsUndoRecording() && obj->IsSelected())
     {
@@ -1596,6 +1610,9 @@ void CObjectManager::SerializeNameSelection(XmlNodeRef& rootNode, bool bLoading)
 int CObjectManager::ClearSelection()
 {
     AZ_PROFILE_FUNCTION(AZ::Debug::ProfileCategory::Editor);
+
+    AzToolsFramework::EditorMetricsEventBusSelectionChangeHelper selectionChangeMetricsHelper;
+
     int numSel = m_currSelection->GetCount();
     UnselectCurrent();
     m_defaultSelection.RemoveAll();
@@ -1614,6 +1631,9 @@ int CObjectManager::ClearSelection()
 int CObjectManager::InvertSelection()
 {
     AZ_PROFILE_FUNCTION(AZ::Debug::ProfileCategory::Editor);
+
+    AzToolsFramework::EditorMetricsEventBusSelectionChangeHelper selectionChangeMetricsHelper;
+
     int selCount = 0;
     // iterate all objects.
     for (Objects::const_iterator it = m_objects.begin(); it != m_objects.end(); ++it)
@@ -1640,6 +1660,8 @@ void CObjectManager::SetSelection(const QString& name)
     CSelectionGroup* selection = stl::find_in_map(m_selections, name, (CSelectionGroup*)0);
     if (selection)
     {
+        AzToolsFramework::EditorMetricsEventBusSelectionChangeHelper selectionChangeMetricsHelper;
+
         UnselectCurrent();
         assert(selection != 0);
         m_currSelection = selection;
@@ -1650,6 +1672,9 @@ void CObjectManager::SetSelection(const QString& name)
 void CObjectManager::RemoveSelection(const QString& name)
 {
     AZ_PROFILE_FUNCTION(AZ::Debug::ProfileCategory::Editor);
+
+    AzToolsFramework::EditorMetricsEventBusSelectionChangeHelper selectionChangeMetricsHelper;
+
     QString selName = name;
     CSelectionGroup* selection = stl::find_in_map(m_selections, name, (CSelectionGroup*)0);
     if (selection)
@@ -1670,6 +1695,8 @@ void CObjectManager::CheckAndFixSelection()
 {
     AZ_PROFILE_FUNCTION(AZ::Debug::ProfileCategory::Editor);
     bool bObjectMode = qobject_cast<CObjectMode*>(GetIEditor()->GetEditTool()) != nullptr;
+
+    AzToolsFramework::EditorMetricsEventBusSelectionChangeHelper selectionChangeMetricsHelper;
 
     if (m_currSelection->GetCount() == 0)
     {
@@ -1729,6 +1756,8 @@ void CObjectManager::CheckAndFixSelection()
 
 void CObjectManager::SelectCurrent()
 {
+    AzToolsFramework::EditorMetricsEventBusSelectionChangeHelper selectionChangeMetricsHelper;
+
     AZ_PROFILE_FUNCTION(AZ::Debug::ProfileCategory::Editor);
     for (int i = 0; i < m_currSelection->GetCount(); i++)
     {
@@ -1768,19 +1797,42 @@ void CObjectManager::UnselectCurrent()
 //////////////////////////////////////////////////////////////////////////
 void CObjectManager::Display(DisplayContext& dc)
 {
-    Vec3 org;
-
     FUNCTION_PROFILER(GetIEditor()->GetSystem(), PROFILE_EDITOR);
 
-    if (!m_bVisibleObjectValid || gSettings.objectHideMask != m_lastHideMask)
+    int currentHideMask = GetIEditor()->GetDisplaySettings()->GetObjectHideMask();
+    if (m_lastHideMask != currentHideMask)
     {
-        m_lastHideMask = gSettings.objectHideMask;
-        UpdateVisibilityList();
+        // a setting has changed which may cause the set of currently visible objects to change, so invalidate the serial number
+        // so that viewports and anyone else that needs to update settings knows it has to.
+        m_lastHideMask = currentHideMask;
+        ++m_visibilitySerialNumber;
     }
 
-    if (dc.settings->IsDisplayHelpers() ||  dc.view->GetVisibleObjectsCache()->GetObjectCount() == 0)     // is display helpers or list is not populated (needed to select objects)
+    // the object manager itself has a visibility list, so it also has to update its cache when the serial has changed
+    if (m_visibilitySerialNumber != m_lastComputedVisibility)
     {
-        FindDisplayableObjects(dc, true);
+        m_lastComputedVisibility = m_visibilitySerialNumber;
+        UpdateVisibilityList();
+    }
+    
+    bool viewIsDirty = dc.settings->IsDisplayHelpers(); // displaying helpers require computing all the bound boxes and things anyway.
+
+    if (!viewIsDirty)
+    {
+        if (CBaseObjectsCache* cache = dc.view->GetVisibleObjectsCache())
+        {
+            // if the current rendering viewport has an out-of-date cache serial number, it needs to be refreshed too.
+            // views set their cache empty when they indicate they need to force a refresh.
+            if ((cache->GetObjectCount() == 0) || (cache->GetSerialNumber() != m_visibilitySerialNumber))
+            {
+                viewIsDirty = true;
+            }
+        }
+    }
+    
+    if (viewIsDirty)
+    {
+        FindDisplayableObjects(dc, true);  // this also actually draws the helpers.
     }
 
     if (m_gizmoManager)
@@ -1797,6 +1849,12 @@ void CObjectManager::ForceUpdateVisibleObjectCache(DisplayContext& dc)
 void CObjectManager::FindDisplayableObjects(DisplayContext& dc, bool bDisplay)
 {
     CBaseObjectsCache* pDispayedViewObjects = dc.view->GetVisibleObjectsCache();
+    if (!pDispayedViewObjects)
+    {
+        return;
+    }
+
+    pDispayedViewObjects->SetSerialNumber(m_visibilitySerialNumber); // update viewport to be latest serial number
 
     const CCamera& camera = GetIEditor()->GetSystem()->GetViewCamera();
     AABB bbox;
@@ -2103,6 +2161,8 @@ void CObjectManager::DeleteSelection()
 {
     AZ_PROFILE_FUNCTION(AZ::Debug::ProfileCategory::Editor);
 
+    AzToolsFramework::EditorMetricsEventBusSelectionChangeHelper selectionChangeMetricsHelper;
+
     // Make sure to unlock selection.
     GetIEditor()->LockSelection(false);
 
@@ -2274,11 +2334,7 @@ bool CObjectManager::HitTest(HitContext& hitInfo)
 
         if (HitTestObject(obj, hc))
         {
-            if (!hc.object)
-            {
-                hc.object = obj;
-            }
-            if (m_selectCallback && !m_selectCallback->CanSelectObject(hc.object))
+            if (m_selectCallback && !m_selectCallback->CanSelectObject(obj))
             {
                 continue;
             }
@@ -2300,13 +2356,6 @@ bool CObjectManager::HitTest(HitContext& hitInfo)
 
             if (hc.dist < mindist || (!iconHit && hc.iconHit))
             {
-                // If collided object specified, accept it, otherwise take tested object itself.
-                CBaseObject* hitObj = hc.object;
-                if (!hitObj)
-                {
-                    hitObj = obj;
-                }
-
                 if (hc.iconHit)
                 {
                     iconHit = true;
@@ -2314,7 +2363,7 @@ bool CObjectManager::HitTest(HitContext& hitInfo)
 
                 mindist = hc.dist;
                 name = hc.name;
-                selected = hitObj;
+                selected = obj;
             }
             
             // Clear the object pointer if an object was hit, not just if the collision 
@@ -2873,7 +2922,7 @@ void CObjectManager::InvalidateVisibleList()
     {
         return;
     }
-    m_bVisibleObjectValid = false;
+    ++m_visibilitySerialNumber;
     m_visibleObjects.clear();
 }
 
@@ -2905,7 +2954,6 @@ void CObjectManager::UpdateVisibilityList()
             }
         }
     }
-    m_bVisibleObjectValid = true;
     m_isUpdateVisibilityList = false;
 }
 
@@ -3148,7 +3196,7 @@ CBaseObject* CObjectManager::FindPhysicalObjectOwner(IPhysicalEntity* pPhysicalE
     break;
     case PHYS_FOREIGN_ID_ENTITY:
     {
-        IEntity* pIEntity = gEnv->pEntitySystem->GetEntityFromPhysics(pPhysicalEntity);
+        IEntity* pIEntity = gEnv->pEntitySystem ? gEnv->pEntitySystem->GetEntityFromPhysics(pPhysicalEntity) : nullptr;
         if (pIEntity)
         {
             return CEntityObject::FindFromEntityId(pIEntity->GetId());
@@ -3672,7 +3720,7 @@ void CObjectManager::ResolveMissingObjects()
             {
                 pModelVar->Set(newFilename);
             }
-            Log("%s: %s <- %s", obj->GetName(), geometryFile, newFilename);
+            Log("%s: %s <- %s", obj->GetName().toUtf8().constData(), geometryFile.toUtf8().constData(), newFilename.toUtf8().constData());
             continue;
         }
 
@@ -3727,12 +3775,12 @@ void CObjectManager::ResolveMissingObjects()
                     pModelVar->Set(newFilename);
                 }
                 locationMap[geometryFile] = newFilename;
-                Log("%s: %s <- %s", obj->GetName(), geometryFile, newFilename);
+                Log("%s: %s <- %s", obj->GetName().toUtf8().constData(), geometryFile.toUtf8().constData(), newFilename.toUtf8().constData());
                 isUpdated = true;
             }
             else
             {
-                GetIEditor()->GetSystem()->GetILog()->LogWarning("Can't resolve object: %s: %s", obj->GetName(), geometryFile);
+                GetIEditor()->GetSystem()->GetILog()->LogWarning("Can't resolve object: %s: %s", obj->GetName().toUtf8().constData(), geometryFile.toUtf8().constData());
             }
         }
     }
@@ -3794,7 +3842,7 @@ void CObjectManager::ResolveMissingMaterials()
             if (pNewMaterial)
             {
                 obj->SetMaterial(pNewMaterial);
-                Log("%s: %s <- %s", pMat->GetName(), oldFilename, newFilename);
+                Log("%s: %s <- %s", pMat->GetName().toUtf8().constData(), oldFilename.toUtf8().constData(), newFilename.toUtf8().constData());
             }
             continue;
         }
@@ -3835,13 +3883,13 @@ void CObjectManager::ResolveMissingMaterials()
                 {
                     obj->SetMaterial(pNewMaterial);
                     locationMap[oldFilename] = newFilename;
-                    Log("%s: %s <- %s", pMat->GetName(), oldFilename, newFilename);
+                    Log("%s: %s <- %s", pMat->GetName().toUtf8().constData(), oldFilename.toUtf8().constData(), newFilename.toUtf8().constData());
                     isUpdated = true;
                 }
             }
             else
             {
-                GetIEditor()->GetSystem()->GetILog()->LogWarning("Can't resolve material: %s: %s", pMat->GetName(), oldFilename);
+                GetIEditor()->GetSystem()->GetILog()->LogWarning("Can't resolve material: %s: %s", pMat->GetName().toUtf8().constData(), oldFilename.toUtf8().constData());
             }
         }
     }

@@ -72,6 +72,10 @@
 #include <AzToolsFramework/Manipulators/ManipulatorManager.h>
 #include <AzQtComponents/Utilities/QtWindowUtilities.h>
 
+#include <AzQtComponents/Components/Widgets/MessageBox.h>
+
+#include "EditorPreferencesPageGeneral.h"
+
 #include <MathConversion.h>
 
 #if defined(AZ_PLATFORM_WINDOWS)
@@ -79,6 +83,11 @@
 #endif // defined(AZ_PLATFORM_WINDOWS)
 
 CRenderViewport* CRenderViewport::m_pPrimaryViewport = nullptr;
+
+#if defined(AZ_PLATFORM_APPLE)
+void StopFixedCursorMode();
+void StartFixedCursorMode(QObject *viewport);
+#endif
 
 #define MAX_ORBIT_DISTANCE (2000.0f)
 #define RENDER_MESH_TEST_DISTANCE (0.2f)
@@ -150,6 +159,10 @@ CRenderViewport::CRenderViewport(const QString& name, QWidget* parent)
     AzToolsFramework::EditorEvents::Bus::Handler::BusConnect();
 
     m_manipulatorManager = GetIEditor()->GetViewManager()->GetManipulatorManager();
+    if (!m_pPrimaryViewport)
+    {
+        m_pPrimaryViewport = this;
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -187,7 +200,9 @@ int CRenderViewport::OnCreate()
 //////////////////////////////////////////////////////////////////////////
 void CRenderViewport::resizeEvent(QResizeEvent* event)
 {
+    PushDisableRendering();
     QtViewport::resizeEvent(event);
+    PopDisableRendering();
 
     const QRect rcWindow = rect().translated(mapToGlobal(QPoint()));
 
@@ -205,6 +220,7 @@ void CRenderViewport::resizeEvent(QResizeEvent* event)
 void CRenderViewport::paintEvent(QPaintEvent* event)
 {
     // Do not call CViewport::OnPaint() for painting messages
+    // FIXME: paintEvent() isn't the best place for such logic. Should listen to proper eNotify events and to the stuff there instead. (Repeats for other view port classes too).
     CGameEngine* ge = GetIEditor()->GetGameEngine();
     if ((ge && ge->IsLevelLoaded()) || (GetType() != ET_ViewportCamera))
     {
@@ -260,6 +276,8 @@ void CRenderViewport::mousePressEvent(QMouseEvent* event)
     // and then the call to setFocus() will give it focus.
     // All so that the ::keyPressEvent() gets called.
     ActivateWindowAndSetFocus();
+
+    GetIEditor()->GetViewManager()->SelectViewport(this);
 
     QtViewport::mousePressEvent(event);
 }
@@ -562,6 +580,15 @@ void CRenderViewport::OnMouseMove(Qt::KeyboardModifiers modifiers, Qt::MouseButt
     }
 }
 
+void CRenderViewport::InjectFakeMouseMove(int deltaX, int deltaY)
+{
+    // this is required, otherwise the user will see the context menu
+    OnMouseMove(Qt::NoModifier, Qt::RightButton, QCursor::pos() + QPoint(deltaX, deltaY));
+    // we simply move the prev mouse position, so the change will be picked up
+    // by the next ProcessMouse call
+    m_prevMousePos -= QPoint(deltaX, deltaY);
+}
+
 //////////////////////////////////////////////////////////////////////////
 void CRenderViewport::ProcessMouse()
 {
@@ -715,11 +742,13 @@ void CRenderViewport::ProcessMouse()
 
 void CRenderViewport::ResetCursor()
 {
+#ifdef AZ_PLATFORM_WINDOWS
     if (!gSettings.stylusMode)
     {
         const QPoint point = mapToGlobal(ViewportToWidget(m_prevMousePos));
         AzQtComponents::SetCursorPos(point);
     }
+#endif
     
     // Recalculate the prev mouse pos even if we just reset to it to avoid compounding floating point math issues with DPI scaling
     m_prevMousePos = WidgetToViewport(mapFromGlobal(QCursor::pos()));
@@ -814,6 +843,11 @@ void CRenderViewport::Update()
 {
     FUNCTION_PROFILER(GetIEditor()->GetSystem(), PROFILE_EDITOR);
 
+    if (Editor::EditorQtApplication::instance()->isMovingOrResizing())
+    {
+        return;
+    }
+
     if (!m_renderer || !m_engine || m_rcClient.isEmpty() || GetIEditor()->IsInMatEditMode())
     {
         return;
@@ -859,6 +893,18 @@ void CRenderViewport::Update()
         {
             // Disable rendering to avoid recursion into Update()
             PushDisableRendering();
+
+            AzFramework::EntityDebugDisplayRequestBus::Broadcast(&AzFramework::EntityDebugDisplayRequestBus::Events::SetDC, &m_displayContext);
+            const AZ::u32 prevState = m_displayContext.GetState();
+            m_displayContext.SetState(e_Mode3D | e_AlphaBlended | e_FillModeSolid | e_CullModeBack | e_DepthWriteOn | e_DepthTestOn);
+
+            bool unused;
+            // draw debug shapes in game mode
+            AzFramework::EntityDebugDisplayEventBus::Broadcast(&AzFramework::EntityDebugDisplayEvents::DisplayEntity, unused);
+
+            m_displayContext.SetState(prevState);
+            AzFramework::EntityDebugDisplayRequestBus::Broadcast(&AzFramework::EntityDebugDisplayRequestBus::Events::SetDC, nullptr);
+
             QtViewport::Update();
             PopDisableRendering();
         }
@@ -884,6 +930,7 @@ void CRenderViewport::Update()
             return;
         }
     }
+    
     {
         SScopedCurrentContext context(this);
 
@@ -960,8 +1007,8 @@ void CRenderViewport::ResetToViewSourceType(const ViewSourceType& viewSourceType
     m_pCameraFOVVariable = nullptr;
     m_viewEntityId.SetInvalid();
     m_cameraObjectId = GUID_NULL;
-    SetViewTM(GetViewTM());
     m_viewSourceType = viewSourceType;
+    SetViewTM(GetViewTM());
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1090,7 +1137,8 @@ void CRenderViewport::OnEditorNotifyEvent(EEditorNotifyEvent event)
             m_bInMoveMode = false;
             m_bInOrbitMode = false;
             m_bInZoomMode = false;
-            SetViewTM(m_preGameModeViewTM);
+
+            RestoreViewportAfterGameMode();
         }
         break;
 
@@ -1469,7 +1517,8 @@ void CRenderViewport::RenderAll()
                     BuildKeyboardModifiers(QGuiApplication::queryKeyboardModifiers()),
                     BuildMousePickInternal(mapFromGlobal(QCursor::pos()))));
             azEntityDebugDisplay->DepthTestOn();
-}
+        }
+
         AzFramework::EntityDebugDisplayRequestBus::Broadcast(&AzFramework::EntityDebugDisplayRequestBus::Events::SetDC, nullptr);
     }
 }
@@ -1856,7 +1905,7 @@ static void ToggleInt(int* variable)
 static void AddCheckbox(QMenu* menu, const QString& text, bool* variable, bool* disableVariableIfOn = nullptr)
 {
     QAction* action = menu->addAction(text);
-    QObject::connect(action, &QAction::triggered, [variable, disableVariableIfOn] { ToggleBool(variable, disableVariableIfOn);
+    QObject::connect(action, &QAction::triggered, action, [variable, disableVariableIfOn] { ToggleBool(variable, disableVariableIfOn);
         });
     action->setCheckable(true);
     action->setChecked(*variable);
@@ -1866,7 +1915,7 @@ static void AddCheckbox(QMenu* menu, const QString& text, bool* variable, bool* 
 static void AddCheckbox(QMenu* menu, const QString& text, int* variable)
 {
     QAction* action = menu->addAction(text);
-    QObject::connect(action, &QAction::triggered, [variable] { ToggleInt(variable);
+    QObject::connect(action, &QAction::triggered, action, [variable] { ToggleInt(variable);
         });
     action->setCheckable(true);
     action->setChecked(*variable);
@@ -1877,13 +1926,13 @@ void CRenderViewport::OnTitleMenu(QMenu* menu)
 {
     const int nWireframe = gEnv->pConsole->GetCVar("r_wireframe")->GetIVal();
     QAction* action = menu->addAction(tr("Wireframe"));
-    connect(action, &QAction::triggered, OnMenuDisplayWireframe);
+    connect(action, &QAction::triggered, action, OnMenuDisplayWireframe);
     action->setCheckable(true);
     action->setChecked(nWireframe == R_WIREFRAME_MODE);
 
     const bool bDisplayLabels = GetIEditor()->GetDisplaySettings()->IsDisplayLabels();
     action = menu->addAction(tr("Labels"));
-    connect(action, &QAction::triggered, [bDisplayLabels] {GetIEditor()->GetDisplaySettings()->DisplayLabels(!bDisplayLabels);
+    connect(action, &QAction::triggered, this, [bDisplayLabels] {GetIEditor()->GetDisplaySettings()->DisplayLabels(!bDisplayLabels);
         });
     action->setCheckable(true);
     action->setChecked(bDisplayLabels);
@@ -1903,26 +1952,26 @@ void CRenderViewport::OnTitleMenu(QMenu* menu)
         {
             const QString& aspectRatioString = m_predefinedAspectRatios.GetName(i);
             QAction* aspectRatioAction = aspectRatiosMenu->addAction(aspectRatioString);
-            connect(aspectRatioAction, &QAction::triggered, [i, this] { OnMenuTargetAspectRatio(m_predefinedAspectRatios.GetValue(i));
+            connect(aspectRatioAction, &QAction::triggered, this, [i, this] { OnMenuTargetAspectRatio(m_predefinedAspectRatios.GetValue(i));
                 });
             aspectRatioAction->setCheckable(true);
             aspectRatioAction->setChecked(m_predefinedAspectRatios.IsCurrent(i));
         }
     }
 
+    // Set ourself as the active viewport so the following actions create a camera from this view
+    GetIEditor()->GetViewManager()->SelectViewport(this);
+
     action = menu->addAction(tr("Create camera entity from current view"));
-    connect(action, &QAction::triggered, [this] { OnMenuCreateCameraEntityFromCurrentView();
-        });
+    connect(action, &QAction::triggered, this, &CRenderViewport::OnMenuCreateCameraEntityFromCurrentView);
 
     action = menu->addAction(tr("Create legacy camera from current view"));
-    connect(action, &QAction::triggered, [this] { OnMenuCreateCameraFromCurrentView();
-        });
+    connect(action, &QAction::triggered, this, &CRenderViewport::OnMenuCreateCameraFromCurrentView);
 
     if (GetCameraObject())
     {
         action = menu->addAction(tr("Select Current Camera"));
-        connect(action, &QAction::triggered, [this] { OnMenuSelectCurrentCamera();
-            });
+        connect(action, &QAction::triggered, this, &CRenderViewport::OnMenuSelectCurrentCamera);
     }
 
     // Add Cameras.
@@ -2017,7 +2066,7 @@ bool CRenderViewport::AddCameraMenuItems(QMenu* menu)
         action = customCameraMenu->addAction(objects[i]->GetName());
         action->setCheckable(true);
         action->setChecked(m_cameraObjectId == objects[i]->GetId() && m_viewSourceType == ViewSourceType::LegacyCamera);
-        connect(action, &QAction::triggered, [this, objects, i](bool isChecked)
+        connect(action, &QAction::triggered, this, [this, objects, i](bool isChecked)
             {
                 if (isChecked)
                 {
@@ -2041,7 +2090,7 @@ bool CRenderViewport::AddCameraMenuItems(QMenu* menu)
         additionalCameras.append(action);
         action->setCheckable(true);
         action->setChecked(m_viewEntityId == entityId && m_viewSourceType == ViewSourceType::CameraComponent);
-        connect(action, &QAction::triggered, [this, entityId](bool isChecked)
+        connect(action, &QAction::triggered, this, [this, entityId](bool isChecked)
             {
                 if (isChecked)
                 {
@@ -2069,7 +2118,7 @@ bool CRenderViewport::AddCameraMenuItems(QMenu* menu)
     action->setCheckable(selectedEntityList.size() > 0 || m_viewSourceType == ViewSourceType::AZ_Entity);
     action->setEnabled(selectedEntityList.size() > 0 || m_viewSourceType == ViewSourceType::AZ_Entity);
     action->setChecked(m_viewSourceType == ViewSourceType::AZ_Entity);
-    connect(action, &QAction::triggered, [this](bool isChecked)
+    connect(action, &QAction::triggered, this, [this](bool isChecked)
         {
             if (isChecked)
             {
@@ -2576,6 +2625,7 @@ void CRenderViewport::ProcessKeys()
     Matrix34 m = GetViewTM();
     Vec3 ydir = m.GetColumn1().GetNormalized();
     Vec3 xdir = m.GetColumn0().GetNormalized();
+    Vec3 zdir = m.GetColumn2().GetNormalized();
 
     Vec3 pos = GetViewTM().GetTranslation();
 
@@ -2638,6 +2688,26 @@ void CRenderViewport::ProcessKeys()
         bIsPressedSome = true;
         m_nPresedKeyState = 1;
         pos = pos + (speedScale * m_moveSpeed * xdir);
+        m.SetTranslation(pos);
+        SetViewTM(m, true);
+    }
+
+    if (IsKeyDown(Qt::Key_E))
+    {
+        // move Up
+        bIsPressedSome = true;
+        m_nPresedKeyState = 1;
+        pos = pos + (speedScale * m_moveSpeed * zdir);
+        m.SetTranslation(pos);
+        SetViewTM(m, true);
+    }
+
+    if (IsKeyDown(Qt::Key_Q))
+    {
+        // move down
+        bIsPressedSome = true;
+        m_nPresedKeyState = 1;
+        pos = pos - (speedScale * m_moveSpeed * zdir);
         m.SetTranslation(pos);
         SetViewTM(m, true);
     }
@@ -3758,6 +3828,9 @@ void CRenderViewport::HideCursor()
     }
 
     qApp->setOverrideCursor(Qt::BlankCursor);
+#if defined(AZ_PLATFORM_APPLE)
+    StartFixedCursorMode(this);
+#endif
     m_bCursorHidden = true;
 }
 
@@ -3769,6 +3842,9 @@ void CRenderViewport::ShowCursor()
         return;
     }
 
+#if defined(AZ_PLATFORM_APPLE)
+    StopFixedCursorMode();
+#endif
     qApp->restoreOverrideCursor();
     m_bCursorHidden = false;
 }
@@ -3838,6 +3914,36 @@ void CRenderViewport::BuildDragDropContext(AzQtComponents::ViewportDragContext& 
 {
     const auto scaledPoint = WidgetToViewport(pt);
     QtViewport::BuildDragDropContext(context, scaledPoint);
+}
+
+void CRenderViewport::RestoreViewportAfterGameMode()
+{
+    Matrix34 preGameModeViewTM = m_preGameModeViewTM;
+    Matrix34 gameModeViewTM = gEnv->pSystem->GetViewCamera().GetMatrix();
+
+    // Delaying this a frame because RestoreViewportAfterGameMode() is called from when game mode ends and I don't
+    // want to introduce something (QDialog::exec()) that results in the Qt event queue being pumped mid-state change
+    QTimer::singleShot(0, this, [=] {
+        QString text = QString("You are exiting Game Mode. Would you like to restore the camera in the viewport to where it was before you entered Game Mode?<br/><br/><small>This option can always be changed in the General Preferences tab of the Editor Settings, by toggling the \"%1\" option.</small><br/><br/>").arg(EditorPreferencesGeneralRestoreViewportCameraSettingName);
+        int response = AzQtComponents::AzMessageBox::questionIfNecessary(this, "Editor/AutoHide/ViewportCameraRestoreOnExitGameMode", "Lumberyard", text, QMessageBox::StandardButtons(QMessageBox::No | QMessageBox::Yes), QMessageBox::Yes);
+
+        bool newSetting = (response == QMessageBox::Yes);
+        if (newSetting != GetIEditor()->GetEditorSettings()->restoreViewportCamera)
+        {
+            GetIEditor()->GetEditorSettings()->restoreViewportCamera = newSetting;
+            GetIEditor()->GetEditorSettings()->Save();
+        }
+
+        bool restoreViewportCamera = GetIEditor()->GetEditorSettings()->restoreViewportCamera;
+        if (restoreViewportCamera)
+        {
+            SetViewTM(preGameModeViewTM);
+        }
+        else
+        {
+            SetViewTM(gameModeViewTM);
+        }
+    });
 }
 
 #include <RenderViewport.moc>

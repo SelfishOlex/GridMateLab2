@@ -13,7 +13,6 @@
 #pragma once
 
 #include <AzCore/std/containers/vector.h>
-#include <AzCore/std/string/string.h>
 #include <MCore/Source/Endian.h>
 #include <EMotionFX/Source/AnimGraph.h>
 #include <MCore/Source/MemoryFile.h>
@@ -24,7 +23,8 @@
 
 namespace ExporterLib
 {
-    class Exporter : public EMotionFX::BaseObject
+    class Exporter
+        : public EMotionFX::BaseObject
     {
         MCORE_MEMORYOBJECTCATEGORY(Exporter, EMFX_DEFAULT_ALIGNMENT, EMotionFX::EMFX_MEMCATEGORY_FILEPROCESSORS);
 
@@ -33,23 +33,15 @@ namespace ExporterLib
 
         // actor
         bool SaveActor(MCore::MemoryFile* file, EMotionFX::Actor* actor, MCore::Endian::EEndianType targetEndianType);
-        bool SaveActor(MCore::String filenameWithoutExtension, EMotionFX::Actor* actor, MCore::Endian::EEndianType targetEndianType);
-
-        // anim graph
-        bool SaveAnimGraph(MCore::MemoryFile* file, EMotionFX::AnimGraph* animGraph, MCore::Endian::EEndianType targetEndianType, const char* companyName = "");
-        bool SaveAnimGraph(MCore::String filenameWithoutExtension, EMotionFX::AnimGraph* animGraph, MCore::Endian::EEndianType targetEndianType, const char* companyName = "");
+        bool SaveActor(AZStd::string filenameWithoutExtension, EMotionFX::Actor* actor, MCore::Endian::EEndianType targetEndianType);
 
         // skeletal motion
         bool SaveSkeletalMotion(MCore::MemoryFile* file, EMotionFX::SkeletalMotion* motion, MCore::Endian::EEndianType targetEndianType, bool onlyAnimatedMorphs);
-        bool SaveSkeletalMotion(MCore::String filenameWithoutExtension, EMotionFX::SkeletalMotion* motion, MCore::Endian::EEndianType targetEndianType, bool onlyAnimatedMorphs);
+        bool SaveSkeletalMotion(AZStd::string filenameWithoutExtension, EMotionFX::SkeletalMotion* motion, MCore::Endian::EEndianType targetEndianType, bool onlyAnimatedMorphs);
 
         // wavelet skeletal motion
         bool SaveWaveletSkeletalMotion(MCore::MemoryFile* file, EMotionFX::WaveletSkeletalMotion* motion, MCore::Endian::EEndianType targetEndianType);
-        bool SaveWaveletSkeletalMotion(MCore::String filenameWithoutExtension, EMotionFX::WaveletSkeletalMotion* motion, MCore::Endian::EEndianType targetEndianType);
-
-        // motion set
-        bool SaveMotionSet(MCore::MemoryFile* file, const AZStd::vector<EMotionFX::MotionSet*>& motionSets, MCore::Endian::EEndianType targetEndianType);
-        bool SaveMotionSet(MCore::String filenameWithoutExtension, const AZStd::vector<EMotionFX::MotionSet*>& motionSets, MCore::Endian::EEndianType targetEndianType);
+        bool SaveWaveletSkeletalMotion(AZStd::string filenameWithoutExtension, EMotionFX::WaveletSkeletalMotion* motion, MCore::Endian::EEndianType targetEndianType);
 
     private:
         void ResetMemoryFile(MCore::MemoryFile* file);

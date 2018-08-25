@@ -11,14 +11,14 @@
 */
 // Original file Copyright Crytek GMBH or its affiliates, used under license.
 
-#include "StdAfx.h"
+#include "stdafx.h"
 
 #include "IRCLog.h"
 #include "ImageConvertor.h"
 #include "ImageCompiler.h"
 
 #define _TIFF_DATA_TYPEDEFS_                // because we defined uint32,... already
-#include "../../../SDKs/tiff/libtiff/tiffio.h"  // TIFF library
+#include <libtiff/tiffio.h>  // TIFF library
 
 static void TiffWarningHandler(const char* module, const char* fmt, va_list args)
 {

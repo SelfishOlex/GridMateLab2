@@ -13,7 +13,6 @@
 #pragma once
 
 #include <AzCore/Math/Vector4.h>
-#include <AzFramework/Math/MathUtils.h>
 #include <ScriptCanvas/Core/NodeFunctionGeneric.h>
 #include <ScriptCanvas/Data/NumericData.h>
 #include <ScriptCanvas/Libraries/Math/MathNodeUtilities.h>
@@ -30,7 +29,7 @@ namespace ScriptCanvas
             auto scale(source.ExtractScale());
             return std::make_tuple( scale, source );
         }
-        SCRIPT_CANVAS_GENERIC_FUNCTION_MULTI_RESULTS_NODE(ExtractScale, "Math/Transform", "{8DFE5247-0950-4CD1-87E6-0CAAD42F1637}", "returns a vector which is the lenght of the scale components, and a transform with the scale extracted ", "Source", "Scale", "Extracted");
+        SCRIPT_CANVAS_GENERIC_FUNCTION_MULTI_RESULTS_NODE(ExtractScale, "Math/Transform", "{8DFE5247-0950-4CD1-87E6-0CAAD42F1637}", "returns a vector which is the length of the scale components, and a transform with the scale extracted ", "Source", "Scale", "Extracted");
         
         AZ_INLINE TransformType FromColumns(Vector3Type c0, Vector3Type c1, Vector3Type c2, Vector3Type c3)
         {
@@ -56,13 +55,13 @@ namespace ScriptCanvas
         }
         SCRIPT_CANVAS_GENERIC_FUNCTION_NODE(FromMatrix3x3AndTranslation, "Math/Transform", "{AD0725EB-0FF0-4F99-A45F-C3F8CBABF11D}", "returns a transform from the 3x3 matrix and the translation", "Matrix", "Translation");
 
-        AZ_INLINE TransformType FromRotation(RotationType rotation)
+        AZ_INLINE TransformType FromRotation(QuaternionType rotation)
         {
             return TransformType::CreateFromQuaternion(rotation);
         }
         SCRIPT_CANVAS_GENERIC_FUNCTION_NODE(FromRotation, "Math/Transform", "{8BBF4F22-EA7D-4E7B-81FD-7D11CA237BA6}", "returns a transform from the rotation and with the translation set to zero", "Source");
 
-        AZ_INLINE TransformType FromRotationAndTranslation(RotationType rotation, Vector3Type translation)
+        AZ_INLINE TransformType FromRotationAndTranslation(QuaternionType rotation, Vector3Type translation)
         {
             return TransformType::CreateFromQuaternionAndTranslation(rotation, translation);
         }
@@ -164,7 +163,7 @@ namespace ScriptCanvas
         {
             return TransformType::CreateFromMatrix3x3AndTranslation(rotation, source.GetPosition());
         }
-        SCRIPT_CANVAS_GENERIC_FUNCTION_NODE(ModRotation, "Math/Transform", "{ECC408EB-32D7-4DA8-A907-3DB36E8E54A9}", "returns the transfrom with translation from Source, and rotation from Rotation", "Source", "Rotation");
+        SCRIPT_CANVAS_GENERIC_FUNCTION_NODE(ModRotation, "Math/Transform", "{ECC408EB-32D7-4DA8-A907-3DB36E8E54A9}", "returns the transform with translation from Source, and rotation from Rotation", "Source", "Rotation");
 
         AZ_INLINE TransformType ModTranslation(TransformType source, Vector3Type translation)
         {

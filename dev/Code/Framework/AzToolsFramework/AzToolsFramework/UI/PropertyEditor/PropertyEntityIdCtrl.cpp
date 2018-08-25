@@ -27,6 +27,8 @@
 #include <QtWidgets/QHBoxLayout>
 #include <QtWidgets/QFrame>
 #include <QtCore/QMimeData>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 
 //just a test to see how it would work to pop a dialog
 
@@ -84,19 +86,33 @@ namespace AzToolsFramework
         setAcceptDrops(true);
 
         connect(m_entityIdLabel, &EntityIdQLabel::RequestPickObject, this, [this]()
+        {
+            if (!m_pickButton->isChecked())
             {
-            InitObjectPickMode();
-            });
+                InitObjectPickMode();
+            }
+            else
+            {
+                CancelObjectPickMode();
+            }
+        });
 
         connect(m_pickButton, &QPushButton::clicked, this, [this]()
+        {
+            if (m_pickButton->isChecked())
             {
-            InitObjectPickMode();
-            });
+                InitObjectPickMode();
+            }
+            else
+            {
+                CancelObjectPickMode();
+            }
+        });
 
         connect(m_clearButton, &QPushButton::clicked, this, [this]()
-            {
-                SetCurrentEntityId(AZ::EntityId(), true, "");
-            });
+        {
+            SetCurrentEntityId(AZ::EntityId(), true, "");
+        });
     }
 
     void PropertyEntityIdCtrl::InitObjectPickMode()
@@ -104,16 +120,30 @@ namespace AzToolsFramework
         EBUS_EVENT(AzToolsFramework::EditorPickModeRequests::Bus, StopObjectPickMode);
         if (!EditorPickModeRequests::Bus::Handler::BusIsConnected())
         {
+            emit OnPickStart();
+            m_pickButton->setChecked(true);
             EditorPickModeRequests::Bus::Handler::BusConnect();
+            AzToolsFramework::EditorEvents::Bus::Handler::BusConnect();
         }
         EBUS_EVENT(AzToolsFramework::EditorPickModeRequests::Bus, StartObjectPickMode);
+    }
+
+    void PropertyEntityIdCtrl::CancelObjectPickMode()
+    {
+        if (EditorPickModeRequests::Bus::Handler::BusIsConnected())
+        {
+            EBUS_EVENT(AzToolsFramework::EditorPickModeRequests::Bus, StopObjectPickMode);
+        }
     }
 
     void PropertyEntityIdCtrl::StopObjectPickMode()
     {
         if (EditorPickModeRequests::Bus::Handler::BusIsConnected())
         {
+            m_pickButton->setChecked(false);
             EditorPickModeRequests::Bus::Handler::BusDisconnect();
+            AzToolsFramework::EditorEvents::Bus::Handler::BusDisconnect();
+            emit OnPickComplete();
         }
     }
 
@@ -123,6 +153,11 @@ namespace AzToolsFramework
         {
             SetCurrentEntityId(id, true, "");
         }
+    }
+
+    void PropertyEntityIdCtrl::OnEscape()
+    {
+        CancelObjectPickMode();
     }
 
     void PropertyEntityIdCtrl::dragLeaveEvent(QDragLeaveEvent* event)
@@ -173,10 +208,10 @@ namespace AzToolsFramework
         event->acceptProposedAction();
     }
 
-    bool PropertyEntityIdCtrl::IsCorrectMimeData(const QMimeData* data) const
+    bool PropertyEntityIdCtrl::IsCorrectMimeData(const QMimeData* data_) const
     {
-        if (data == nullptr ||
-            !data->hasFormat(AzToolsFramework::EditorEntityIdContainer::GetMimeType()))
+        if (data_ == nullptr ||
+            !data_->hasFormat(AzToolsFramework::EditorEntityIdContainer::GetMimeType()))
         {
             return false;
         }
@@ -184,16 +219,16 @@ namespace AzToolsFramework
         return true;
     }
 
-    AZ::EntityId PropertyEntityIdCtrl::EntityIdFromMimeData(const QMimeData& data) const
+    AZ::EntityId PropertyEntityIdCtrl::EntityIdFromMimeData(const QMimeData& data_) const
     {
         AZ::EntityId entityIdResult;
 
-        if (!IsCorrectMimeData(&data))
+        if (!IsCorrectMimeData(&data_))
         {
             return entityIdResult;
         }
 
-        QByteArray arrayData = data.data(AzToolsFramework::EditorEntityIdContainer::GetMimeType());
+        QByteArray arrayData = data_.data(AzToolsFramework::EditorEntityIdContainer::GetMimeType());
 
         AzToolsFramework::EditorEntityIdContainer entityIdListContainer;
         if (!entityIdListContainer.FromBuffer(arrayData.constData(), arrayData.size()))
@@ -232,6 +267,7 @@ namespace AzToolsFramework
 
     PropertyEntityIdCtrl::~PropertyEntityIdCtrl()
     {
+        CancelObjectPickMode();
     }
 
     QWidget* PropertyEntityIdCtrl::GetFirstInTabOrder()
@@ -246,6 +282,15 @@ namespace AzToolsFramework
     void PropertyEntityIdCtrl::UpdateTabOrder()
     {
         // There's only one QT widget on this property.
+    }
+
+    bool PropertyEntityIdCtrl::SetChildWidgetsProperty(const char* name, const QVariant& variant)
+    {
+        bool success = m_entityIdLabel->setProperty(name, variant);
+        success = m_pickButton->setProperty(name, variant) && success;
+        success = m_clearButton->setProperty(name, variant) && success;
+
+        return success;
     }
 
     void PropertyEntityIdCtrl::SetCurrentEntityId(const AZ::EntityId& newEntityId, bool emitChange, const AZStd::string& nameOverride)

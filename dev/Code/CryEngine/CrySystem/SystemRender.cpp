@@ -38,7 +38,6 @@
 #include <IEntitySystem.h>
 #include <IParticles.h>
 #include <IMovieSystem.h>
-#include <IJobManager.h>
 #include <IPlatformOS.h>
 
 #include "CrySizerStats.h"
@@ -49,8 +48,8 @@
 #include "IDiskProfiler.h"
 #include "ITextModeConsole.h"
 #include <IEntitySystem.h> // <> required for Interfuscator
-#include "../CryAction/IActorSystem.h"
-#include "../CryAction/ILevelSystem.h"
+#include <IGame.h>
+#include <ILevelSystem.h>
 #include <LyShine/ILyShine.h>
 
 #include "MiniGUI/MiniGUI.h"
@@ -61,12 +60,23 @@
 
 extern CMTSafeHeap* g_pPakHeap;
 #if defined(AZ_PLATFORM_ANDROID)
-#include <AZCore/Android/Utils.h>
+#include <AzCore/Android/Utils.h>
 #elif defined(AZ_PLATFORM_APPLE_IOS) || defined(AZ_PLATFORM_APPLE_TV)
 extern bool UIKitGetPrimaryPhysicalDisplayDimensions(int& o_widthPixels, int& o_heightPixels);
 #endif
 
 extern int CryMemoryGetAllocatedSize();
+
+/////////////////////////////////////////////////////////////////////////////////
+static void VerifySizeRenderVar(ICVar* pVar)
+{
+    const int size = pVar->GetIVal();
+    if (size <= 0)
+    {
+        AZ_Error("Console Variable", false, "'%s' set to invalid value: %i. Setting to nearest safe value: 1.", pVar->GetName(), size);
+        pVar->Set(1);
+    }
+}
 
 /////////////////////////////////////////////////////////////////////////////////
 bool CSystem::GetPrimaryPhysicalDisplayDimensions(int& o_widthPixels, int& o_heightPixels)
@@ -106,12 +116,12 @@ void CSystem::CreateRendererVars(const SSystemInitParams& startupParams)
     }
 
     // load renderer settings from engine.ini
-    m_rWidth = REGISTER_INT("r_Width", iWidthDefault, VF_DUMPTODISK,
+    m_rWidth = REGISTER_INT_CB("r_Width", iWidthDefault, VF_DUMPTODISK,
             "Sets the display width, in pixels. Default is 1280.\n"
-            "Usage: r_Width [800/1024/..]");
-    m_rHeight = REGISTER_INT("r_Height", iHeightDefault, VF_DUMPTODISK,
+            "Usage: r_Width [800/1024/..]", VerifySizeRenderVar);
+    m_rHeight = REGISTER_INT_CB("r_Height", iHeightDefault, VF_DUMPTODISK,
             "Sets the display height, in pixels. Default is 720.\n"
-            "Usage: r_Height [600/768/..]");
+            "Usage: r_Height [600/768/..]", VerifySizeRenderVar);
     m_rWidthAndHeightAsFractionOfScreenSize = REGISTER_FLOAT("r_WidthAndHeightAsFractionOfScreenSize", 1.0f, VF_DUMPTODISK,
             "(iOS/Android only) Sets the display width and height as a fraction of the physical screen size. Default is 1.0.\n"
             "Usage: rWidthAndHeightAsFractionOfScreenSize [0.1 - 1.0]");
@@ -261,8 +271,6 @@ void CSystem::RenderEnd(bool bRenderStats, bool bMainWindow)
             m_env.pRenderer->RenderDebug(bRenderStats);
 #endif
 
-            RenderJobStats();
-
 #if defined(USE_PERFHUD)
             if (m_pPerfHUD)
             {
@@ -281,7 +289,7 @@ void CSystem::RenderEnd(bool bRenderStats, bool bMainWindow)
                 RenderStatistics();
             }
 
-            if (!gEnv->pGame->GetIGameFramework()->GetILevelSystem()->IsLevelLoaded())
+            if (!gEnv->pSystem->GetILevelSystem() || !gEnv->pSystem->GetILevelSystem()->IsLevelLoaded())
             {
                 IConsole* console = GetIConsole();
                 ILyShine* lyShine = gEnv->pLyShine;
@@ -406,7 +414,7 @@ void CSystem::RenderPhysicsStatistics(IPhysicalWorld* pWorld)
                 mask &= (pVars->bSingleStepMode - 1) >> 31;
                 pInfos[i].nTicksPeak += pInfos[i].nTicksLast - pInfos[i].nTicksPeak & mask;
                 pInfos[i].nCallsPeak += pInfos[i].nCallsLast - pInfos[i].nCallsPeak & mask;
-                sprintf(msgbuf, "%.2fms/%.1f (peak %.2fms/%d) %s (id %d)",
+                azsprintf(msgbuf, "%.2fms/%.1f (peak %.2fms/%d) %s (id %d)",
                     dt = gEnv->pTimer->TicksToSeconds(pInfos[i].nTicksAvg) * 1000.0f, pInfos[i].nCallsAvg,
                     gEnv->pTimer->TicksToSeconds(pInfos[i].nTicksPeak) * 1000.0f, pInfos[i].nCallsPeak,
                     pInfos[i].pName, pInfos[i].id);
@@ -428,8 +436,11 @@ void CSystem::RenderPhysicsStatistics(IPhysicalWorld* pWorld)
             {
                 ScriptHandle hdl;
                 hdl.n = ~0;
-                m_env.pScriptSystem->GetGlobalValue("g_localActorId", hdl);
-                IEntity* pPlayerEnt = m_env.pEntitySystem->GetEntity((EntityId)hdl.n);
+                if (m_env.pScriptSystem)
+                {
+                    m_env.pScriptSystem->GetGlobalValue("g_localActorId", hdl);
+                }
+                IEntity* pPlayerEnt = m_env.pEntitySystem ? m_env.pEntitySystem->GetEntity((EntityId)hdl.n) : nullptr;
                 IPhysicalEntity* pent = pWorld->GetPhysicalEntityById(pInfos[m_iJumpToPhysProfileEnt - 1].id);
                 if (pPlayerEnt && pent)
                 {
@@ -500,59 +511,6 @@ void CSystem::RenderPhysicsStatistics(IPhysicalWorld* pWorld)
 #endif
 }
 
-//////////////////////////////////////////////////////////////////////////
-void CSystem::RenderJobStats()
-{
-    //enable job system filtering to disable async execution at runtime
-    const char* const cpFilterName = m_sys_job_system_filter->GetString();
-    if (cpFilterName && *cpFilterName != 0 && *cpFilterName != '0')
-    {
-        gEnv->GetJobManager()->SetJobFilter(cpFilterName);
-    }
-    else
-    {
-        gEnv->GetJobManager()->SetJobFilter(NULL);
-    }
-
-    gEnv->GetJobManager()->Update(m_sys_job_system_profiler->GetIVal());
-    gEnv->GetJobManager()->SetJobSystemEnabled(m_sys_job_system_enable->GetIVal());
-
-    JobManager::IBackend* const __restrict pThreadBackEnd = gEnv->GetJobManager()->GetBackEnd(JobManager::eBET_Thread);
-    JobManager::IBackend* const __restrict pBlockingBackEnd = gEnv->GetJobManager()->GetBackEnd(JobManager::eBET_Blocking);
-
-#if defined(ENABLE_PROFILING_CODE)
-    if (m_sys_profile->GetIVal() != 0)
-    {
-#if defined(JOBMANAGER_SUPPORT_FRAMEPROFILER)
-
-        // Get none-blocking job & worker profile stats
-        if (pThreadBackEnd)
-        {
-            JobManager::IWorkerBackEndProfiler* pWorkerProfiler = pThreadBackEnd->GetBackEndWorkerProfiler();
-
-            if (pWorkerProfiler)
-            {
-                m_FrameProfileSystem.ValThreadFrameStatsCapacity(pWorkerProfiler->GetNumWorkers());
-                pWorkerProfiler->GetFrameStats(*m_FrameProfileSystem.m_ThreadFrameStats, m_FrameProfileSystem.m_ThreadJobFrameStats, JobManager::IWorkerBackEndProfiler::eJobSortOrder_Lexical);
-            }
-        }
-
-        // Get blocking job & worker profile stats
-        if (pBlockingBackEnd)
-        {
-            JobManager::IWorkerBackEndProfiler* pWorkerProfiler = pBlockingBackEnd->GetBackEndWorkerProfiler();
-
-            if (pWorkerProfiler)
-            {
-                m_FrameProfileSystem.ValBlockingFrameStatsCapacity(pWorkerProfiler->GetNumWorkers());
-                pWorkerProfiler->GetFrameStats(*m_FrameProfileSystem.m_BlockingFrameStats, m_FrameProfileSystem.m_BlockingJobFrameStats, JobManager::IWorkerBackEndProfiler::eJobSortOrder_Lexical);
-            }
-        }
-#endif
-    }
-#endif
-}
-
 //! Update screen and call some important tick functions during loading.
 void CSystem::SynchronousLoadingTick(const char* pFunc, int line)
 {
@@ -582,6 +540,9 @@ void CSystem::UpdateLoadingScreen()
     }
 
 #if defined(CHECK_UPDATE_TIMES)
+#if defined(AZ_RESTRICTED_PLATFORM)
+#include AZ_RESTRICTED_FILE(SystemRender_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
 #endif // CHECK_UPDATE_TIMES
 
 #if AZ_LOADSCREENCOMPONENT_ENABLED
@@ -676,7 +637,7 @@ void CSystem::RenderStatistics()
     if (m_FrameProfileSystem.IsEnabled())
     {
         static string sSysProfileFilter;
-        if (_stricmp(m_sys_profile_filter->GetString(), sSysProfileFilter.c_str()) != 0)
+        if (azstricmp(m_sys_profile_filter->GetString(), sSysProfileFilter.c_str()) != 0)
         {
             sSysProfileFilter = m_sys_profile_filter->GetString();
             m_FrameProfileSystem.SetSubsystemFilter(sSysProfileFilter.c_str());
@@ -1019,7 +980,7 @@ void CSystem::RenderThreadInfo()
         }
 
         float nX = 5, nY = 10, dY = 12, dX = 10;
-        float fFSize = 1.2;
+        float fFSize = 1.2f;
         ColorF col1 = Col_Yellow;
         ColorF col2 = Col_Red;
 

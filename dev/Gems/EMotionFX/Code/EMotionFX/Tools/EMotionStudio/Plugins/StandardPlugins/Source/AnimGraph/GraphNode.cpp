@@ -32,7 +32,6 @@ namespace EMStudio
         mInputPorts.SetMemoryCategory(MEMCATEGORY_STANDARDPLUGINS_ANIMGRAPH);
         mOutputPorts.SetMemoryCategory(MEMCATEGORY_STANDARDPLUGINS_ANIMGRAPH);
 
-        mID                     = MCORE_INVALIDINDEX32;
         mRect                   = QRect(0, 0, 200, 110);
         mBaseColor              = QColor(74, 63, 238);
         mVisualizeColor         = QColor(0, 255, 0);
@@ -1313,8 +1312,7 @@ namespace EMStudio
                 return true;
             }
         }
-
-        return false;
+        return true;
     }
 
 

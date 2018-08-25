@@ -15,7 +15,6 @@
 // include the Core headers
 #include "StandardHeaders.h"
 #include "File.h"
-#include "UnicodeString.h"
 #include "MemoryManager.h"
 
 
@@ -65,7 +64,7 @@ namespace MCore
          * Get the unique type ID.
          * @result The type identification number.
          */
-        virtual uint32 GetType() const override;
+        uint32 GetType() const override;
 
         /**
          * Try to open the file, given a filename and open mode.
@@ -164,11 +163,11 @@ namespace MCore
          * Returns the name of the file as it has been opened.
          * @result The string containing the filename as it has been passed to the method Open.
          */
-        String GetFileName() const;
+        const AZStd::string& GetFileName() const;
 
     protected:
-        String  mFileName;  /**< The filename */
-        FILE*   mFile;      /**< The file handle. */
-        EMode   mFileMode;  /**< The mode we opened the file with. */
+        AZStd::string  mFileName;  /**< The filename */
+        FILE*          mFile;      /**< The file handle. */
+        EMode          mFileMode;  /**< The mode we opened the file with. */
     };
 } // namespace MCore

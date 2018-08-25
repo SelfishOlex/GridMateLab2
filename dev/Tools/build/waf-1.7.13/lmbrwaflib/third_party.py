@@ -9,12 +9,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #
 
-from waflib import Context
+from waflib import Context, Utils, Errors
 from waflib.TaskGen import feature, after_method
 from waflib.Configure import conf, Logs
-from waflib.Errors import WafError
+from waflib.Errors import ConfigurationError, WafError
 
 from cry_utils import get_configuration, append_unique_kw_entry
+from third_party_sync import P4SyncThirdPartySettings
+from utils import parse_json_file, write_json_file, calculate_file_hash, calculate_string_hash
 from collections import OrderedDict
 from gems import GemManager
 
@@ -23,7 +25,8 @@ import glob
 import re
 import json
 import string
-
+import hashlib
+import ConfigParser
 
 ALIAS_SEARCH_PATTERN = re.compile(r'(\$\{([\w]*)})')
 
@@ -32,6 +35,8 @@ PLATFORM_TO_3RD_PARTY_SUBPATH = {
                                     # win_x64 host platform
                                     'win_x64_vs2013'     : 'win_x64/vc120',
                                     'win_x64_vs2015'     : 'win_x64/vc140',
+                                    'win_x64_clang'      : 'win_x64/vc140',
+                                    'win_x64_vs2017'     : 'win_x64/vc140',  # Not an error, VS2017 links with VS2015 binaries
                                     'android_armv7_gcc'  : 'win_x64/android_ndk_r12/android-19/armeabi-v7a/gcc-4.9',
                                     'android_armv7_clang': 'win_x64/android_ndk_r12/android-19/armeabi-v7a/clang-3.8',
                                     'android_armv8_clang': 'win_x64/android_ndk_r12/android-21/arm64-v8a/clang-3.8',
@@ -221,54 +226,28 @@ def read_and_mark_3rd_party_libs(ctx):
 @conf
 def read_3rd_party_config(ctx, config_file_path_node, platform_key, configuration_key, path_prefix_map, warn_on_collision=False):
 
-    error_messages = set()
     all_uselib_names = set()
-
     filename = os.path.basename(config_file_path_node.abspath())
     lib_key = os.path.splitext(filename)[0]
 
     # Attempt to load the 3rd party configuration
     try:
         config, uselib_names, alias_map, = get_3rd_party_config_record(ctx, config_file_path_node)
+        for uselib_name in uselib_names:
+            if uselib_name in all_uselib_names:
+                Logs.warn('[WARN] Duplicate 3rd party definition detected : {}'.format(uselib_name))
+            else:
+                all_uselib_names.add(uselib_name)
 
         if config is not None:
             result, err_msg = ThirdPartyLibReader(ctx, config_file_path_node, config, lib_key, platform_key, configuration_key,
                                                   alias_map, path_prefix_map, warn_on_collision).detect_3rd_party_lib()
-            if not result and err_msg is not None:
-                if err_msg is not None:
-                    error_messages.add(err_msg)
-            elif not result:
-                pass
-            else:
-                for uselib_name in uselib_names:
-                    if uselib_name in all_uselib_names:
-                        Logs.warn('[WARN] Duplicate 3rd party definition detected : {}'.format(uselib_name))
-                    else:
-                        all_uselib_names.add(uselib_name)
-    except Exception as err:
-        error_messages.add('[3rd Party] {}'.format(err.message))
+            if not result and err_msg:
+                raise Errors.WafError(err_msg)
 
-    return error_messages, all_uselib_names
-
-@conf
-def detect_all_3rd_party_libs(ctx, config_path_node, platform_key, configuration_key, path_prefix_map, warn_on_collision=False):
-
-    config_3rdparty_folder_path = config_path_node.abspath()
-    config_files = glob.glob(os.path.join(config_3rdparty_folder_path, '*.json'))
-
-    error_messages = set()
-    all_uselib_names = set()
-
-    for config_file in config_files:
-
-        filename = os.path.basename(config_file)
-        lib_config_file = config_path_node.make_node(filename)
-
-        lib_error_messages, lib_uselib_names = read_3rd_party_config(ctx, lib_config_file, platform_key, configuration_key, path_prefix_map,warn_on_collision)
-        error_messages = error_messages.union(lib_error_messages)
-        all_uselib_names = all_uselib_names.union(all_uselib_names)
-
-    return error_messages, all_uselib_names
+        return True, all_uselib_names
+    except Exception:
+        return False, all_uselib_names
 
 
 # Regex pattern to search for path alias tags (ie @ROOT@) in paths
@@ -310,6 +289,7 @@ class ThirdPartyLibReader:
         self.name_alias_map = alias_map
         self.path_alias_map = path_alias_map
         self.warn_on_collision = warn_on_collision
+        self.config_file = config_node.abspath()
 
         # Create an error reference message based on the above settings
         self.error_ref_message = "({}, platform {})".format(config_node.abspath(), self.platform_key)
@@ -323,14 +303,25 @@ class ThirdPartyLibReader:
             # There exists a 'platform' node in the 3rd party config. make sure that the input platform key exists in there
             platform_root = self.lib_root["platform"]
             if self.platform_key not in platform_root:
-                # If there was no evaluated platform key, that means the configuration file was valid but did not have entries for this
-                # particular platform.
-                if Logs.verbose > 1:
-                    Logs.warn('[WARN] Platform {} not specified in 3rc party configuration file {}'.format(self.platform_key,config_node.abspath()))
-                self.processed_platform_key = None
+
+                if self.platform_key == 'win_x64_clang' and 'win_x64_vs2015' in platform_root:
+                    vs2015_config = platform_root['win_x64_vs2015']
+
+                    # If vs2015 is also an alias, just copy it
+                    if isinstance(vs2015_config, str):
+                        platform_root[self.platform_key] = vs2015_config
+                    # If vs2015 is a full config, link to it
+                    else:
+                        platform_root[self.platform_key] = '@win_x64_vs2015'
+                else:
+                    # If there was no evaluated platform key, that means the configuration file was valid but did not have entries for this
+                    # particular platform.
+                    if Logs.verbose > 1:
+                        Logs.warn('[WARN] Platform {} not specified in 3rd party configuration file {}'.format(self.platform_key,config_node.abspath()))
+                    self.processed_platform_key = None
 
             # If the platform definition is a string, then it must represent an alias to a defined platform
-            elif isinstance(platform_root[self.platform_key], str):
+            if isinstance(platform_root.get(self.platform_key), str):
 
                 # Validate the platform alias
                 platform_alias_target = platform_root[self.platform_key]
@@ -353,7 +344,7 @@ class ThirdPartyLibReader:
     def get_platform_version_options(self):
         """
         Gets the possible version options for the given platform target
-        e.g. 
+        e.g.
             Android => the possible APIs the pre-builds were built against
         """
         if self.ctx.is_android_platform(self.processed_platform_key):
@@ -703,7 +694,7 @@ class ThirdPartyLibReader:
             else:
                 apply_value = value
 
-            if is_file_path and not os.path.exists(apply_value):
+            if is_file_path and not self.ctx.cached_does_path_exist(apply_value):
                 self.raise_config_error("Invalid/missing {} value".format(uselib_var))
 
             uselib_env_key = '{}_{}'.format(uselib_var, uselib_env_name)
@@ -767,7 +758,7 @@ class ThirdPartyLibReader:
             lib_found_fullpath = None
             for lib_path in lib_paths:
                 lib_file_path = os.path.normpath(os.path.join(self.apply_optional_path_alias(lib_path, lib_source_path), lib_filename))
-                if os.path.exists(lib_file_path):
+                if self.ctx.cached_does_path_exist(lib_file_path):
                     lib_found_fullpath = lib_file_path
                     break
 
@@ -788,7 +779,7 @@ class ThirdPartyLibReader:
             if uselib_var == 'LIB':
                 if self.platform_key.startswith('win_x64'):
                     import_lib_path = "{}.lib".format(os.path.splitext(lib_file_path)[0])
-                    if not os.path.exists(import_lib_path):
+                    if not self.ctx.cached_does_path_exist(import_lib_path):
                         continue
 
             if fullpath:
@@ -823,7 +814,21 @@ class ThirdPartyLibReader:
         """
         uselib_env_key = 'COPY_EXTRA_{}'.format(uselib_env_name)
         for value in values:
-            self.ctx.env.append_unique(uselib_env_key, os.path.normpath("{}/{}".format(src_prefix, value)))
+            # String format for a copy_extra value is 'source[:destination]'.
+            # Obtain source and destination normalized
+            copy_extra_parts = value.split(':')
+            if len(copy_extra_parts) == 2:
+                source = os.path.normpath("{}/{}".format(src_prefix, copy_extra_parts[0]))
+                destination = os.path.normpath(copy_extra_parts[1])
+            elif len(copy_extra_parts) == 1:
+                source = os.path.normpath("{}/{}".format(src_prefix, copy_extra_parts[0]))
+                destination = os.path.normpath("./")
+            else:
+                Logs.warn("[WARN] Invalid copy_extra '{}'".format(value))
+                return False
+
+            value_norm = '{}:{}'.format(source, destination)
+            self.ctx.env.append_unique(uselib_env_key, value_norm)
 
     def apply_optional_path_alias(self, path, path_prefix):
         """
@@ -840,7 +845,25 @@ class ThirdPartyLibReader:
             processed_path = os.path.normpath(os.path.join(path_prefix, path))
         else:
             alias_key = alias_match_groups.group(1)
-            if alias_key not in self.path_alias_map:
+
+            if alias_key.startswith("3P:"):
+                # The alias key refers to a 3rd party identifier
+                third_party_identifier = alias_key.replace("3P:","").strip()
+                resolved_path, enabled, roles, optional = self.ctx.tp.get_third_party_path(self.platform_key, third_party_identifier)
+
+                # If the path was not resolved, it could be an invalid alias (missing from the SetupAssistantConfig.json)
+                if not resolved_path:
+                    raise Errors.WafError("[ERROR] Invalid 3rd party alias {}".format(alias_key))
+
+                # If the path was resolved, we still need to make sure the 3rd party is enabled based on the roles
+                if not enabled and not optional:
+                    error_message = "3rd Party alias '{}' specified in {} is not enabled. Make sure that at least one of the " \
+                                    "following roles is enabled: [{}]".format(alias_key, self.config_file,', '.join(roles))
+                    raise Errors.WafError(error_message)
+
+                processed_path = os.path.normpath(path.replace('@{}@'.format(alias_key), resolved_path))
+
+            elif alias_key not in self.path_alias_map:
                 if path_prefix is None:
                     processed_path = os.path.normpath(path)
                 else:
@@ -1043,7 +1066,7 @@ def register_3rd_party_uselib(ctx, use_name, target_platform, *k, **kw):
         for lib_to_process in libs_to_process:
             path_valid = False
             for libpath in libpaths_to_process:
-                if os.path.exists(os.path.join(libpath, lib_to_process)):
+                if ctx.cached_does_path_exist(os.path.join(libpath, lib_to_process)):
                     path_valid = True
                     break
             if not path_valid:
@@ -1170,13 +1193,15 @@ THIRD_PARTY_CONFIG_KEY_WEIGHT_TABLE = {
     'win_x64': 100,
     'win_x64_vs2013': 101,
     'win_x64_vs2015': 102,
-    'darwin_x64': 105,
-    'ios': 106,
-    'appletv': 107,
-    'android_armv7_gcc': 108,
-    'android_armv7_clang': 109,
-    'android_armv8_clang': 110,
-    'linux_x64': 111,
+    'win_x64_vs2017': 103,
+    'win_x64_clang': 104,
+    'darwin_x64': 120,
+    'ios': 121,
+    'appletv': 122,
+    'android_armv7_gcc': 130,
+    'android_armv7_clang': 131,
+    'android_armv8_clang': 132,
+    'linux_x64': 140
 }
 
 
@@ -1239,7 +1264,7 @@ def generate_3p_config(ctx):
     output_filename = ctx.env['cxxstlib_PATTERN'] % uselib_name
     lib_path = 'build/{}/{}'.format(config_platform, config_configuration)
 
-    if os.path.exists(config_file_abspath):
+    if ctx.bld.cached_does_path_exist(config_file_abspath):
 
         # The file exist, lookup the platform
 
@@ -1336,9 +1361,27 @@ def generate_3p_config(ctx):
             need_update = True
 
     else:
+        # try to find the third party name from the dictionary based on the path
+        third_party_name = ''
+        try:
+            third_party_root = ctx.bld.tp.content.get("3rdPartyRoot")
+            base_source = os.path.relpath(base_path, third_party_root)
+            content_sdks = ctx.bld.tp.content.get("SDKs")
+            for key, value in content_sdks.iteritems():
+                if os.path.normpath(value['base_source']) == base_source:
+                    third_party_name = key
+                    break
+        except:
+            pass    # fallback to ROOT pathing
+
+        if third_party_name:
+            third_party_source = '@3P:{}@'.format(third_party_name)
+        else:
+            third_party_source = '@ROOT@/{}'.format(base_path)
+
         config = {
                     'name': uselib_name,
-                    'source': '@ROOT@/{}'.format(base_path),
+                    'source': third_party_source,
                     'description': description,
                     'includes': config_includes,
                     'defines': config_defines,
@@ -1370,4 +1413,582 @@ def generate_3p_config(ctx):
             config_file_node.write(config_content)
         except Exception as err:
             Logs.warn('[WARNING] Unable to update 3rd Party Configuration File {}:{}'.format(config_filename, err.message))
+
+
+# The current version of the working 3rd party settings file in bin temp.
+CURRENT_3RD_PARTY_SETTINGS_VERSION = 1
+
+# Mark any SDKs that will be exempt from any automatic updates
+EXEMPT_SDKS = ('FFmpeg')
+
+SETUP_ASSISTANT_PREF_SECTION = "General"
+SETUP_ASSISTANT_ENGINE_PATH_VALID = "SDKEnginePathValid"
+SETUP_ASSISTANT_ENGINE_PATH_3RD_PARTY = "SDKSearchPath3rdParty"
+CONFIG_FILE_SETUP_ASSISTANT_CONFIG = "SetupAssistantConfig.json"
+CONFIG_SETUP_ASSISTANT_USER_PREF = "SetupAssistantUserPreferences.ini"
+
+
+class ThirdPartySettings:
+    """
+    This class manages the working 3rd party file in BinTemp that tracks all of the absolute paths to the third
+    party libraries, based on the settings in SetupAssistantConfig.json, and the root 3rd party path from
+    SetupAssistantUserPreferences.ini if it exists.
+    """
+
+    def __init__(self, ctx):
+        self.ctx = ctx
+        self.file_path_abs = os.path.join(ctx.path.abspath(), "BinTemp", "3rdParty.json")
+        self.content = None
+        self.third_party_root = None
+        self.local_p4_sync_settings = None
+
+        self.third_party_p4_config_file = os.path.join(self.ctx.engine_node.abspath(), "3rd_party_p4.ini")
+        self.disable_p4_sync_settings = not os.path.exists(self.third_party_p4_config_file)
+
+
+    def initialize(self):
+
+        self.content = None
+
+        if not os.path.exists(self.file_path_abs):
+            # Create the initial settings file if it doesnt exist
+            self.content = self.create_default()
+        else:
+            read_content = parse_json_file(self.file_path_abs)
+
+            # Check if either the 3rd party root changed or the setup assistant configuration's contents changed
+            try:
+                check_version = read_content.get("Version")
+                check_3rd_party_root = self.calculate_3rd_party_root()
+                check_3rd_party_root_hash = read_content.get("3rdPartyRootHash")
+                check_setup_assistant_source = read_content.get("SetupAssistantSource")
+                check_setup_assistant_source_hash = read_content.get("SetupAssistantSourceHash")
+                check_enabled_capabilities_hash = read_content.get("EnabledCapabilitiesHash")
+                check_3rd_party_waf_script_hash = read_content.get("3rdPartyWafScriptHash")
+                check_configured_platforms_hash = read_content.get("ConfiguredPlatformsHash", '')
+
+                if not check_3rd_party_root or not check_3rd_party_root_hash or \
+                    not check_setup_assistant_source or not check_setup_assistant_source_hash or \
+                        not check_enabled_capabilities_hash or not check_version:
+                    raise RuntimeWarning("Missing 3rd Party settings attributes")
+
+                if check_version != CURRENT_3RD_PARTY_SETTINGS_VERSION:
+                    raise RuntimeWarning("Unsupported version")
+
+                # Create a hash of the third party lib so we can detect changes
+                hash_digest_3rd_party_path = calculate_string_hash(check_3rd_party_root)
+                if check_3rd_party_root_hash != hash_digest_3rd_party_path:
+                    raise RuntimeWarning("3rdPartyRoot value changed.")
+
+                if not os.path.exists(check_setup_assistant_source):
+                    raise RuntimeWarning("SetupAssistantSource value invalid.")
+
+                # Calculate the hash of the source setup assistant
+                hash_src_setup_assistant_config = calculate_file_hash(check_setup_assistant_source)
+                if hash_src_setup_assistant_config != check_setup_assistant_source_hash:
+                    raise RuntimeWarning("SetupAssistantSourceHash value changed.")
+
+                enabled_capabilities = self.ctx.get_enabled_capabilities()
+                enabled_capabilities_hash = calculate_string_hash(",".join(enabled_capabilities))
+                if enabled_capabilities_hash != check_enabled_capabilities_hash:
+                    raise RuntimeWarning("EnabledCapabilitiesHash value changed.")
+
+                available_platform = sorted(self.ctx.get_available_platforms())
+                available_platform_hash = calculate_string_hash(','.join(available_platform))
+                if available_platform_hash != check_configured_platforms_hash:
+                    raise RuntimeWarning("ConfiguredPlatformsHash value changed.")
+
+                # Calculate the hash of this file
+                waf_3rd_party_script_file = os.path.realpath(__file__)
+                if not os.path.exists(waf_3rd_party_script_file):
+                    self.ctx.fatal('[ERROR] Unable to locate required file {}'.format(waf_3rd_party_script_file))
+                waf_3rd_party_script_hash = calculate_file_hash(waf_3rd_party_script_file)
+                if waf_3rd_party_script_hash != check_3rd_party_waf_script_hash:
+                    raise RuntimeWarning("3rdPartyWafScriptHash value changed.")
+
+                self.content = read_content
+
+            except RuntimeWarning:
+                Logs.info('[INFO] Regenerating 3rd Party settings file...')
+                self.content = self.create_default()
+
+    def create_content(self, third_party_root, setup_assistant_config_file):
+
+        def _do_roles_match(check_roles, match_roles):
+            # Check if roles defined in SetupAssistantConfig.json match with the enabled roles
+            if len(check_roles) > 0:
+                matched = False
+                for check_role in check_roles:
+                    if check_role in match_roles:
+                        matched = True
+                        break
+            else:
+                matched = True
+            return matched
+
+        # Map the target platforms to the compiler types in SetupAssistantConfig.json
+        target_platform_to_compiler = {"win_x64_vs2013": "vc120",
+                                       "win_x64_vs2015": "vc140",
+                                       "win_x64_vs2017": "vc141",
+                                       "win_x64_clang":  "vc140"}
+
+        if not os.path.exists(setup_assistant_config_file):
+            self.ctx.fatal('[ERROR] Unable to locate required file {}'.format(setup_assistant_config_file))
+
+        # Validate the third party root
+        if len(third_party_root)>0 and not os.path.exists(third_party_root):
+            self.ctx.fatal('[ERROR] 3rd Party root path is invalid')
+
+        # Create a hash of the third party lib so we can detect changes
+        digest_3rd_party_path = hashlib.md5()
+        digest_3rd_party_path.update(third_party_root)
+        hash_digest_3rd_party_path = digest_3rd_party_path.hexdigest()
+
+        # Create a hash of this script file so we regenerate if any of this logic changes
+        waf_3rd_party_script_file = os.path.realpath(__file__)
+        if not os.path.exists(waf_3rd_party_script_file):
+            self.ctx.fatal('[ERROR] Unable to locate required file {}'.format(waf_3rd_party_script_file))
+        waf_3rd_party_script_hash = calculate_file_hash(waf_3rd_party_script_file)
+
+        # Read the setup assistant configuration to get the list of all of the 3rd party identifiers
+        setup_assistant_contents = parse_json_file(setup_assistant_config_file)
+        if 'SDKs' not in setup_assistant_contents:
+            self.ctx.fatal('[ERROR] Invalid setup assistant config file ({}).  Missing "SDKs" key.'.format(setup_assistant_config_file))
+
+        # Calculate the hash of the source setup assistant
+        hash_src_setup_assistant_config = calculate_file_hash(setup_assistant_config_file)
+
+        # Get the current enabled capabilities and build up the role list to filter on
+        enabled_capabilities = self.ctx.get_enabled_capabilities()
+        enabled_capabilities_hash = calculate_string_hash(",".join(enabled_capabilities))
+
+        setup_assistant_capabilities = setup_assistant_contents.get("Capabilities")
+        if not setup_assistant_capabilities:
+            self.ctx.fatal('[ERROR] Invalid setup assistant config file ({}).  Missing "Capabilities" key.'.format(setup_assistant_config_file))
+
+        filter_roles = []
+
+        for setup_assistant_capability in setup_assistant_capabilities:
+
+            capability_identifier = setup_assistant_capability.get("identifier")
+            if not capability_identifier:
+                continue
+
+            # If enable capabitilies is not set, then check the default if this is enabled or not
+            if len(enabled_capabilities) == 0 and not setup_assistant_capability.get("default", False):
+                continue
+
+            capability_categories = setup_assistant_capability.get("categories")
+            if not capability_categories or "role" not in capability_categories:
+                continue
+            capability_tags = setup_assistant_capability.get("tags")
+            if not capability_tags:
+                continue
+            for capability_tag in capability_tags:
+                if capability_tag in enabled_capabilities and capability_tag not in filter_roles:
+                    filter_roles.append(capability_tag)
+
+        # Filter out any platform-specific libraries that are not configured for the current host platform
+        host_platform = Utils.unversioned_sys_platform()
+
+        # Map the system platforms to the platform types in SetupAssistantConfig.json
+        sys_platform_to_setup_os = {'darwin': 'macOS',
+                                    'win32': 'windows',
+                                    'linux': 'linux'}
+        restricted_platform = sys_platform_to_setup_os[host_platform]
+
+        available_platforms = sorted(self.ctx.get_available_platforms())
+        available_platforms_hash = calculate_string_hash(','.join(available_platforms))
+
+        # Build up the SDKs section of the config
+        third_party_sdks = {}
+        sdk_index = 0
+        for sdk in setup_assistant_contents['SDKs']:
+
+            sdk_index += 1
+
+            # Make sure the required identifier and source are present
+            sdk_identifier = sdk.get("identifier", None)
+            if not sdk_identifier:
+                Logs.warn('[WARN] Missing "identifier" for "SDKs" entry {}'.format(sdk_index-1))
+                continue
+
+            sdk_source = sdk.get("source", None)
+            if not sdk_source:
+                Logs.warn('[WARN] Missing "source" for "SDKs" entry {}'.format(sdk_index-1))
+                continue
+
+            sdk_optional = sdk.get("optional", 0) == 1
+
+            sdk_dependencies = sdk.get("dependencies", [])
+
+            sdk_roles = sdk.get("roles", [])
+
+            role_matched = _do_roles_match(sdk_roles, filter_roles)
+
+            # Check for any host platform restrictions at the root level
+            host_os_list = sdk.get("hostOS", None)
+            if host_os_list:
+                # If there is an OS restriction, then make sure the current restricted platform qualifies
+                os_qualifies = restricted_platform in host_os_list
+            else:
+                # If there is no OS restriction, then all platforms qualify to this point
+                os_qualifies = True
+
+            if not os_qualifies:
+                continue
+
+            # Check for any compiler restrictions
+            sdk_compilers = sdk.get("compilers")
+            if sdk_compilers:
+                compiler_matched = False
+                for available_platform in available_platforms:
+                    restricted_sdk_compiler = target_platform_to_compiler.get(available_platform)
+                    if restricted_sdk_compiler is not None and restricted_sdk_compiler in sdk_compilers:
+                        compiler_matched = True
+                        break
+                if not compiler_matched:
+                    continue
+
+            targets = {}
+
+            # the symlinks serve as check sources to make sure certain values exist.  Create a list of
+            # check-sources based on the symlinks
+            sdk_symlinks = sdk.get("symlinks")
+            if sdk_symlinks:
+
+                for available_platform in available_platforms:
+                    # Apply the 3rd party rule for each target platform.
+                    check_files = []
+
+                    current_platform_optional = sdk_optional
+                    current_platform_roles = []
+                    sdk_symlink_roles = None
+
+                    # If there are symlinks defined, then treat them individually as targets
+                    for sdk_symlink in sdk_symlinks:
+
+                        # Check the compiler restriction if any
+                        sdk_symlink_compilers = sdk_symlink.get("compilers")
+                        if sdk_symlink_compilers:
+                            restricted_compiler = target_platform_to_compiler.get(available_platform)
+                            if restricted_compiler not in sdk_symlink_compilers:
+                                # Compiler doesnt match any supported compiler
+                                continue
+
+                        # Check the hostOS restriction if any
+                        sdk_symlink_hostos = sdk_symlink.get("hostOS")
+                        if sdk_symlink_hostos:
+                            if restricted_platform not in sdk_symlink_hostos:
+                                # hostOS does not match the current host platform
+                                continue
+                                
+                        # Check roles
+                        sdk_symlink_roles = sdk_symlink.get("roles")
+                        if sdk_symlink_roles:
+                            if sdk_symlink_roles not in filter_roles:
+                                # roles does not match the current roles
+                                continue
+                                
+                        sdk_symlink_check_source = sdk_symlink.get("source")
+                        if not sdk_symlink_check_source:
+                            continue
+
+                        # Check if there is an optional override at the 'symlinks' level
+                        sdk_symlink_optional = sdk_symlink.get("optional", 1 if sdk_optional else 0)
+                        current_platform_optional = current_platform_optional and (sdk_symlink_optional==1)
+
+                        sdk_symlink_roles = sdk_symlink.get("roles", None)
+                        if sdk_symlink_roles:
+                            current_platform_roles += [sdk_symlink_role for sdk_symlink_role in sdk_symlink_roles]
+
+                        sdk_symlink_example = sdk_symlink.get("exampleFile", "")
+                        if len(sdk_symlink_example)>0:
+                            check_files.append(os.path.normpath(os.path.join(sdk_symlink_check_source, sdk_symlink_example)))
+
+                    if len(current_platform_roles)==0:
+                        current_platform_roles = sdk_roles
+                    sdk_platform_role_matched = _do_roles_match(current_platform_roles, filter_roles)
+
+                    # Each target consists of the base sdk path, and the check sources
+                    target_entry = {
+                                    "source": sdk_source,
+                                    "check_files": check_files,
+                                    "optional": current_platform_optional,
+                                    "roles": sdk_symlink_roles,
+                                    "dependencies":sdk_dependencies,
+                                    "enabled": sdk_platform_role_matched
+                                   }
+
+                    targets[available_platform] = target_entry
+            else:
+                # If there are no symlinks defined, then apply the same targets for all supporting platforms
+                for available_platform in available_platforms:
+                    targets[available_platform] = {"source": sdk_source,
+                                                   "check_files": [],
+                                                   "optional": sdk_optional,
+                                                   "roles": sdk_roles,
+                                                   "dependencies":sdk_dependencies,
+                                                   "enabled": role_matched
+                                                   }
+
+            third_party_sdk = {"base_source": sdk_source,
+                               "targets": targets,
+                               "enabled": role_matched}
+            third_party_sdks[sdk_identifier] = third_party_sdk
+
+        third_party_settings_content = {
+            "Version": CURRENT_3RD_PARTY_SETTINGS_VERSION,
+            "3rdPartyRoot": third_party_root,
+            "3rdPartyRootHash": hash_digest_3rd_party_path,
+            "EnabledCapabilitiesHash": enabled_capabilities_hash,
+            "SetupAssistantSource": setup_assistant_config_file,
+            "SetupAssistantSourceHash": hash_src_setup_assistant_config,
+            "3rdPartyWafScriptHash": waf_3rd_party_script_hash,
+            "ConfiguredPlatformsHash" : available_platforms_hash,
+
+            "SDKs": third_party_sdks
+        }
+        return third_party_settings_content
+
+    def calculate_3rd_party_root(self):
+        """
+        Calculate where the 3rd party folder will be based on.  The 3rd party root folder must have the 3rdParty.txt marker file
+
+        :return: A third party root path
+        """
+
+        def _search_3rd_party(starting_path):
+            # Attempt to locate the 3rd party marker file from the current working directory
+            # Move up to the root
+            current_path = starting_path
+            last_dir = None
+            while current_path != last_dir:
+                third_party_dir_name = os.path.join(current_path, '3rdParty')
+                if os.path.exists(os.path.join(third_party_dir_name, '3rdParty.txt')):
+                    return third_party_dir_name
+                last_dir = current_path
+                current_path = os.path.dirname(current_path)
+            return None
+
+        def _get_default_third_party_root():
+            # If setup assistant user prefs does not exist, then attempt to search for a 3rd party root folder in
+            # the current drive and use that as the default for now but warn the user
+            third_party_root = _search_3rd_party(self.ctx.path.abspath())
+            if not third_party_root:
+                raise ConfigurationError('[ERROR] Setup Assistant has not configured this project yet.  You must run SetupAssistant '
+                                         'first or specify a root 3rd Party folder (--3rdpartypath). ')
+
+            self.ctx.warn_once('Setup Assistant has not configured this project yet.  Defaulting to "{}" to continue this '
+                               'configuration.  It is recommended that you run SetupAssistant to configure this project properly '
+                               'before continuing.'.format(third_party_root))
+            return third_party_root
+
+        def _read_setup_assistant_user_pref():
+
+            setup_assistant_user_pref_filepath = os.path.join(self.ctx.path.abspath(), CONFIG_SETUP_ASSISTANT_USER_PREF)
+            if not os.path.exists(setup_assistant_user_pref_filepath):
+                return _get_default_third_party_root()
+            try:
+                config_parser = ConfigParser.ConfigParser()
+                config_parser.read(setup_assistant_user_pref_filepath)
+
+                engine_path_valid = config_parser.get(SETUP_ASSISTANT_PREF_SECTION, SETUP_ASSISTANT_ENGINE_PATH_VALID)
+                if engine_path_valid != 'true':
+                    raise ConfigurationError('[ERROR] Setup Assistant reports that the engine path is invalid.  Correct this in Setup Assistant before continuing')
+
+                third_party_path = config_parser.get(SETUP_ASSISTANT_PREF_SECTION, SETUP_ASSISTANT_ENGINE_PATH_3RD_PARTY)
+                if not os.path.exists(os.path.join(third_party_path, "3rdParty.txt")):
+                    raise ConfigurationError('[ERROR] The 3rd Party Root path ({}) configured in setup assistant is invalid.  Correct this in Setup Assistant before continuing'.format(third_party_path))
+
+                return os.path.normpath(third_party_path)
+
+            except ConfigParser.Error as err:
+                return _get_default_third_party_root()
+
+
+        third_party_override = getattr(self.ctx.options,"bootstrap_third_party_override",None)
+        if third_party_override:
+            if not os.path.exists(os.path.join(third_party_override, "3rdParty.txt")):
+                Logs.warn('[WARN] The 3rd party override (--3rdpartypath) path ({})is not a valid 3rd party root folder.'.format(third_party_override))
+            else:
+                return os.path.normpath(third_party_override)
+
+        return _read_setup_assistant_user_pref()
+
+    def create_default(self, third_party_root_override = None):
+        """
+        Create the default 3rd party settings file
+        :return:
+        """
+        # Create an initial 3rd party root path
+        if third_party_root_override:
+            third_party_root_path = third_party_root_override
+        else:
+            third_party_root_path = self.calculate_3rd_party_root()
+
+        third_party_settings_contents = self.create_content(third_party_root_path,
+                                                            os.path.join(self.ctx.engine_node.abspath(),
+                                                                         CONFIG_FILE_SETUP_ASSISTANT_CONFIG))
+
+        # Create the 3rd party settings
+        write_json_file(third_party_settings_contents, self.file_path_abs)
+
+        return third_party_settings_contents
+
+    def validate_sdk(self, sdk_identifier, sdk_target, third_party_root):
+        sdk_validated = True
+
+        sdk_target_source = sdk_target.get("source")
+        sdk_check_files = sdk_target.get("check_files")
+
+        sdk_enabled = sdk_target.get("enabled", False)
+        sdk_optional = sdk_target.get("optional", True)
+
+        for sdk_check_file in sdk_check_files:
+            sdk_check_file_full_path = os.path.join(third_party_root, sdk_check_file)
+            sdk_check_source_path = os.path.dirname(sdk_check_file_full_path)
+            if not os.path.exists(
+                    sdk_check_file_full_path) and sdk_identifier not in EXEMPT_SDKS and sdk_enabled and not sdk_optional:
+                if not self.disable_p4_sync_settings:
+                    Logs.debug("Lumberyard: Attempting to sync 3rd Party {} from perforce.".format(sdk_identifier))
+                    # Build the p4 path based on the full check path file's directory
+                    sdk_p4_sync_path = os.path.dirname(sdk_check_file).replace('\\', '/')
+                    if not self.sync_from_p4(sdk_p4_sync_path):
+                        Logs.debug("Lumberyard: Unable to resolve 3rd Party path {} for library {}.".format(
+                            sdk_target_source, sdk_identifier))
+                    if not os.path.exists(sdk_check_file_full_path):
+                        self.ctx.fatal(
+                            "[ERROR] Missing 3rd Party library {}. Expected at {}.".format(sdk_identifier,
+                                                                                           sdk_check_file_full_path))
+                else:
+                    self.ctx.warn_once(
+                        "Unable to resolve 3rd Party path {} for library {}.".format(sdk_check_source_path,
+                                                                                     sdk_identifier))
+                    sdk_validated = False
+
+        return sdk_validated
+
+    def validate_local(self, target_platform):
+        """
+        Validate the settings against the actual file system
+        :return:
+        """
+        if not self.content:
+            raise Errors.WafError('[ERROR] 3rd Party settings file not initialized properly')
+
+        third_party_root = os.path.normpath(self.content.get("3rdPartyRoot"))
+
+        content_sdks = self.content.get("SDKs")
+        for sdk_identifier, sdk_content in content_sdks.iteritems():
+            sdk_targets = sdk_content.get("targets")
+            sdk_target = sdk_targets.get(target_platform)
+
+            sdks_to_validate = [ (sdk_identifier, sdk_target) ]
+
+            if sdk_target:
+                enabled_capabilities = self.ctx.get_enabled_capabilities()
+                sdk_roles = sdk_target.get("roles")
+                sdk_dependencies = sdk_target.get("dependencies")
+
+                if not sdk_roles:
+                    continue
+                    
+                sdk_in_capabilities = False
+
+                for role in sdk_roles:
+                    if role in enabled_capabilities:
+                        sdk_in_capabilities = True
+                        break
+
+                if not sdk_in_capabilities:
+                    continue
+
+                for sdk_dependency in sdk_dependencies:
+                    dependency_content = content_sdks.get(sdk_dependency)
+                    dependency_targets = dependency_content.get('targets')
+                    dependency_target = dependency_targets.get(target_platform)
+
+                    sdks_to_validate.append((sdk_dependency, dependency_target))
+
+
+                for sdk_to_validate in sdks_to_validate:
+                    if not self.validate_sdk(sdk_to_validate[0], sdk_to_validate[1], third_party_root):
+                        # One or more paths doesnt exist for this alias, do an encapsulating warning for the sdk alias
+                        self.ctx.fatal("[ERROR] 3rd Party alias '{}' invalid. It references one or more invalid local paths. Make sure the sdk is configured properly in Setup Assistant.".format(sdk_to_validate[0]))
+
+
+    def sync_from_p4(self, third_party_subpath):
+
+        if self.local_p4_sync_settings is None:
+            self.local_p4_sync_settings = P4SyncThirdPartySettings(self.content.get("3rdPartyRoot"),
+                                                                   self.third_party_p4_config_file)
+        if not self.local_p4_sync_settings.is_valid():
+            self.local_p4_sync_settings = None
+            self.disable_p4_sync_settings = True
+            return False
+
+        self.local_p4_sync_settings.sync_3rd_party(third_party_subpath)
+
+        return True
+
+    def get_third_party_path(self, target_platform, identifier):
+        """
+        Resolves a third party library configuration based on the target platform and 3rd party identifier (from SetupAssistantConfig.json)
+
+        :param target_platform:     The target platform to resolve
+        :param identifier:          The 3rd party alias identifier to lookup
+        :return:                    Tuple representing a 3rd party setup:
+                                        source path: The absolute path to the 3rd party library
+                                        enabled:     Flag to indicate if the library is enabled or not
+                                        roles:       Roles that are configured for the 3rd party library in SetupAssistantConfig.json
+                                        optional:    Flag to indicate if the sdk is optional (ie not a critical SDK) where no specs can be built
+        """
+
+        if not self.content:
+            raise Errors.WafError('3rd Party settings file not initialized properly')
+
+        content_sdks = self.content.get("SDKs")
+        sdk_content = content_sdks.get(identifier)
+        if not sdk_content:
+            raise Errors.WafError('3rd Party settings file is invalid (Missing SDKs/{})'.format(identifier))
+        if not sdk_content.get("validated", True):
+            raise Errors.WafError("3rd Party alias '{}' not validated locally.".format(identifier))
+        sdk_enabled = sdk_content.get('enabled')
+        sdk_optional = sdk_content.get('optional')
+        sdk_roles = sdk_content.get('roles', [])
+
+        if not target_platform:
+            # If the target platform is not specified, then use the base source
+            sdk_source = sdk_content.get("base_source")
+            if not sdk_source:
+                raise Errors.WafError("[ERROR] 3rd Party settings file is invalid (Missing SDKs/{}/base_source)".format(identifier))
+        else:
+
+            sdk_content_targets = sdk_content.get("targets")
+            if not sdk_content_targets:
+                raise Errors.WafError("[ERROR] 3rd Party settings file is invalid (Missing SDKs/{}/targets)".format(identifier))
+
+            sdk_content_target = sdk_content_targets.get(target_platform)
+            if not sdk_content_target:
+                raise Errors.WafError("[ERROR] 3rd Party settings file is invalid (Missing SDKs/targets/{})".format(target_platform))
+
+            sdk_source = sdk_content_target.get("source")
+
+            # Get any target specific override for 'optional' and 'roles'
+            sdk_optional = sdk_content_target.get('optional', sdk_optional)
+            sdk_roles = sdk_content_target.get('roles', sdk_roles)
+
+
+        third_party_root = self.content.get("3rdPartyRoot")
+        sdk_source_full_path = os.path.normpath(os.path.join(third_party_root, sdk_source))
+
+        if not os.path.exists(sdk_source_full_path) and sdk_enabled and not sdk_optional:
+            self.ctx.warn_once('3rd party alias {} references a missing local SDK path. Make sure it is available through Setup Assistant'.format(identifier))
+
+        return sdk_source_full_path, sdk_enabled, sdk_roles, sdk_optional
+
+
+
+
 

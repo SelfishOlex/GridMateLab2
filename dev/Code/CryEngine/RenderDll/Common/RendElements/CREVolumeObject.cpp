@@ -25,14 +25,17 @@
 //
 
 class CVolumeTexture
-    : public CREVolumeObject::IVolumeTexture
+    : public IVolumeTexture
 {
 public:
-    virtual void Release();
-    virtual bool Create(unsigned int width, unsigned int height, unsigned int depth, unsigned char* pData);
-    virtual bool Update(unsigned int width, unsigned int height, unsigned int depth, const unsigned char* pData);
-    virtual int GetTexID() const;
-
+    void Release() override;
+    bool Create(unsigned int width, unsigned int height, unsigned int depth, unsigned char* pData) override;
+    bool Update(unsigned int width, unsigned int height, unsigned int depth, const unsigned char* pData) override;
+    int GetTexID() const override;
+    uint32 GetWidth() const override { return m_width; }
+    uint32 GetHeight() const override { return m_height; }
+    uint32 GetDepth() const override { return m_depth; }
+    CTexture* GetTexture() const override { return m_pTex; }
     CVolumeTexture();
     ~CVolumeTexture();
 
@@ -87,7 +90,7 @@ bool CVolumeTexture::Create(unsigned int width, unsigned int height, unsigned in
     {
         char name[128];
         name[sizeof(name) - 1] = '\0';
-        _snprintf(name, sizeof(name) - 1, "$VolObj_%d", gRenDev->m_TexGenID++);
+        azsnprintf(name, sizeof(name) - 1, "$VolObj_%d", gRenDev->m_TexGenID++);
 
         const uint32_t totalByteCount = width * height * depth;
         m_StagingData.resize(totalByteCount * StagingBufferFrameCount);
@@ -182,7 +185,7 @@ void CREVolumeObject::mfPrepare(bool bCheckOverflow)
 }
 
 
-CREVolumeObject::IVolumeTexture* CREVolumeObject::CreateVolumeTexture() const
+IVolumeTexture* CREVolumeObject::CreateVolumeTexture() const
 {
     return new CVolumeTexture();
 }

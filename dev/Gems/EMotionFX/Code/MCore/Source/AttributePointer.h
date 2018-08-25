@@ -52,8 +52,8 @@ namespace MCore
             mValue = static_cast<const AttributePointer*>(other)->GetValue();
             return true;
         }
-        bool InitFromString(const String& valueString) override     { MCORE_UNUSED(valueString); MCORE_ASSERT(false); return false; }   // currently unsupported
-        bool ConvertToString(String& outString) const override      { MCORE_UNUSED(outString); MCORE_ASSERT(false); return false; }     // currently unsupported
+        bool InitFromString(const AZStd::string& valueString) override     { MCORE_UNUSED(valueString); MCORE_ASSERT(false); return false; }   // currently unsupported
+        bool ConvertToString(AZStd::string& outString) const override      { MCORE_UNUSED(outString); MCORE_ASSERT(false); return false; }     // currently unsupported
         uint32 GetClassSize() const override                        { return sizeof(AttributePointer); }
         uint32 GetDefaultInterfaceType() const override             { return ATTRIBUTE_INTERFACETYPE_DEFAULT; }
 
@@ -78,15 +78,6 @@ namespace MCore
             MCORE_UNUSED(version);
 
             MCore::LogWarning("MCore::AttributePointer::ReadData() - Pointer attributes cannot be read from disk.");
-            return false;
-        }
-
-        // write to a stream
-        bool WriteData(MCore::Stream* stream, MCore::Endian::EEndianType targetEndianType) const override
-        {
-            MCORE_UNUSED(stream);
-            MCORE_UNUSED(targetEndianType);
-            MCore::LogWarning("MCore::AttributePointer::WriteData() - Pointer attributes cannot be written to a stream.");
             return false;
         }
     };

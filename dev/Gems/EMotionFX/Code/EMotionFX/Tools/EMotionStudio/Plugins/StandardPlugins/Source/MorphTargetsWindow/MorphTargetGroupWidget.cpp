@@ -12,7 +12,8 @@
 
 #include "MorphTargetGroupWidget.h"
 #include <AzCore/Casting/numeric_cast.h>
-#include "../../../../EMStudioSDK/Source/EMStudioManager.h"
+#include <EMotionStudio/EMStudioSDK/Source/EMStudioManager.h>
+#include <MCore/Source/StringConversions.h>
 #include <QVBoxLayout>
 #include <QPushButton>
 #include <QLabel>
@@ -137,15 +138,7 @@ namespace EMStudio
             EMotionFX::MorphTarget* morphTarget = mMorphTargets[i].mMorphTarget;
 
             command = AZStd::string::format("AdjustMorphTarget -actorInstanceID %i -lodLevel %i -name \"%s\" -manualMode ", mActorInstance->GetID(), mActorInstance->GetLODLevel(), morphTarget->GetName());
-            if (value == Qt::Checked)
-            {
-                command += "true";
-            }
-            else
-            {
-                command += "false";
-            }
-
+            command += AZStd::to_string(value == Qt::Checked);
             commandGroup.AddCommandString(command);
         }
 
@@ -190,7 +183,12 @@ namespace EMStudio
         EMotionFX::MorphTarget* morphTarget = mMorphTargets[morphTargetIndex].mMorphTarget;
 
         AZStd::string result;
-        const AZStd::string command = AZStd::string::format("AdjustMorphTarget -actorInstanceID %i -lodLevel %i -name \"%s\" -weight %f -manualMode %s", mActorInstance->GetID(), mActorInstance->GetLODLevel(), morphTarget->GetName(), 0.0f, (checkBox->isChecked()) ? "true" : "false");
+        const AZStd::string command = AZStd::string::format("AdjustMorphTarget -actorInstanceID %i -lodLevel %i -name \"%s\" -weight %f -manualMode %s", 
+            mActorInstance->GetID(), 
+            mActorInstance->GetLODLevel(), 
+            morphTarget->GetName(), 
+            0.0f, 
+            AZStd::to_string(checkBox->isChecked()).c_str());
         if (EMStudio::GetCommandManager()->ExecuteCommand(command, result) == false)
         {
             AZ_Error("EMotionFX", false, result.c_str());

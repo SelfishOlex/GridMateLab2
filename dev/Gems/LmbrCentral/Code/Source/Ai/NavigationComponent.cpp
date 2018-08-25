@@ -15,12 +15,14 @@
 
 #include <IPathfinder.h>
 #include <MathConversion.h>
-#include <AzCore/UnitTest/UnitTest.h>
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/SerializeContext.h>
 #include <LmbrCentral/Physics/CryCharacterPhysicsBus.h>
 #include <LmbrCentral/Physics/CryPhysicsComponentRequestBus.h>
 #include <AzCore/RTTI/BehaviorContext.h>
+#ifdef LMBR_CENTRAL_EDITOR
+#include <AzToolsFramework/API/ToolsApplicationAPI.h>
+#endif
 
 namespace LmbrCentral
 {
@@ -91,14 +93,23 @@ namespace LmbrCentral
                     ->DataElement(AZ::Edit::UIHandlers::ComboBox, &NavigationComponent::m_agentType, "Agent Type",
                         "Describes the type of the Entity for navigation purposes. ")
 #ifdef LMBR_CENTRAL_EDITOR
-                        ->Attribute(AZ::Edit::Attributes::StringList, &PopulateAgentTypeList)
+                        ->Attribute(AZ::Edit::Attributes::StringList, &NavigationComponent::PopulateAgentTypeList)
+                        ->Attribute(AZ::Edit::Attributes::ChangeNotify, &NavigationComponent::HandleAgentTypeChanged)
 #endif
+
                     ->DataElement(AZ::Edit::UIHandlers::Default, &NavigationComponent::m_agentRadius, "Agent Radius",
                         "Radius of this Navigation Agent")
+                        ->Attribute(AZ::Edit::Attributes::ReadOnly, true)
+                        ->Attribute("Suffix", " m")
+
                     ->DataElement(AZ::Edit::UIHandlers::Default, &NavigationComponent::m_arrivalDistanceThreshold,
                         "Arrival Distance Threshold", "Describes the distance from the end point that an entity needs to be before its movement is to be stopped and considered complete")
+                        ->Attribute("Suffix", " m")
+
                     ->DataElement(AZ::Edit::UIHandlers::Default, &NavigationComponent::m_repathThreshold,
                         "Repath Threshold", "Describes the distance from its previously known location that a target entity needs to move before a new path is calculated")
+                        ->Attribute("Suffix", " m")
+
                     ->DataElement(AZ::Edit::UIHandlers::CheckBox, &NavigationComponent::m_movesPhysically,
                         "Move Physically", "Indicates whether the entity moves under physics or by modifying the Entity Transform");
             }
@@ -154,7 +165,7 @@ namespace LmbrCentral
         params.minSpeed = params.normalSpeed * 0.8f;
         params.maxSpeed = params.normalSpeed * 1.2f;
         params.stopAtEnd = true;
-        m_pathFollower = gEnv->pAISystem->CreateAndReturnNewDefaultPathFollower(params, m_pathObstacles);
+        m_pathFollower = gEnv->pAISystem ? gEnv->pAISystem->CreateAndReturnNewDefaultPathFollower(params, m_pathObstacles) : nullptr;
 
         // Disconnect from any notifications from earlier requests
         AZ::TransformNotificationBus::Handler::BusDisconnect();
@@ -287,8 +298,11 @@ namespace LmbrCentral
                 if (GetRequestId() != PathfindResponse::kInvalidRequestId)
                 {
                     // Cancel that request with the pathfinder
-                    IMNMPathfinder* pathFinder = gEnv->pAISystem->GetMNMPathfinder();
-                    pathFinder->CancelPathRequest(GetPathfinderRequestId());
+                    if (gEnv->pAISystem)
+                    {
+                        IMNMPathfinder* pathFinder = gEnv->pAISystem->GetMNMPathfinder();
+                        pathFinder->CancelPathRequest(GetPathfinderRequestId());
+                    }
                 }
             }
 
@@ -334,7 +348,10 @@ namespace LmbrCentral
     void NavigationComponent::Init()
     {
         m_lastResponseCache.SetOwningComponent(this);
-        m_agentTypeId = gEnv->pAISystem->GetNavigationSystem()->GetAgentTypeID(m_agentType.c_str());
+        if (gEnv->pAISystem)
+        {
+            m_agentTypeId = gEnv->pAISystem->GetNavigationSystem()->GetAgentTypeID(m_agentType.c_str());
+        }
     }
 
     void NavigationComponent::Activate()
@@ -352,6 +369,51 @@ namespace LmbrCentral
 
         Reset();
     }
+#ifdef LMBR_CENTRAL_EDITOR
+    float NavigationComponent::CalculateAgentNavigationRadius(const char* agentTypeName)
+    {
+        float agentRadius = -1.0f;
+        AzToolsFramework::EditorRequests::Bus::BroadcastResult(
+            agentRadius, &AzToolsFramework::EditorRequests::Bus::Events::CalculateAgentNavigationRadius
+            , agentTypeName);
+
+        return agentRadius;
+    }
+
+    const char* NavigationComponent::GetDefaultAgentNavigationTypeName()
+    {
+        const char* agentTypeName = "";
+        AzToolsFramework::EditorRequests::Bus::BroadcastResult(
+            agentTypeName, &AzToolsFramework::EditorRequests::Bus::Events::GetDefaultAgentNavigationTypeName);
+
+        return agentTypeName;
+    }
+
+    AZStd::vector<AZStd::string> NavigationComponent::PopulateAgentTypeList()
+    {
+        if (m_agentType.size() == 0)
+        {
+            // If no previously stored agent type select a default one (usually on component added)
+            m_agentType = GetDefaultAgentNavigationTypeName();
+        }
+        HandleAgentTypeChanged();
+        return LmbrCentral::PopulateAgentTypeList();
+    }
+
+    AZ::u32 NavigationComponent::HandleAgentTypeChanged()
+    {
+        float agentRadius = CalculateAgentNavigationRadius(m_agentType.c_str());
+        if (agentRadius >= 0.0f)
+        {
+            m_agentRadius = agentRadius;
+        }
+        else
+        {
+            AZ_Error("Editor", false, "Unable to find navigation radius data for agent type '%s'", m_agentType.c_str());
+        }
+        return AZ::Edit::PropertyRefreshLevels::ValuesOnly;
+    }
+#endif
     //////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////////
@@ -422,8 +484,8 @@ namespace LmbrCentral
         pathfinderRequest.resultCallback = functor(*this, &NavigationComponent::OnPathResult);
 
         // 5. Request the path.
-        IMNMPathfinder* pathFinder = gEnv->pAISystem->GetMNMPathfinder();
-        return pathFinder->RequestPathTo(this, pathfinderRequest);
+        IMNMPathfinder* pathFinder = gEnv->pAISystem ? gEnv->pAISystem->GetMNMPathfinder() : nullptr;
+        return pathFinder ? pathFinder->RequestPathTo(this, pathfinderRequest) : 0;
     }
 
     void NavigationComponent::OnPathResult(const MNM::QueuedPathID& pathfinderRequestId, MNMPathRequestResult& result)

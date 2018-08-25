@@ -975,10 +975,8 @@ namespace CloudGemPlayerAccount
         refreshRequest.SetAuthFlow(Model::AuthFlowType::REFRESH_TOKEN_AUTH);
         refreshRequest.AddAuthParameters("REFRESH_TOKEN", tokens.longTermToken);
 
-        CloudGemFramework::AwsApiClientJobConfig<Aws::CognitoIdentityProvider::CognitoIdentityProviderClient> clientConfig;
-        auto identityClient = clientConfig.GetClient();
-
-        Model::InitiateAuthOutcome refreshOutcome = identityClient->InitiateAuth(refreshRequest);
+        Aws::CognitoIdentityProvider::CognitoIdentityProviderClient identityClient( m_anonymousCredentialsProvider->GetAWSCredentials(), CloudGemFramework::AwsApiJob::GetDefaultConfig()->GetClientConfiguration() );
+        Model::InitiateAuthOutcome refreshOutcome = identityClient.InitiateAuth(refreshRequest);
 
         Aws::Auth::LoginAccessTokens tokenGroup;
         if (!refreshOutcome.IsSuccess())
@@ -1023,7 +1021,7 @@ namespace CloudGemPlayerAccount
         Model::GetUserRequest getUserRequest;
         getUserRequest.SetAccessToken(authenticationResult.GetAccessToken());
 
-        Model::GetUserOutcome getUserOutcome = identityClient->GetUser(getUserRequest);
+        Model::GetUserOutcome getUserOutcome = identityClient.GetUser(getUserRequest);
 
         if (!getUserOutcome.IsSuccess())
         {
@@ -1084,7 +1082,7 @@ namespace CloudGemPlayerAccount
 
         time(&rawtime);
 #if defined(AZ_RESTRICTED_PLATFORM)
-#include AZ_RESTRICTED_FILE(CloudGemPlayerAccountSystemComponent_cpp)
+#include AZ_RESTRICTED_FILE(CloudGemPlayerAccountSystemComponent_cpp, AZ_RESTRICTED_PLATFORM)
 #endif
 #if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
 #undef AZ_RESTRICTED_SECTION_IMPLEMENTED
@@ -1347,7 +1345,7 @@ namespace CloudGemPlayerAccount
         }
         else
         {
-            AZ_Warning("CloudGemPlayerAccount", false, "No mapping found user pool %s client app %s", m_userPoolLogicalName, m_clientAppName);
+            AZ_Warning("CloudGemPlayerAccount", false, "No mapping found user pool %s client app %s", m_userPoolLogicalName.c_str(), m_clientAppName.c_str());
         }
         return "";
     }

@@ -12,10 +12,9 @@
 
 #include <stdio.h>
 #include "DiskFile.h"
-#include "UnicodeString.h"
 
 #if defined(AZ_RESTRICTED_PLATFORM)
-#include AZ_RESTRICTED_FILE(DiskFile_cpp)
+#include AZ_RESTRICTED_FILE(DiskFile_cpp, AZ_RESTRICTED_PLATFORM)
 #else
 #define DISKFILE_CPP_TRAIT_USE_POSIX 1
 #endif
@@ -101,15 +100,8 @@ namespace MCore
         mFileName = fileName;
 
         // try to open the file
-    #if (MCORE_COMPILER == MCORE_COMPILER_MSVC || MCORE_COMPILER == MCORE_COMPILER_INTELC)
-        errno_t err = fopen_s(&mFile, fileName, fileMode);
-        if (err != 0)
-        {
-            return false;
-        }
-    #else
-        mFile = fopen(fileName, fileMode);
-    #endif
+        mFile = nullptr;
+        azfopen(&mFile, fileName, fileMode);
 
         // check on success
         return (mFile != nullptr);
@@ -343,7 +335,7 @@ namespace MCore
 
 
     // get the file name
-    String DiskFile::GetFileName() const
+    const AZStd::string& DiskFile::GetFileName() const
     {
         return mFileName;
     }

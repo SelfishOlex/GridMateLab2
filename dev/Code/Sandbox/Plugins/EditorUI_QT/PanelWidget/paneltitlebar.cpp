@@ -12,6 +12,7 @@
 
 #include "stdafx.h"
 #include "paneltitlebar.h"
+#include "ContextMenu.h"
 #include <PanelWidget/ui_PanelTitleBar.h>
 #include <PanelWidget/paneltitlebar.moc>
 #include <IEditor.h>
@@ -19,7 +20,7 @@
 
 #include <QDockWidget>
 #include <QMouseEvent>
-#include <qlineedit.h>
+#include <QLineEdit>
 #include "AttributeItem.h"
 #include "AttributeView.h"
 #include <Undo/Undo.h>
@@ -53,10 +54,7 @@ PanelTitleBar::PanelTitleBar(QWidget* parent)
 
     // This makes sure that when this panel is docked as a tab the collapsed state
     //  is set to all other panels in the tab bar.
-    connect(dw, &QDockWidget::visibilityChanged, [this](bool visible)
-        {
-            MatchCollapsedStateToOtherTabs();
-        });
+    connect(dw, &QDockWidget::visibilityChanged, this, &PanelTitleBar::MatchCollapsedStateToOtherTabs);
 
     // start collapsed
     toggleCollapsed();
@@ -75,7 +73,7 @@ PanelTitleBar::~PanelTitleBar()
 
 bool PanelTitleBar::eventFilter(QObject* obj, QEvent* ev)
 {
-    if (onEventFilter(obj, ev) == true)
+    if (onEventFilter(obj, ev))
     {
         return QObject::eventFilter(obj, ev);
     }
@@ -407,17 +405,19 @@ bool ItemPanelTitleBar::onEventFilter(QObject* obj, QEvent* ev)
 
 void ItemPanelTitleBar::LaunchMenu(QPoint pos)
 {
+    ContextMenu menu(this);
+
     //RebuildMenu();
     if (m_isCustom)
     {
-        BuildCustomMenu();
+        BuildCustomMenu(&menu);
     }
     else
     {
-        RebuildMenu();
+        BuildMenu(&menu);
     }
-    m_menu->setFocus();
-    m_menu->exec(pos);
+    menu.setFocus();
+    menu.exec(pos);
 }
 
 void ItemPanelTitleBar::RenameRequest()
@@ -433,53 +433,25 @@ void ItemPanelTitleBar::RenamePanelName(QString name)
     EndRename();
 }
 
-void ItemPanelTitleBar::BuildCustomMenu()
+void ItemPanelTitleBar::BuildCustomMenu(QMenu *menu)
 {
     // just rebuild menu by clearing
-    m_menu->clear();
+    menu->clear();
 
-    QAction* action = new QAction("Rename", m_menu);
-    m_menu->addAction(action);
-    if (action)
-    {
-        connect(action, &QAction::triggered, [this]()
-            {
-                StartRename();
-            });
-    }
-    action = new QAction("Remove all", m_menu);
-    m_menu->addAction(action);
-    if (action)
-    {
-        connect(action, &QAction::triggered, [this]()
-            {
-                emit SignalRemoveAllParams((QDockWidget*)parentWidget());
-            });
-    }
+    menu->addAction("Rename", this, &ItemPanelTitleBar::StartRename);
+    menu->addAction("Remove all", this, [this]
+        {
+            emit SignalRemoveAllParams((QDockWidget*)parentWidget());
+        });
 
-    action = new QAction("Export", m_menu);
-    action->setShortcut(GetIEditor()->GetParticleUtils()->HotKey_GetShortcut("Attributes.Export Panel"));
-    m_menu->addAction(action);
-    if (action)
-    {
-        connect(action, &QAction::triggered, [this]()
+    menu->addAction("Export", this, [this]
+        {
+            QString fileName = QFileDialog::getSaveFileName(this, tr("Export Panel"), QString(), tr("Panel file (*.custom_attribute)"));
+            if (!fileName.isEmpty())
             {
-                QString fileName = QFileDialog::getSaveFileName(this, tr("Export Panel"), QString(), tr("Panel file (*.custom_attribute)"));
-                if (fileName.size() > 0)
-                {
-                    emit SignalPanelExportPanel((QDockWidget*)parentWidget(), fileName);
-                    ;
-                }
-            });
-    }
+                emit SignalPanelExportPanel((QDockWidget*)parentWidget(), fileName);
+            }
+        }, GetIEditor()->GetParticleUtils()->HotKey_GetShortcut("Attributes.Export Panel"));
 
-    action = new QAction("Close", m_menu);
-    m_menu->addAction(action);
-    if (action)
-    {
-        connect(action, &QAction::triggered, [this]()
-            {
-                closePanel();
-            });
-    }
+    menu->addAction("Close", this, &ItemPanelTitleBar::closePanel);
 }

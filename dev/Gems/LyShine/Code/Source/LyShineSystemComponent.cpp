@@ -43,6 +43,7 @@
 #include "UiLayoutColumnComponent.h"
 #include "UiLayoutRowComponent.h"
 #include "UiLayoutGridComponent.h"
+#include "UiParticleEmitterComponent.h"
 #include "UiRadioButtonComponent.h"
 #include "UiRadioButtonGroupComponent.h"
 #include "UiTooltipComponent.h"
@@ -104,7 +105,6 @@ namespace LyShine
         if (AZ::BehaviorContext* behaviorContext = azrtti_cast<AZ::BehaviorContext*>(context))
         {
             behaviorContext->EBus<UiCanvasManagerBus>("UiCanvasManagerBus")
-                ->Attribute(AZ::Script::Attributes::ExcludeFrom, AZ::Script::Attributes::ExcludeFlags::Preview)
                 ->Event("CreateCanvas", &UiCanvasManagerBus::Events::CreateCanvas)
                 ->Event("LoadCanvas", &UiCanvasManagerBus::Events::LoadCanvas)
                 ->Event("UnloadCanvas", &UiCanvasManagerBus::Events::UnloadCanvas)
@@ -112,7 +112,6 @@ namespace LyShine
             ;
 
             behaviorContext->EBus<UiCursorBus>("UiCursorBus")
-                ->Attribute(AZ::Script::Attributes::ExcludeFrom, AZ::Script::Attributes::ExcludeFlags::Preview)
                 ->Event("IncrementVisibleCounter", &UiCursorBus::Events::IncrementVisibleCounter)
                 ->Event("DecrementVisibleCounter", &UiCursorBus::Events::DecrementVisibleCounter)
                 ->Event("IsUiCursorVisible", &UiCursorBus::Events::IsUiCursorVisible)
@@ -201,6 +200,7 @@ namespace LyShine
         RegisterComponentTypeForMenuOrdering(UiTooltipDisplayComponent::RTTI_Type());
         RegisterComponentTypeForMenuOrdering(UiDynamicLayoutComponent::RTTI_Type());
         RegisterComponentTypeForMenuOrdering(UiDynamicScrollBoxComponent::RTTI_Type());
+        RegisterComponentTypeForMenuOrdering(UiParticleEmitterComponent::RTTI_Type());
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////

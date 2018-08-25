@@ -46,14 +46,13 @@ PreviewToolbar::PreviewToolbar(EditorWindow* parent)
     m_editButton = new QPushButton("End Preview", parent);
     QObject::connect(m_editButton,
         &QPushButton::clicked,
-        [parent](bool checked)
-        {
-            parent->ToggleEditorMode();
-        });
+        parent,
+        &EditorWindow::ToggleEditorMode);
 
     // Enable Edit button only while in Preview mode
     QObject::connect(parent,
         &EditorWindow::EditorModeChanged,
+        m_editButton,
         [=](UiEditorMode mode)
         {
             m_editButton->setEnabled(mode == UiEditorMode::Preview);

@@ -28,8 +28,8 @@
 
 #include "DetailWidget/ResourceGroupDetailWidget.moc"
 
-ResourceGroupDetailWidget::ResourceGroupDetailWidget(ResourceManagementView* view, QSharedPointer<IResourceGroupStatusModel> resourceGroupStatusModel)
-    : DetailWidget{view}
+ResourceGroupDetailWidget::ResourceGroupDetailWidget(ResourceManagementView* view, QSharedPointer<IResourceGroupStatusModel> resourceGroupStatusModel, QWidget* parent)
+    : DetailWidget{view, parent}
     , m_resourceGroupStatusModel{resourceGroupStatusModel}
 {
 }
@@ -54,11 +54,11 @@ void ResourceGroupDetailWidget::UpdateUI()
     switch (m_view->m_resourceManager->GetInitializationState())
     {
     case IAWSResourceManager::InitializationState::UnknownState:
-        m_layout.SetWidget(State::Loading, [this](){ return new LoadingWidget{m_view}; });
+        m_layout.SetWidget(State::Loading, [this](){ return new LoadingWidget{m_view, this}; });
         break;
 
     case IAWSResourceManager::InitializationState::NoProfileState:
-        m_layout.SetWidget(State::NoProfile, [this](){ return new NoProfileWidget {m_view}; });
+        m_layout.SetWidget(State::NoProfile, [this](){ return new NoProfileWidget {m_view, this}; });
         break;
 
     case IAWSResourceManager::InitializationState::UninitializedState:
@@ -66,24 +66,24 @@ void ResourceGroupDetailWidget::UpdateUI()
     case IAWSResourceManager::InitializationState::InitializedState:
         if (!m_resourceGroupStatusModel->IsReady())
         {
-            m_layout.SetWidget(State::Loading, [this](){ return new LoadingWidget{m_view}; });
+            m_layout.SetWidget(State::Loading, [this](){ return new LoadingWidget{m_view, this}; });
         }
         else if (!m_resourceGroupStatusModel->ContainsUserDefinedResources() && !m_resourceGroupStatusModel->IsPendingDelete())
         {
-            m_layout.SetWidget(State::NoResource, [this](){ return new NoResourceWidget {m_view, m_resourceGroupStatusModel}; });
+            m_layout.SetWidget(State::NoResource, [this](){ return new NoResourceWidget {m_view, m_resourceGroupStatusModel, this}; });
         }
         else if (m_view->m_deploymentModel->rowCount() == 0 || m_view->m_deploymentModel->IsActiveDeploymentSet())
         {
-            m_layout.SetWidget(State::Status, [this](){ return new ResourceGroupStatusWidget {m_view, m_resourceGroupStatusModel}; });
+            m_layout.SetWidget(State::Status, [this](){ return new ResourceGroupStatusWidget {m_view, m_resourceGroupStatusModel, this}; });
         }
         else
         {
-            m_layout.SetWidget(State::NoActiveDeployment, [this](){ return new NoActiveDeploymentWidget {m_view}; });
+            m_layout.SetWidget(State::NoActiveDeployment, [this](){ return new NoActiveDeploymentWidget {m_view, this}; });
         }
         break;
 
     case IAWSResourceManager::InitializationState::ErrorLoadingState:
-        m_layout.SetWidget(State::Error, [&](){ return new LoadingErrorWidget {m_view}; });
+        m_layout.SetWidget(State::Error, [&](){ return new LoadingErrorWidget {m_view, this}; });
         break;
 
     default:
@@ -132,6 +132,11 @@ QMenu* ResourceGroupDetailWidget::GetTreeContextMenu()
     del->setDisabled(m_resourceGroupStatusModel->StackIsBusy() || m_resourceGroupStatusModel->IsPendingDelete());
     connectUntilDeleted(del, &QAction::triggered, this, &ResourceGroupDetailWidget::OnDelete);
 
+    auto enable = menu->addAction(m_resourceGroupStatusModel->GetEnableButtonText());
+    enable->setToolTip(m_resourceGroupStatusModel->GetEnableButtonToolTip());
+    enable->setDisabled(m_resourceGroupStatusModel->StackIsBusy());
+    connectUntilDeleted(enable, &QAction::triggered, this, &ResourceGroupDetailWidget::OnEnable);
+
     return menu;
 }
 
@@ -148,5 +153,10 @@ void ResourceGroupDetailWidget::OnUploadCode()
 void ResourceGroupDetailWidget::OnDelete()
 {
     m_view->DeleteStack(m_resourceGroupStatusModel);
+}
+
+void ResourceGroupDetailWidget::OnEnable()
+{
+    m_resourceGroupStatusModel->EnableResourceGroup();
 }
 

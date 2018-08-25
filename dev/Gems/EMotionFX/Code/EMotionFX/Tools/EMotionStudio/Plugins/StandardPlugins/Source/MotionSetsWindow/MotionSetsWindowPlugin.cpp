@@ -35,8 +35,9 @@
 #include "../MotionWindow/MotionListWindow.h"
 
 #include <AzCore/Debug/Trace.h>
-#include <AzFramework/StringFunc/StringFunc.h>
 #include <AzFramework/API/ApplicationAPI.h>
+
+#include <EMotionFX/Tools/EMotionStudio/EMStudioSDK/Source/MetricsEventSender.h>
 
 
 namespace EMStudio
@@ -127,6 +128,8 @@ namespace EMStudio
         : public EMotionFX::EventHandler
     {
     public:
+        AZ_CLASS_ALLOCATOR(MotionSetsWindowPluginEventHandler, EMotionFX::EventHandlerAllocator, 0)
+
         void OnDeleteMotionSet(EMotionFX::MotionSet* motionSet) override
         {
             if (motionSet == nullptr)
@@ -170,12 +173,15 @@ namespace EMStudio
         QString BuildToolTipItem(OutlinerCategoryItem* item) const override
         {
             EMotionFX::MotionSet* motionSet = static_cast<EMotionFX::MotionSet*>(item->mUserData);
-            const MCore::String relativeFileName = MCore::String(motionSet->GetFilename()).ExtractPathRelativeTo(EMotionFX::GetEMotionFX().GetMediaRootFolder());
+
+            AZStd::string relativeFileName = motionSet->GetFilename();
+            EMotionFX::GetEMotionFX().GetFilenameRelativeToMediaRoot(&relativeFileName);
+            
             QString toolTip = "<table border=\"0\">";
             toolTip += "<tr><td><p style='white-space:pre'><b>Name: </b></p></td>";
             toolTip += QString("<td><p style='color:rgb(115, 115, 115); white-space:pre'>%1</p></td></tr>").arg(motionSet->GetNameString().empty() ? "&#60;no name&#62;" : motionSet->GetName());
             toolTip += "<tr><td><p style='white-space:pre'><b>FileName: </b></p></td>";
-            toolTip += QString("<td><p style='color:rgb(115, 115, 115); white-space:pre'>%1</p></td></tr>").arg(relativeFileName.GetIsEmpty() ? "&#60;not saved yet&#62;" : relativeFileName.AsChar());
+            toolTip += QString("<td><p style='color:rgb(115, 115, 115); white-space:pre'>%1</p></td></tr>").arg(relativeFileName.empty() ? "&#60;not saved yet&#62;" : relativeFileName.c_str());
             toolTip += "<tr><td><p style='white-space:pre'><b>Num Motions: </b></p></td>";
             toolTip += QString("<td><p style='color:rgb(115, 115, 115); white-space:pre'>%1</p></td></tr>").arg(motionSet->GetNumMotionEntries());
             toolTip += "<tr><td><p style='white-space:pre'><b>Num Child Sets: </b></p></td>";
@@ -254,7 +260,7 @@ namespace EMStudio
         void RecursiveIncreaseMotionsReferenceCount(EMotionFX::MotionSet* motionSet)
         {
             // Increase the reference counter if needed for each motion.
-            const EMotionFX::MotionSet::EntryMap& motionEntries = motionSet->GetMotionEntries();
+            const EMotionFX::MotionSet::MotionEntries& motionEntries = motionSet->GetMotionEntries();
             for (const auto& item : motionEntries)
             {
                 const EMotionFX::MotionSet::MotionEntry* motionEntry = item.second;
@@ -356,7 +362,7 @@ namespace EMStudio
         mSaveMotionSetCallback          = new CommandSaveMotionSetCallback(false);
         mAdjustMotionSetCallback        = new CommandAdjustMotionSetCallback(false);
         mMotionSetAddMotionCallback     = new CommandMotionSetAddMotionCallback(false);
-        mMotionSetRemoveMotionCallback  = new CommandMotionSetRemoveMotionCallback(false, true);
+        mMotionSetRemoveMotionCallback  = new CommandMotionSetRemoveMotionCallback(false);
         mMotionSetAdjustMotionCallback  = new CommandMotionSetAdjustMotionCallback(false);
         mLoadMotionSetCallback          = new CommandLoadMotionSetCallback(false);
 
@@ -414,7 +420,7 @@ namespace EMStudio
         }
 
         // add the event handler
-        mEventHandler = new MotionSetsWindowPluginEventHandler();
+        mEventHandler = aznew MotionSetsWindowPluginEventHandler();
         EMotionFX::GetEventManager().AddEventHandler(mEventHandler);
 
         return true;
@@ -468,7 +474,7 @@ namespace EMStudio
             AZStd::string text;
             const AZStd::string& filename = motionSet->GetFilenameString();
             AZStd::string extension;
-            AzFramework::StringFunc::Path::GetExtension(filename.c_str(), extension, false);
+            AzFramework::StringFunc::Path::GetExtension(filename.c_str(), extension, false /* include dot */);
 
             if (!filename.empty() && !extension.empty())
             {
@@ -535,7 +541,7 @@ namespace EMStudio
 
         if (motionSet)
         {
-            mMotionSetManagementWindow->SelectItemsByName(motionSet->GetName());
+            mMotionSetManagementWindow->SelectItemsById(motionSet->GetID());
         }
         mMotionSetManagementWindow->ReInit();
         mMotionSetManagementWindow->UpdateInterface();
@@ -737,25 +743,10 @@ namespace EMStudio
 
     bool MotionSetsWindowPlugin::CommandMotionSetAddMotionCallback::Execute(MCore::Command* command, const MCore::CommandLine& commandLine)
     {
-        EMotionFX::MotionSet* motionSet = nullptr;
-        MotionSetsWindowPlugin* plugin = nullptr;
-        if (!MotionSetsWindowPlugin::GetMotionSetCommandInfo(command, commandLine, &motionSet, &plugin))
-        {
-            return false;
-        }
-
-        // Get the motion id.
-        AZStd::string motionId;
-        commandLine.GetValue("idString", command, motionId);
-
-        // Find the corresponding motion entry.
-        EMotionFX::MotionSet::MotionEntry* motionEntry = motionSet->FindMotionEntryByStringID(motionId.c_str());
-        if (!motionEntry)
-        {
-            return false;
-        }
-
-        return plugin->GetMotionSetWindow()->AddMotion(motionSet, motionEntry);
+        MCORE_UNUSED(command);
+        MCORE_UNUSED(commandLine);
+        UpdateMotionSetsPlugin();
+        return true;
     }
 
 
@@ -770,25 +761,10 @@ namespace EMStudio
 
     bool MotionSetsWindowPlugin::CommandMotionSetRemoveMotionCallback::Execute(MCore::Command* command, const MCore::CommandLine& commandLine)
     {
-        EMotionFX::MotionSet* motionSet = nullptr;
-        MotionSetsWindowPlugin* plugin = nullptr;
-        if (!MotionSetsWindowPlugin::GetMotionSetCommandInfo(command, commandLine, &motionSet, &plugin))
-        {
-            return false;
-        }
-
-        // Get the motion id.
-        AZStd::string motionId;
-        commandLine.GetValue("idString", command, motionId);
-
-        // Find the corresponding motion entry.
-        EMotionFX::MotionSet::MotionEntry* motionEntry = motionSet->FindMotionEntryByStringID(motionId.c_str());
-        if (!motionEntry)
-        {
-            return false;
-        }
-
-        return plugin->GetMotionSetWindow()->RemoveMotion(motionSet, motionEntry);
+        MCORE_UNUSED(command);
+        MCORE_UNUSED(commandLine);
+        UpdateMotionSetsPlugin();
+        return true;
     }
 
 
@@ -811,7 +787,7 @@ namespace EMStudio
         }
 
         // Find the corresponding motion entry.
-        EMotionFX::MotionSet::MotionEntry* motionEntry = motionSet->FindMotionEntryByStringID(newMotionId);
+        EMotionFX::MotionSet::MotionEntry* motionEntry = motionSet->FindMotionEntryById(newMotionId);
         if (!motionEntry)
         {
             return false;
@@ -867,7 +843,7 @@ namespace EMStudio
 
         GetOutlinerManager()->AddItemToCategory("Motion Sets", motionSet->GetID(), motionSet);
 
-        const EMotionFX::MotionSet::EntryMap& motionEntries = motionSet->GetMotionEntries();
+        const EMotionFX::MotionSet::MotionEntries& motionEntries = motionSet->GetMotionEntries();
         for (const auto& item : motionEntries)
         {
             const EMotionFX::MotionSet::MotionEntry* motionEntry = item.second;
@@ -904,6 +880,18 @@ namespace EMStudio
 
                 motionSetsPlugin->SetSelectedSet(motionSet);
                 break;
+            }
+        }
+
+        //Generate metrics
+        if (motionSetsPlugin->GetSelectedSet())
+        {
+            //for Morph Target use
+            const EMotionFX::MotionSet* motionSet = motionSetsPlugin->GetSelectedSet();
+            if (motionSet)
+            {
+                MetricsEventSender::SendMorphTargetUseEvent(static_cast<AZ::u32>(motionSet->GetNumMotionEntries()), static_cast<AZ::u32>(motionSet->GetNumMorphMotions()));
+                MetricsEventSender::SendMorphTargetConcurrentPlayEvent(motionSet);
             }
         }
 

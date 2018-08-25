@@ -18,7 +18,8 @@
 namespace AZ
 {
     namespace FbxSDKWrapper
-    {
+    { 
+        using FbxSDKLongLong = FbxLongLong;
         class FbxAnimLayerWrapper;
         class FbxTimeSpanWrapper;
 
@@ -28,6 +29,7 @@ namespace AZ
             FbxAnimStackWrapper(FbxAnimStack* fbxAnimStack);
             virtual ~FbxAnimStackWrapper();
 
+            virtual const char* GetName() const;
             virtual int GetAnimationLayerCount() const;
             virtual const AZStd::shared_ptr<FbxAnimLayerWrapper> GetAnimationLayerAt(int index) const;
             virtual FbxTimeSpanWrapper GetLocalTimeSpan() const;

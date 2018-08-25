@@ -163,7 +163,7 @@ namespace MCore
                 }
 
                 // compare the file names
-                if (logFileCallback->GetLogFile()->GetFileName().CheckIfIsEqual(fileName))
+                if (logFileCallback->GetLogFile()->GetFileName() == fileName)
                 {
                     // get rid of the callback instance
                     delete callback;
@@ -357,12 +357,7 @@ namespace MCore
             char textBuf[4096];
             va_list args;
             va_start(args, what);
-            //FormatWString(textBuf, 4096, what, args);
-        #if (MCORE_COMPILER == MCORE_COMPILER_MSVC || MCORE_COMPILER == MCORE_COMPILER_INTELC)
-            vsnprintf_s(textBuf, 4096, what, args);
-        #else
-            vsnprintf(textBuf, 4096, what, args);
-        #endif
+            azvsnprintf(textBuf, 4096, what, args);
             va_end(args);
 
             // log the message
@@ -382,14 +377,7 @@ namespace MCore
             char textBuf[4096];
             va_list args;
             va_start(args, what);
-            //FormatWString(textBuf, 4096, what, args);
-
-        #if (MCORE_COMPILER == MCORE_COMPILER_MSVC || MCORE_COMPILER == MCORE_COMPILER_INTELC)
-            vsnprintf_s(textBuf, 4096, what, args);
-        #else
-            vsnprintf(textBuf, 4096, what, args);
-        #endif
-
+            azvsnprintf(textBuf, 4096, what, args);
             va_end(args);
 
             // log the message
@@ -409,13 +397,7 @@ namespace MCore
             char textBuf[4096];
             va_list args;
             va_start(args, what);
-            //FormatWString(textBuf, 4096, what, args);
-
-        #if (MCORE_COMPILER == MCORE_COMPILER_MSVC || MCORE_COMPILER == MCORE_COMPILER_INTELC)
-            vsnprintf_s(textBuf, 4096, what, args);
-        #else
-            vsnprintf(textBuf, 4096, what, args);
-        #endif
+            azvsnprintf(textBuf, 4096, what, args);
             va_end(args);
 
             // log the message
@@ -435,13 +417,7 @@ namespace MCore
             char textBuf[4096];
             va_list args;
             va_start(args, what);
-            //FormatWString(textBuf, 4096, what, args);
-        #if (MCORE_COMPILER == MCORE_COMPILER_MSVC || MCORE_COMPILER == MCORE_COMPILER_INTELC)
-            vsnprintf_s(textBuf, 4096, what, args);
-        #else
-            vsnprintf(textBuf, 4096, what, args);
-        #endif
-
+            azvsnprintf(textBuf, 4096, what, args);
             va_end(args);
 
             // log the message
@@ -461,14 +437,7 @@ namespace MCore
             char textBuf[4096];
             va_list args;
             va_start(args, what);
-            //FormatWString(textBuf, 4096, what, args);
-
-        #if (MCORE_COMPILER == MCORE_COMPILER_MSVC || MCORE_COMPILER == MCORE_COMPILER_INTELC)
-            vsnprintf_s(textBuf, 4096, what, args);
-        #else
-            vsnprintf(textBuf, 4096, what, args);
-        #endif
-
+            azvsnprintf(textBuf, 4096, what, args);
             va_end(args);
 
             // log the message
@@ -488,17 +457,23 @@ namespace MCore
             char textBuf[4096];
             va_list args;
             va_start(args, what);
-            //FormatWString(textBuf, 4096, what, args);
-
-        #if (MCORE_COMPILER == MCORE_COMPILER_MSVC || MCORE_COMPILER == MCORE_COMPILER_INTELC)
-            vsnprintf_s(textBuf, 4096, what, args);
-        #else
-            vsnprintf(textBuf, 4096, what, args);
-        #endif
+            azvsnprintf(textBuf, 4096, what, args);
             va_end(args);
 
             // log the message
             GetLogManager().LogMessage(textBuf, LogCallback::LOGLEVEL_DEBUG);
+        }
+    }
+
+    void LogDebugMsg(const char* msg)
+    {
+        LockGuard lock(LogManager::mGlobalMutex);
+
+        // skip the va list construction in case that the message won't be logged by any of the callbacks
+        if (GetLogManager().GetLogLevels() & LogCallback::LOGLEVEL_DEBUG)
+        {
+            // log the message
+            GetLogManager().LogMessage(msg, LogCallback::LOGLEVEL_DEBUG);
         }
     }
 
@@ -510,6 +485,12 @@ namespace MCore
     #if (defined(MCORE_PLATFORM_WINDOWS))
         OutputDebugStringA(message);
         OutputDebugStringA("\n");
+#define AZ_RESTRICTED_SECTION_IMPLEMENTED
+#elif defined(AZ_RESTRICTED_PLATFORM)
+#include AZ_RESTRICTED_FILE(LogManager_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
     #elif (defined(MCORE_PLATFORM_ANDROID))
         __android_log_print(ANDROID_LOG_INFO, "MCore", message);
     #else

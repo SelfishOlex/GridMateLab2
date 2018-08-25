@@ -49,7 +49,6 @@ DockableAttributePanel::DockableAttributePanel(QWidget* parent)
     , m_pParticleUI(nullptr)
     , m_titleBarMenu(nullptr)
     , m_TabBarDynamicTabIndex(-1)
-    , m_tabBarContextMenu(nullptr)
     , m_IgnoreAttributeRefresh(false)
 {
     m_vars.reset();
@@ -70,7 +69,6 @@ DockableAttributePanel::~DockableAttributePanel()
     SAFE_DELETE(m_openParticleTabBar);
     SAFE_DELETE(m_pParticleUI);
     SAFE_DELETE(m_titleBarMenu);
-    SAFE_DELETE(m_tabBarContextMenu);
     SAFE_DELETE(m_attributeView);
 }
 
@@ -337,6 +335,12 @@ void DockableAttributePanel::SetEnabledParameter(CParticleItem* item, bool enabl
     {
         previousState = effect->IsEnabled();
         effect->SetEnabled(enable);
+        // This enable function is not updated through Cry reflection
+        // Need to update particle params cached in UI if the particle being toggled is currently being selected.
+        if (m_pParticleUI && m_pParticleUI->m_localParticleEffect == effect)
+        {
+            m_pParticleUI->m_localParams.bEnabled = enable;
+        }
     }
     if (previousState == enable)
     {
@@ -564,15 +568,16 @@ void DockableAttributePanel::TabMoved(int from, int to)
 void DockableAttributePanel::TabShowContextMenu(const QPoint& pos)
 {
     CRY_ASSERT(m_openParticleTabBar);
-    CRY_ASSERT(m_tabBarContextMenu);
-    m_tabBarContextMenu->clear();
 
     int index = m_openParticleTabBar->tabAt(pos);
     if (index != -1)
     {
+        ContextMenu tabBarContextMenu(this);
+        tabBarContextMenu.clear();
+
         ParticleTabData tabData = m_openParticleTabBar->tabData(index).value<ParticleTabData>();
-        emit SignalPopulateTabBarContextMenu(tabData.m_libraryName, tabData.m_libraryItemName, m_tabBarContextMenu);
-        m_tabBarContextMenu->exec(m_openParticleTabBar->mapToGlobal(pos));
+        emit SignalPopulateTabBarContextMenu(tabData.m_libraryName, tabData.m_libraryItemName, &tabBarContextMenu);
+        tabBarContextMenu.exec(m_openParticleTabBar->mapToGlobal(pos));
     }
 }
 
@@ -598,8 +603,6 @@ DockWidgetTitleBar* DockableAttributePanel::CreateTabBar()
     connect(m_openParticleTabBar, &QTabBar::tabCloseRequested, this, &DockableAttributePanel::TabClosing);
     connect(m_openParticleTabBar, &QTabBar::tabMoved, this, &DockableAttributePanel::TabMoved);
     connect(m_openParticleTabBar, &FluidTabBar::customContextMenuRequested, this, &DockableAttributePanel::TabShowContextMenu);
-
-    m_tabBarContextMenu = new ContextMenu(this);
 
     return propertiesTabBar;
 }
@@ -772,7 +775,7 @@ void DockableAttributePanel::RefreshParameterUI(CParticleItem* item, SLodInfo* l
         if (m_attributeView->getPanelWidget()->isEmpty())
         {
             m_attributeView->Clear();
-            QString particlePath = QString().sprintf("%s.%s", item->GetLibrary()->GetName(), item->GetName());
+            QString particlePath = QString().sprintf("%s.%s", item->GetLibrary()->GetName().toUtf8().constData(), item->GetName().toUtf8().constData());
             m_attributeView->InitConfiguration(particlePath);
             LoadSessionState(); //configure the UI the way the user wants it to be.
         }

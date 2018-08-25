@@ -15,8 +15,9 @@
 
 #include "Objects/EntityObject.h"
 #include "TrackView/TrackViewSequenceManager.h"
-#include "Maestro/Types/AnimValueType.h"
-#include "Maestro/Types/SequenceType.h"
+#include <Maestro/Types/AnimValueType.h>
+#include <Maestro/Types/SequenceType.h>
+#include <Maestro/Types/AnimNodeType.h>
 
 #include <AzCore/Math/Uuid.h>
 #include <AzToolsFramework/API/ToolsApplicationAPI.h>
@@ -50,6 +51,23 @@ namespace Maestro
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
     EditorSequenceComponent::~EditorSequenceComponent()
     {
+        bool isDuringUndo = false;
+        AzToolsFramework::ToolsApplicationRequests::Bus::BroadcastResult(isDuringUndo, &AzToolsFramework::ToolsApplicationRequests::Bus::Events::IsDuringUndoRedo);
+
+        // Don't RemoveEntityToAnimate if we are in the middle of an Undo event.
+        // Doing so will create will mark this entity dirty and break the undo system.
+        if (!isDuringUndo)
+        {
+            for (int i = m_sequence->GetNodeCount(); --i >= 0;)
+            {
+                IAnimNode* animNode = m_sequence->GetNode(i);
+                if (animNode->GetType() == AnimNodeType::AzEntity)
+                {
+                    RemoveEntityToAnimate(animNode->GetAzEntityId());
+                }
+            }
+        }
+
         IEditor* editor = nullptr;
         EBUS_EVENT_RESULT(editor, AzToolsFramework::EditorRequests::Bus, GetEditor);
         if (editor)
@@ -241,6 +259,13 @@ namespace Maestro
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
+    void EditorSequenceComponent::GetAssetDuration(AnimatedValue& returnValue, const AZ::EntityId& animatedEntityId, AZ::ComponentId componentId, const AZ::Data::AssetId& assetId)
+    {
+        const Maestro::SequenceAgentEventBusId ebusId(GetEntityId(), animatedEntityId);
+        EBUS_EVENT_ID(ebusId, Maestro::SequenceAgentComponentRequestBus, GetAssetDuration, returnValue, componentId, assetId);
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////
     void EditorSequenceComponent::BuildGameEntity(AZ::Entity* gameEntity)
     {
         SequenceComponent *gameSequenceComponent = gameEntity->CreateComponent<SequenceComponent>();
@@ -292,8 +317,6 @@ namespace Maestro
     void EditorSequenceComponent::GetAnimatedPropertyValue(AnimatedValue& returnValue, const AZ::EntityId& animatedEntityId, const Maestro::SequenceComponentRequests::AnimatablePropertyAddress& animatableAddress)
     {
         const Maestro::SequenceAgentEventBusId ebusId(GetEntityId(), animatedEntityId);
-        float retVal = .0f;
-
         EBUS_EVENT_ID(ebusId, Maestro::SequenceAgentComponentRequestBus, GetAnimatedPropertyValue, returnValue, animatableAddress);
     }
 

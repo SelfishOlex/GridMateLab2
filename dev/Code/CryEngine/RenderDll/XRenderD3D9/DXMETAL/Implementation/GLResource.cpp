@@ -17,7 +17,7 @@
 #include <StdAfx.h>
 #include "GLResource.hpp"
 #include "METALContext.hpp"
-#include "METALDevice.hpp"
+#include "MetalDevice.hpp"
 
 namespace NCryMetal
 {
@@ -249,6 +249,12 @@ namespace NCryMetal
                     Desc.storageMode = MTLStorageModePrivate;
                     //Depth stencil buffer gets written into and sampled from.
                     Desc.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead;
+
+#if defined AZ_PLATFORM_APPLE_OSX
+                    //On osx the depth/stencil texture is merged. You need to create a different
+                    //texture view to access stencil data. Hence we need this flag.
+                    Desc.usage |= MTLTextureUsagePixelFormatView;
+#endif
                 }
                 else if(CTexture::IsDeviceFormatTypeless(pFormat->m_eDXGIFormat))
                 {
@@ -694,15 +700,17 @@ namespace NCryMetal
             kMappedSubTex.m_pBuffer = pTexture->m_pMapMemoryCopy + GetSystemMemoryTextureOffset<Interface>(pTexture, pFormat, kSubID);
             if (bDownload)
             {
+                pContext->FlushBlitEncoderAndWait();
+
                 MTLRegion region = {
                     {0, 0, 0}, {pTexture->m_Texture.width, pTexture->m_Texture.height, pTexture->m_Texture.depth}
                 };
                 [pTexture->m_Texture getBytes: kMappedSubTex.m_pBuffer
-bytesPerRow: kPackedLayout.m_uRowPitch
-bytesPerImage: kPackedLayout.m_uImagePitch
-fromRegion: region
-mipmapLevel: kSubID.m_iMipLevel
-slice: kSubID.m_uElement];
+                                  bytesPerRow: kPackedLayout.m_uRowPitch
+                                bytesPerImage: kPackedLayout.m_uImagePitch
+                                   fromRegion: region
+                                  mipmapLevel: kSubID.m_iMipLevel
+                                        slice: kSubID.m_uElement];
             }
             //  Confetti End: Igor Lobanchikov
 
@@ -720,11 +728,11 @@ slice: kSubID.m_uElement];
                     {0, 0, 0}, {pTexture->m_Texture.width, pTexture->m_Texture.height, pTexture->m_Texture.depth}
                 };
                 [pTexture->m_Texture replaceRegion: region
-mipmapLevel: kSubID.m_iMipLevel
-slice: kSubID.m_uElement
-withBytes: kMappedSubTex.m_pBuffer
-bytesPerRow: kMappedSubTex.m_uRowPitch
-bytesPerImage: kMappedSubTex.m_uImagePitch];
+                                       mipmapLevel: kSubID.m_iMipLevel
+                                             slice: kSubID.m_uElement
+                                         withBytes: kMappedSubTex.m_pBuffer
+                                       bytesPerRow: kMappedSubTex.m_uRowPitch
+                                     bytesPerImage: kMappedSubTex.m_uImagePitch];
             }
             //  Confetti End: Igor Lobanchikov
         }
@@ -761,7 +769,7 @@ bytesPerImage: kMappedSubTex.m_uImagePitch];
     bool MapTexSubresource(SResource* pResource, uint32 uSubresource, D3D11_MAP eMapType, uint32 uMapFlags, D3D11_MAPPED_SUBRESOURCE* pMappedResource, CContext* pContext)
     {
         DXGL_SCOPED_PROFILE("MapTexSubresource")
-
+        
         STexture * pTexture(static_cast<STexture*>(pResource));
 
         const SGIFormatInfo* pFormatInfo(GetGIFormatInfo(pTexture->m_eFormat));
@@ -780,7 +788,7 @@ bytesPerImage: kMappedSubTex.m_uImagePitch];
             return false;
         }
 
-        bool bDownload(eMapType == D3D11_MAP_READ || eMapType == D3D11_MAP_WRITE || eMapType == D3D11_MAP_READ_WRITE);
+        bool bDownload = (eMapType == D3D11_MAP_READ || eMapType == D3D11_MAP_READ_WRITE);
         Impl::Map(pTexture, GetTexSubresourceID(pTexture, uSubresource), bDownload, kMappedSubTexture, pContext, pFormatInfo);
         kMappedSubTexture.m_bUpload = (eMapType != D3D11_MAP_READ);
 
@@ -1116,10 +1124,13 @@ bytesPerImage: kMappedSubTex.m_uImagePitch];
             case eGIFC_DEPTH_TO_RED:
                 break;
             case eGIFC_STENCIL_TO_RED:
-                //  Confetti BEGIN: Igor Lobanchikov
+#if defined AZ_PLATFORM_APPLE_OSX
+                //Need a new texture view to access the stencil data. x32_stencil8 or x24_stencil8
+                bFormatRequiresUniqueView = true;
+#else
                 m_TextureView = m_pTexture->m_StencilTexture;
                 [m_TextureView retain];
-                //  Confetti End: Igor Lobanchikov
+#endif
                 break;
             case eGIFC_TEXTURE_VIEW:
                 bFormatRequiresUniqueView = true;
@@ -2920,7 +2931,6 @@ bytesPerImage: kMappedSubTex.m_uImagePitch];
         pSrcTexture->m_pfUnmapSubresource(pSrcTexture, uSrcSubresource, pContext);
     }
 
-    //  Confetti BEGIN: Igor Lobanchikov
     void CopyTextureWithBlitCommandEncoder(
         STexture* pDstTexture, STexPos kDstPos, STexSubresourceID kDstSubID,
         STexture* pSrcTexture, STexPos kSrcPos, STexSubresourceID kSrcSubID,
@@ -2932,17 +2942,26 @@ bytesPerImage: kMappedSubTex.m_uImagePitch];
 
         id<MTLBlitCommandEncoder> blitCommandEncoder = pContext->GetBlitCommandEncoder();
         [blitCommandEncoder copyFromTexture: pSrcTexture->m_Texture
-sourceSlice: kSrcSubID.m_uElement
-sourceLevel: kSrcSubID.m_iMipLevel
-sourceOrigin: sourceOrigin
-sourceSize: sourceSize
-toTexture: pDstTexture->m_Texture
-destinationSlice: kDstSubID.m_uElement
-destinationLevel: kDstSubID.m_uElement
-destinationOrigin: destinationOrigin];
+                                sourceSlice: kSrcSubID.m_uElement
+                                sourceLevel: kSrcSubID.m_iMipLevel
+                               sourceOrigin: sourceOrigin
+                                 sourceSize: sourceSize
+                                  toTexture: pDstTexture->m_Texture
+                           destinationSlice: kDstSubID.m_uElement
+                           destinationLevel: kDstSubID.m_uElement
+                          destinationOrigin: destinationOrigin];
+#if defined(AZ_PLATFORM_APPLE_OSX)
+        if (pDstTexture->m_Texture.storageMode == MTLStorageModeManaged)
+        {
+            // Need to synchronize the CPU/GPU versions of the texture if it is
+            // in manged storage mode otherwise the CPU may not see any of the
+            // writes the GPU does to the texture
+            [blitCommandEncoder synchronizeTexture: pDstTexture->m_Texture
+                                             slice: kDstSubID.m_uElement
+                                             level:kDstSubID.m_uElement];
+        }
+#endif
     }
-    //  Confetti End: Igor Lobanchikov
-
 
     template <CopyTextureBoxFunc pfCopyTextureBox>
     void CopyTextureImpl(STexture* pDstTexture, STexture* pSrcTexture, CContext* pContext)
@@ -3017,14 +3036,13 @@ destinationOrigin: destinationOrigin];
         assert(pDstTexture->m_Texture);
         assert(pSrcTexture->m_Texture);
 
-        if (pContext->TrySlowCopySubresource(pDstTexture, uDstSubresource, uDstX, uDstY, uDstZ,
-                pSrcTexture, uSrcSubresource, pSrcBox))
+        if (pDstTexture->m_eFormat != pSrcTexture->m_eFormat)
         {
+            pContext->TrySlowCopySubresource(pDstTexture, uDstSubresource, uDstX, uDstY, uDstZ, pSrcTexture, uSrcSubresource, pSrcBox);
             return;
         }
 
         CopySubTextureImpl<CopyTextureWithBlitCommandEncoder>(pDstTexture, uDstSubresource, uDstX, uDstY, uDstZ, pSrcTexture, uSrcSubresource, pSrcBox, pContext);
-        //  Confetti End: Igor Lobanchikov
     }
 
     void CopySubBufferInternal(SBuffer* pDstBuffer, SBuffer* pSrcBuffer, uint32 uDstOffset, uint32 uSrcOffset, uint32 uSize, CContext* pContext)

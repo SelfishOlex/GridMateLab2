@@ -16,7 +16,7 @@
 #include "EMotionFXConfig.h"
 #include "BaseObject.h"
 #include <MCore/Source/Array.h>
-#include <MCore/Source/UnicodeString.h>
+#include <AzCore/std/string/string.h>
 
 namespace EMotionFX
 {
@@ -42,7 +42,7 @@ namespace EMotionFX
     class EMFX_API Node
         : public BaseObject
     {
-        MCORE_MEMORYOBJECTCATEGORY(Node, EMFX_DEFAULT_ALIGNMENT, EMFX_MEMCATEGORY_NODES);
+        AZ_CLASS_ALLOCATOR_DECL
         friend class Actor;
 
     public:
@@ -60,7 +60,7 @@ namespace EMotionFX
 
         /**
          * Create method using a name ID.
-         * @param nameID The name ID, generated using the MCore::GetStringIDGenerator().
+         * @param nameID The name ID, generated using the MCore::GetStringIdPool().
          * @param skeleton The skeleton where this node will belong to, you still need to manually add it to the skeleton though.
          */
         static Node* Create(uint32 nameID, Skeleton* skeleton);
@@ -91,7 +91,7 @@ namespace EMotionFX
          * Get the parent node as node pointer.
          * @result Returns the pointer to the parent node, or nullptr in case there is no parent.
          */
-        Node* GetParentNode();
+        Node* GetParentNode() const;
 
         /**
          * Recursively go through the parents until a root node is reached and store all parents inside an array.
@@ -116,7 +116,7 @@ namespace EMotionFX
          * Gets the name of the node in form of String object.
          * @result The string containing the node name.
          */
-        const MCore::String& GetNameString() const;
+        const AZStd::string& GetNameString() const;
 
         /**
          * Set the semantic name.
@@ -134,7 +134,7 @@ namespace EMotionFX
          * Gets the semantic name as string.
          * @result The string containing the semantic name.
          */
-        const MCore::String& GetSemanticNameString() const;
+        const AZStd::string& GetSemanticNameString() const;
 
         /**
          * Get the unique ID of this node, which has been generated based on the name.
@@ -423,7 +423,7 @@ namespace EMotionFX
 
         /**
          * Constructor.
-         * @param nameID The name ID, generated using the MCore::GetStringIDGenerator().
+         * @param nameID The name ID, generated using the MCore::GetStringIdPool().
          * @param skeleton The skeleton where this node will belong to.
          */
         Node(uint32 nameID, Skeleton* skeleton);

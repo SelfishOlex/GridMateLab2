@@ -14,7 +14,6 @@
 
 // include the required headers
 #include <EMotionFX/CommandSystem/Source/CommandSystemConfig.h>
-#include <AzCore/std/string/string.h>
 
 
 namespace EMotionFX
@@ -72,6 +71,7 @@ namespace CommandSystem
         static void GeneratePhonemeMetaData(EMotionFX::Actor* actor, AZStd::string& outMetaDataString);
         static void GenerateAttachmentMetaData(EMotionFX::Actor* actor, AZStd::string& outMetaDataString);
         static void GenerateMotionExtractionMetaData(EMotionFX::Actor* actor, AZStd::string& outMetaDataString);
+        static void GenerateRetargetRootMetaData(EMotionFX::Actor* actor, AZStd::string& outMetaDataString);
         static void GenerateMirrorSetupMetaData(EMotionFX::Actor* actor, AZStd::string& outMetaDataString);
     };
 

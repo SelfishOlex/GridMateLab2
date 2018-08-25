@@ -15,7 +15,6 @@
 
 #include <AzCore/std/containers/map.h>
 #include "DeviceManager/Enums.h"
-#include <CryEngineAPI.h>
 
 //==============================================================================
 //! This class provide all necessary resources to the shader extracted from material definition.
@@ -47,8 +46,8 @@ public:
 
     // Compiled resource set.
     // For DX12 will prepare list of textures in the global heap.
-    std::shared_ptr<class CDeviceResourceSet>               m_pCompiledResourceSet;
-    std::shared_ptr<class CGraphicsPipelineStateLocalCache> m_pipelineStateCache;
+    AZStd::shared_ptr<class CDeviceResourceSet>               m_pCompiledResourceSet;
+    AZStd::shared_ptr<class CGraphicsPipelineStateLocalCache> m_pipelineStateCache;
 
     uint8 m_nMtlLayerNoDrawFlags;
 
@@ -150,7 +149,7 @@ public:
     virtual void ToInputLM(CInputLightMaterial& lm) final;
 
     virtual ColorF GetColorValue(EEfResTextures slot) const final;
-    ENGINE_API virtual float GetStrengthValue(EEfResTextures slot) const final;
+    virtual float GetStrengthValue(EEfResTextures slot) const final;
 
     virtual void SetColorValue(EEfResTextures slot, const ColorF& color) final;
     virtual void SetStrengthValue(EEfResTextures slot, float value) final;

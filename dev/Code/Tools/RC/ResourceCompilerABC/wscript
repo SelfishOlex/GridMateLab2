@@ -34,13 +34,16 @@ def build(bld):
                                        'SZIP',
                                        'ZLIB'],
         includes                    = [ '.',
+                                        bld.ThirdPartyPath('mikkelsen'),
                                         bld.Path('Code/Tools'),
                                         bld.Path('Code/Tools/RC/ResourceCompiler'),
                                         bld.Path('Code/Tools/CryCommonTools')],
 
+        win_x64_clang_enable_rtti   = True,
+
         # Alemibic header files use the register keyword that is deprecated so
         # disable the warning here
-        darwin_cxxflags             = ['-Wno-deprecated-register'],
+        clang_cxxflags             = ['-Wno-deprecated-register', '-Wno-nonportable-include-path', '-fexceptions'],
         # Testing
         test_all_file_list = ['resourcecompilerabc_test.waf_files'],
     )

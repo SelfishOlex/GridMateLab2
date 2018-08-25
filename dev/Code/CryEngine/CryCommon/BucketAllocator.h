@@ -11,12 +11,13 @@
 */
 // Original file Copyright Crytek GMBH or its affiliates, used under license.
 
-#ifndef CRYINCLUDE_CRYCOMMON_BUCKETALLOCATOR_H
-#define CRYINCLUDE_CRYCOMMON_BUCKETALLOCATOR_H
 #pragma once
 
 #ifdef USE_GLOBAL_BUCKET_ALLOCATOR
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#include AZ_RESTRICTED_FILE(BucketAllocator_h, AZ_RESTRICTED_PLATFORM)
+#endif
 
 #ifndef _RELEASE
 #define BUCKET_ALLOCATOR_TRAP_DOUBLE_DELETES
@@ -49,6 +50,7 @@ namespace BucketAllocatorDetail
             ~CleanupAllocator();
 
             bool IsValid() const;
+            size_t GetCapacityUsed() const;
 
             void* Calloc(size_t num, size_t sz);
             void Free(void* ptr);
@@ -56,7 +58,7 @@ namespace BucketAllocatorDetail
         private:
             enum
             {
-                ReserveCapacity = 4 * 1024 * 1024
+                ReserveCapacity = 16 * 1024 * 1024
             };
 
         private:
@@ -66,6 +68,7 @@ namespace BucketAllocatorDetail
         private:
             void* m_base;
             void* m_end;
+            UINT_PTR m_pageSizeAlignment;
         };
 
         static UINT_PTR ReserveAddressSpace(size_t numPages, size_t pageLen);
@@ -672,6 +675,3 @@ private:
 // if node allocator is used instead of global bucket allocator, windows.h is required
 #   include "CryWindows.h"
 #endif
-
-#endif // CRYINCLUDE_CRYCOMMON_BUCKETALLOCATOR_H
-

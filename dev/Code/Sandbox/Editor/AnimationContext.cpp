@@ -145,6 +145,8 @@ CAnimationContext::CAnimationContext()
     m_bForceUpdateInNextFrame = false;
     m_fTimeScale = 1.0f;
     m_pSequence = nullptr;
+    m_mostRecentSequenceId.SetInvalid();
+    m_mostRecentSequenceTime = 0.0f;
     m_bLooping = false;
     m_bAutoRecording = false;
     m_fRecordingTimeStep = 0;
@@ -284,6 +286,10 @@ void CAnimationContext::UpdateTimeRange()
     if (m_pSequence)
     {
         m_timeRange = m_pSequence->GetTimeRange();
+
+        // reset the current time to make sure it is clamped
+        // to the new range.
+        SetTime(m_currTime);
     }
 }
 
@@ -317,6 +323,7 @@ void CAnimationContext::TimeChanged(float newTime)
 {
     if (m_pSequence)
     {
+        m_mostRecentSequenceTime = newTime;
         m_pSequence->TimeChanged(newTime);
     }
 }
@@ -340,7 +347,16 @@ void CAnimationContext::OnSequenceActivated(AZ::EntityId entityId)
                     auto sequence = manager->GetSequenceByEntityId(m_mostRecentSequenceId);
                     if (sequence != nullptr)
                     {
+                        // Hang onto this because SetSequence() will reset it.
+                        float lastTime = m_mostRecentSequenceTime;
+                        
                         SetSequence(sequence, false, false);
+
+                        // Restore the current time.
+                        SetTime(lastTime);
+
+                        // Notify time may have changed, use m_currTime incase it was clamped by SetTime()
+                        TimeChanged(m_currTime);
                     }
                 }
             }
@@ -764,6 +780,7 @@ void CAnimationContext::OnEditorNotifyEvent(EEditorNotifyEvent event)
         SetRecordingInternal(m_bSavedRecordingState);
         break;
 
+    case eNotify_OnQuit:
     case eNotify_OnCloseScene:
         SetSequence(nullptr, true, false);
         break;
@@ -774,6 +791,7 @@ void CAnimationContext::OnEditorNotifyEvent(EEditorNotifyEvent event)
 
     case eNotify_OnBeginLoad:
         m_mostRecentSequenceId.SetInvalid();
+        m_mostRecentSequenceTime = 0.0f;
         m_bSavedRecordingState = m_recording;
         SetRecordingInternal(false);
         GetIEditor()->GetAnimation()->SetSequence(nullptr, false, false);

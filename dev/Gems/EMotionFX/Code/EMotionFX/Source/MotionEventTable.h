@@ -17,7 +17,6 @@
 #include "BaseObject.h"
 
 #include <MCore/Source/Array.h>
-#include <MCore/Source/UnicodeString.h>
 
 
 namespace EMotionFX
@@ -40,7 +39,7 @@ namespace EMotionFX
     class EMFX_API MotionEventTable
         : public BaseObject
     {
-        MCORE_MEMORYOBJECTCATEGORY(MotionEventTable, EMFX_DEFAULT_ALIGNMENT, EMFX_MEMCATEGORY_EVENTS);
+        AZ_CLASS_ALLOCATOR_DECL
         friend class MotionEvent;
 
     public:

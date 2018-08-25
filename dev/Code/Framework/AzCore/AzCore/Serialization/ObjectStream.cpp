@@ -54,6 +54,7 @@
 #include <AzCore/std/parallel/mutex.h>
 #include <AzCore/IO/ByteContainerStream.h>
 #include <AzCore/std/containers/array.h>
+#include <AzCore/std/string/osstring.h>
 
 namespace AZ
 {
@@ -226,7 +227,12 @@ namespace AZ
                 if (childClass)
                 {
                     AZ_Assert(childNode.m_element.m_version <= childClass->m_version, "Serialize was parsing old version class and found newer version element! This should be impossible!");
-                    if (childNode.m_element.m_version < childClass->m_version || childClass->IsDeprecated())
+
+                    // Only proceed if:
+                    // * the child node is out of date AND the class does not have a custom serializer
+                    // * OR the class is deprecated
+                    if ((childNode.m_element.m_version < childClass->m_version && !childClass->m_serializer)
+                        || childClass->IsDeprecated())
                     {
                         if (!ConvertOldVersion(sc, childNode, *childNode.m_element.m_stream, childClass))
                         {
@@ -391,8 +397,10 @@ namespace AZ
                         {
                             AZStd::string error = AZStd::string::format("Converter failed for element '%s'(0x%x) with deprecated class ID '%s'.",
                                 element.m_name ? element.m_name : "NULL", element.m_nameCrc, element.m_id.ToString<AZStd::string>().c_str());
+                            
                             m_errorLogger.ReportError(error.c_str());
-                            result = false;
+                            
+                            result = result && ((m_filterDesc.m_flags & FILTERFLAG_STRICT) == 0);  // in strict mode, this is a complete failure.
                         }
 
                         SkipElement();
@@ -411,12 +419,23 @@ namespace AZ
                 // is to toss the data.
                 if (classData == nullptr || classData->IsDeprecated())
                 {
-                    if (classData == nullptr && !(m_filterDesc.m_flags & FILTERFLAG_IGNORE_UNKNOWN_CLASSES))
+
+                    if (classData == nullptr)
                     {
-                        AZStd::string error = AZStd::string::format("Element '%s'(0x%x) with class ID '%s' found in '%s' is not registered with the serializer!", element.m_name ? element.m_name : "NULL", element.m_nameCrc, element.m_id.ToString<AZStd::string>().c_str(), parentClassInfo ? parentClassInfo->m_name : "ROOT");
-                        m_errorLogger.ReportError(error.c_str());
-                        result = false;
+                        if ((m_filterDesc.m_flags & FILTERFLAG_IGNORE_UNKNOWN_CLASSES) == 0)
+                        {
+                            // we're not ignoring unknown classes.
+                            AZStd::string error = AZStd::string::format(
+                                "Element '%s'(0x%x) with class ID '%s' found in '%s' is not registered with the serializer!\n"
+                                "If this class was removed, consider using serializeContext->ClassDeprecate(...) to register classes as having been deprecated to avoid this error\n",
+                                element.m_name ? element.m_name : "NULL", element.m_nameCrc, element.m_id.ToString<AZStd::string>().c_str(), parentClassInfo ? parentClassInfo->m_name : "ROOT");
+                            m_errorLogger.ReportError(error.c_str());
+
+                            // its not just a deprecated class.  Its unregistered
+                            result = result && ((m_filterDesc.m_flags & FILTERFLAG_STRICT) == 0);  // in strict mode, this is a complete failure.
+                        }
                     }
+
                     if (!isConvertedData)
                     {
                         SkipElement();
@@ -476,8 +495,10 @@ namespace AZ
                                 {
                                     AZStd::string error = AZStd::string::format("Element of type %s cannot be added to container of pointers to type %s!"
                                         , element.m_id.ToString<AZStd::string>().c_str(), classElement->m_typeId.ToString<AZStd::string>().c_str());
+                                    
+
+                                    result = result && ((m_filterDesc.m_flags & FILTERFLAG_STRICT) == 0);  // in strict mode, this is a complete failure.
                                     m_errorLogger.ReportError(error.c_str());
-                                    result = false;
 
                                     classElement = nullptr;
                                 }
@@ -488,8 +509,9 @@ namespace AZ
                                 {
                                     AZStd::string error = AZStd::string::format("Element of type %s cannot be added to container of type %s!"
                                         , element.m_id.ToString<AZStd::string>().c_str(), classElement->m_typeId.ToString<AZStd::string>().c_str());
+                                    
+                                    result = result && ((m_filterDesc.m_flags & FILTERFLAG_STRICT) == 0);  // in strict mode, this is a complete failure.
                                     m_errorLogger.ReportError(error.c_str());
-                                    result = false;
 
                                     classElement = nullptr;
                                 }
@@ -531,8 +553,9 @@ namespace AZ
                                         AZStd::string error = AZStd::string::format("Element '%s'(0x%x) in class '%s' is of type %s and cannot be downcasted to type %s.", 
                                                 element.m_name ? element.m_name : "NULL", element.m_nameCrc, parentClassInfo->m_name,
                                                 element.m_id.ToString<AZStd::string>().c_str(), childElement->m_typeId.ToString<AZStd::string>().c_str());
+                                        
+                                        result = result && ((m_filterDesc.m_flags & FILTERFLAG_STRICT) == 0);  // in strict mode, this is a complete failure.
                                         m_errorLogger.ReportError(error.c_str());
-                                        result = false;
                                     }
                                 }
                                 else
@@ -547,8 +570,9 @@ namespace AZ
                                         AZStd::string error = AZStd::string::format("Element '%s'(0x%x) in class '%s' is of type %s but needs to be type %s.", 
                                                 element.m_name ? element.m_name : "NULL", element.m_nameCrc, parentClassInfo->m_name,
                                                 element.m_id.ToString<AZStd::string>().c_str(), childElement->m_typeId.ToString<AZStd::string>().c_str());
+                                        
+                                        result = result && ((m_filterDesc.m_flags & FILTERFLAG_STRICT) == 0);  // in strict mode, this is a complete failure.
                                         m_errorLogger.ReportError(error.c_str());
-                                        result = false;
                                     }
                                 }
                                 break;
@@ -561,7 +585,16 @@ namespace AZ
                         {
                             AZStd::string error = AZStd::string::format("Element '%s'(0x%x) of type %s is not registered as part of class '%s'. Data will be discarded.", 
                                 element.m_name ? element.m_name : "NULL", element.m_nameCrc, element.m_id.ToString<AZStd::string>().c_str(), parentClassInfo->m_name);
-                            m_errorLogger.ReportWarning(error.c_str());
+                            
+                            if (m_filterDesc.m_flags & FILTERFLAG_STRICT)
+                            {
+                                m_errorLogger.ReportError(error.c_str());
+                                result = false;
+                            }
+                            else
+                            {
+                                m_errorLogger.ReportWarning(error.c_str());
+                            }
                         }
                     }
 
@@ -596,8 +629,9 @@ namespace AZ
                             AZStd::string error = AZStd::string::format("Converter changed element from type %s to type %s. Version converters cannot change the base type. "
                                 "Instead use DeprecateClass for the old Uuid, provide a converter, and use that converter to designate a new type/uuid.",
                                 convertedClassElement.m_classData->m_typeId.ToString<AZStd::string>().c_str(), classData->m_typeId.ToString<AZStd::string>().c_str());
+                            
+                            result = result && ((m_filterDesc.m_flags & FILTERFLAG_STRICT) == 0);  // in strict mode, this is a complete failure.
                             m_errorLogger.ReportError(error.c_str());
-                            result = false;
                         }
 
                         convertedClassElement.m_classData = nullptr;
@@ -627,8 +661,10 @@ namespace AZ
                         {
                             AZStd::string error = AZStd::string::format("Converter switched to type %s, which cannot be casted to base type %s.",
                                 classData->m_typeId.ToString<AZStd::string>().c_str(), classElement->m_typeId.ToString<AZStd::string>().c_str());
+                            
+                            result = result && ((m_filterDesc.m_flags & FILTERFLAG_STRICT) == 0);  // in strict mode, this is a complete failure.
                             m_errorLogger.ReportError(error.c_str());
-                            result = false;
+
                             continue; // go to next element
                         }
                     }
@@ -648,8 +684,9 @@ namespace AZ
                         if (dataAddress == nullptr)
                         {
                             AZStd::string error = AZStd::string::format("Failed to reserve element in container. The container may be full. Element %u will not be added to container.", static_cast<unsigned int>(currentContainerElementIndex));
+                            
+                            result = result && ((m_filterDesc.m_flags & FILTERFLAG_STRICT) == 0);  // in strict mode, this is a complete failure.
                             m_errorLogger.ReportError(error.c_str());
-                            result = false;
                         }
 
                         currentContainerElementIndex++;
@@ -665,6 +702,17 @@ namespace AZ
                     {
                         // create a new instance if we are referencing it by pointer
                         AZ_Assert(classData->m_factory != nullptr, "We are attempting to create '%s', but no factory is provided! Either provide factory or change data member '%s' to value not pointer!", classData->m_name, classElement->m_name);
+
+                        // If there is a value stored at the data address
+                        // already, destroy it. This prevents leaks where the
+                        // default constructor of object A allocates an object
+                        // B and stores B in a field in A that is also
+                        // serialized.
+                        if (!classContainer && *reinterpret_cast<void**>(dataAddress))
+                        {
+                            classData->m_factory->Destroy(*reinterpret_cast<void**>(dataAddress));
+                        }
+
                         void* newDataAddress = classData->m_factory->Create(classData->m_name);
 
                         // we need to account for additional offsets if we have a pointer to
@@ -750,24 +798,18 @@ namespace AZ
                                 // and will not complete until the asset is loaded.
                                 if (assetFlags == static_cast<u8>(Data::AssetFlags::OBJECTSTREAM_PRE_LOAD))
                                 {
-                                    AZ_Warning("Serialization", asset->GetStatus() != Data::AssetData::AssetStatus::Loading, 
-                                        "Dependent asset from element \"%s\" (%s:%s) is already loading asynchronously.",
-                                        element.m_name,
-                                        asset->GetId().ToString<AZStd::string>().c_str(),
-                                        asset->GetHint().c_str());
-
                                     // Conduct a blocking load within the current thread.
                                     AZ_Assert(Data::AssetManager::IsReady(), "AssetManager has not been started!");
                                     *asset = Data::AssetManager::Instance().GetAsset(asset->GetId(), asset->GetType(), true, m_filterDesc.m_assetCB, true /*blocking*/);
 
                                     if (asset->IsError())
                                     {
-                                        const AZStd::string error = AZStd::string::format("Dependent asset from element \"%s\" (%s:%s) could not be loaded.", 
+                                        const AZStd::string error = AZStd::string::format("Dependent PRE_LOAD asset from element \"%s\" %s could not be loaded.", 
                                             element.m_name,
-                                            asset->GetId().ToString<AZStd::string>().c_str(),
-                                            asset->GetHint().c_str());
+                                            asset->ToString<AZ::OSString>().c_str());
+                                        
+                                        result = result && ((m_filterDesc.m_flags & FILTERFLAG_STRICT) == 0);  // in strict mode, this is a complete failure.
                                         m_errorLogger.ReportError(error.c_str());
-                                        result = false;
                                     }
                                 }
                                 else
@@ -799,8 +841,10 @@ namespace AZ
                         }
                         else
                         {
-                            AZ_Error("Serialization", false, "Failed to read asset information for element \"%s\".", element.m_name);
-                            result = false;
+                            const AZStd::string error = AZStd::string::format("Failed to read asset information for element \"%s\".", element.m_name);
+                            
+                            result = result && ((m_filterDesc.m_flags & FILTERFLAG_STRICT) == 0);  // in strict mode, this is a complete failure.
+                            m_errorLogger.ReportError(error.c_str());
                         }
                     }
                 }
@@ -821,10 +865,16 @@ namespace AZ
                     // read the class value
                     if (!classData->m_serializer->Load(dataAddress, *currentStream, element.m_version, element.m_dataType == SerializeContext::DataElement::DT_BINARY_BE))
                     {
-                        AZStd::string error = AZStd::string::format("Failed to load value for element '%s'(0x%x) of type '%s' found in '%s'!", element.m_name ? element.m_name : "NULL", element.m_nameCrc, classData->m_name, parentClassInfo->m_name);
-                        m_errorLogger.ReportError(error.c_str());
-                        result = false;
+                        result = result && ((m_filterDesc.m_flags & FILTERFLAG_STRICT) == 0);  // in strict mode, this is a complete failure.
                     }
+                }
+
+                // If it is a container, clear it before loading the child
+                // nodes, otherwise we end up with more elements than the ones
+                // we should have
+                if (classData->m_container && dataAddress)
+                {
+                    classData->m_container->ClearElements(dataAddress, m_sc);
                 }
 
                 // Read child nodes
@@ -864,6 +914,11 @@ namespace AZ
         {
             AZ_Assert(element.m_stream != nullptr, "You must provide a stream to store the values!");
             element.m_version = 0;
+            element.m_name = nullptr;
+            element.m_nameCrc = 0;
+            element.m_dataSize = 0;
+            element.m_id = AZ::Uuid::CreateNull();
+
             cd = nullptr;
 
             if (GetType() == ST_XML)
@@ -1791,6 +1846,8 @@ namespace AZ
                             AZStd::string newVersionError = AZStd::string::format("ObjectStream binary load error: Stream is a newer version than object stream supports. ObjectStream version: %u, load stream version: %u",
                                 s_objectStreamVersion, m_version);
                             m_errorLogger.ReportError(newVersionError.c_str());
+
+                            // this is considered a "fatal" error since the entire stream is unreadable.
                             result = false;
                         }
                     }
@@ -1825,6 +1882,8 @@ namespace AZ
                                 AZStd::string newVersionError = AZStd::string::format("ObjectStream XML load error: Stream is a newer version than object stream supports. ObjectStream version: %u, load stream version: %u",
                                     s_objectStreamVersion, m_version);
                                 m_errorLogger.ReportError(newVersionError.c_str());
+
+                                // this is considered a "fatal" error since the entire stream is unreadable.
                                 result = false;
                             }
                         }
@@ -1839,6 +1898,8 @@ namespace AZ
                             {
                                 m_errorLogger.ReportError("ObjectStream XML is malformed.");
                             }
+
+                            // this is considered a "fatal" error since the portions of the stream is unreadable and the file may be truncated
                             result = false;
                         }
                     }
@@ -1858,6 +1919,7 @@ namespace AZ
                         if (jsonDocument.HasParseError())
                         {
                             AZ_Error("Serialize", false, "JSON parse error: %d (%u)", rapidjson::GetParseError_En(jsonDocument.GetParseError()), jsonDocument.GetErrorOffset());
+                            // this is considered a "fatal" error since the entire stream is unreadable.
                             result = false;
                         }
                         else
@@ -1879,6 +1941,8 @@ namespace AZ
                                     AZStd::string newVersionError = AZStd::string::format("ObjectStream JSON load error: Stream is a newer version than object stream supports. ObjectStream version: %u, load stream version: %u",
                                         s_objectStreamVersion, m_version);
                                     m_errorLogger.ReportError(newVersionError.c_str());
+
+                                    // this is considered a "fatal" error since the entire stream is unreadable.
                                     result = false;
                                 }
                             }
@@ -1887,13 +1951,16 @@ namespace AZ
                     }
                     else
                     {
-                        m_errorLogger.ReportError("Unknown stream tag (first byte): '\0' binary, '<' xml or '{' json!");
+                        m_errorLogger.ReportError("Unknown stream tag (first byte): '\\0' binary, '<' xml or '{' json!");
+                        // this is considered a "fatal" error since the entire stream is unreadable.
                         result = false;
                     }
                 }
                 else
                 {
                     m_errorLogger.ReportError("Failed to read type tag from stream. Load aborted!");
+
+                    // this is considered a "fatal" error since the stream is truncated or corrupted.
                     result = false;
                 }
             }

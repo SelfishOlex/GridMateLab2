@@ -19,9 +19,8 @@
 #if defined (Q_OS_WIN)
 #include <QtWinExtras/QtWin>
 #endif
-#include <QProcess>
-
 #include <QRegularExpression>
+#include <AzQtComponents/Utilities/DesktopUtilities.h>
 
 enum ETreeImage
 {
@@ -172,12 +171,12 @@ void CFolderTreeCtrl::contextMenuEvent(QContextMenuEvent* e)
 
     QMenu menu;
     QAction* editAction = menu.addAction(tr("Edit"));
-    connect(editAction, &QAction::triggered, [=]()
+    connect(editAction, &QAction::triggered, this, [=]()
         {
             this->Edit(path);
         });
     QAction* showInExplorerAction = menu.addAction(tr("Show In Explorer"));
-    connect(showInExplorerAction, &QAction::triggered, [=]()
+    connect(showInExplorerAction, &QAction::triggered, this, [=]()
         {
             this->ShowInExplorer(path);
         });
@@ -361,18 +360,7 @@ void CFolderTreeCtrl::ShowInExplorer(const QString& path)
         absolutePath += QStringLiteral("/%1").arg(path);
     }
 
-#if defined(AZ_PLATFORM_WINDOWS)
-    // Explorer command lines needs windows style paths
-    absolutePath.replace('/', '\\');
-
-    const QString parameters = "/select," + absolutePath;
-    QProcess::startDetached(QStringLiteral("explorer.exe"), { parameters });
-#else
-    QProcess::startDetached("/usr/bin/osascript", {"-e",
-        QStringLiteral("tell application \"Finder\" to reveal POSIX file \"%1\"").arg(absolutePath)});
-    QProcess::startDetached("/usr/bin/osascript", {"-e",
-        QStringLiteral("tell application \"Finder\" to activate")});
-#endif
+    AzQtComponents::ShowFileOnDesktop(absolutePath);
 }
 
 QPixmap CFolderTreeCtrl::GetPixmap(int image) const

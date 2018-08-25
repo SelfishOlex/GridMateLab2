@@ -131,6 +131,12 @@ CMatMan::~CMatMan()
 //////////////////////////////////////////////////////////////////////////
 AZStd::string CMatMan::UnifyName(const char* sMtlName) const
 {
+    if (strlen(sMtlName) > AZ_MAX_PATH_LEN)
+    {
+        AZ_Error("Rendering", false, "Error attempting to generate material identifier from the input '%s'. The length of the string exceeds the maximum path length. If you are using script canvas or lua to find or load a material, ensure you are using a valid path to a material as input.", sMtlName);
+        return AZStd::string();
+    }
+
     char name[AZ_MAX_PATH_LEN];
     
     azstrcpy(name, AZ_MAX_PATH_LEN, sMtlName);
@@ -250,23 +256,29 @@ void CMatMan::RenameMaterial(_smart_ptr<IMaterial> pMtl, const char* sNewName)
     
     AZStd::lock_guard<AZStd::recursive_mutex> lock(m_materialMapMutex);
     const char* sName = pMtl->GetName();
-    AZStd::unique_ptr<ManualResetEvent> resetEvent;
+    AZStd::unique_ptr<ManualResetEvent> resetEvent = nullptr;
 
     if (*sName != '\0')
     {
         AZStd::string unifiedName = UnifyName(pMtl->GetName());
         
-        resetEvent = std::move(m_pendingMaterialLoads[unifiedName]);
+        if (m_pendingMaterialLoads.find(unifiedName) != m_pendingMaterialLoads.end())
+        {
+            resetEvent = std::move(m_pendingMaterialLoads[unifiedName]);
+            m_pendingMaterialLoads.erase(unifiedName);
+        }
 
         m_mtlNameMap.erase(unifiedName);
-        m_pendingMaterialLoads.erase(unifiedName);
     }
 
     pMtl->SetName(sNewName);
     AZStd::string newUnifiedName = UnifyName(sNewName);
 
     m_mtlNameMap[newUnifiedName] = pMtl;
-    m_pendingMaterialLoads[newUnifiedName] = std::move(resetEvent);
+    if (resetEvent != nullptr)
+    {
+        m_pendingMaterialLoads[newUnifiedName] = std::move(resetEvent);
+    }
 
 }
 
@@ -543,7 +555,7 @@ _smart_ptr<IMaterial> CMatMan::MakeMaterialFromXml(const AZStd::string& sMtlName
         const char* surfaceType = node->getAttr("SurfaceType");
         pMtl->SetSurfaceType(surfaceType);
 
-        if (_stricmp(shaderName, "nodraw") == 0)
+        if (azstricmp(shaderName, "nodraw") == 0)
         {
             mtlFlags |= MTL_FLAG_NODRAW;
         }
@@ -630,7 +642,7 @@ _smart_ptr<IMaterial> CMatMan::MakeMaterialFromXml(const AZStd::string& sMtlName
                             {
                                 nLayerFlags |= MTL_LAYER_USAGE_NODRAW;
 
-                                if (!strcmpi(pszShaderName, "frozenlayerwip"))
+                                if (!azstricmp(pszShaderName, "frozenlayerwip"))
                                 {
                                     nMaterialLayerFlags |= MTL_LAYER_FROZEN;
                                 }
@@ -745,7 +757,7 @@ bool CMatMan::LoadMaterialLayerSlot(uint32 nSlot, _smart_ptr<IMaterial> pMtl, co
     }
 
     // need to handle no draw case
-    if (_stricmp(szShaderName, "nodraw") == 0)
+    if (azstricmp(szShaderName, "nodraw") == 0)
     {
         // no shader = skip layer
         return false;
@@ -863,7 +875,7 @@ static void shGetVector4(const char* buf, float v[4])
     {
         return;
     }
-    int res = sscanf(buf, "%f,%f,%f,%f", &v[0], &v[1], &v[2], &v[3]);
+    int res = azsscanf(buf, "%f,%f,%f,%f", &v[0], &v[1], &v[2], &v[3]);
     assert(res);
 }
 
@@ -1031,7 +1043,7 @@ _smart_ptr<IMaterial> CMatMan::CloneMultiMaterial(_smart_ptr<IMaterial> pSrcMtl,
             else
             {
                 pMultiMat->SetSubMtl(i, pChildSrcMtl);
-                if (_stricmp(pChildSrcMtl->GetName(), sSubMtlName) == 0)
+                if (azstricmp(pChildSrcMtl->GetName(), sSubMtlName) == 0)
                 {
                     // Clone this slot.
                     pMultiMat->SetSubMtl(i, pChildSrcMtl->Clone());
@@ -1259,7 +1271,7 @@ bool CMatMan::SaveMaterial(XmlNodeRef node, _smart_ptr<IMaterial> pMtl)
         node->setAttr("SurfaceType", pMtl->GetSurfaceType() ? pMtl->GetSurfaceType()->GetName() : NULL);
 
         SInputShaderResources& sr = m_shaderResources;
-        //if (!m_shaderName.IsEmpty() && (stricmp(m_shaderName,"nodraw") != 0))
+        //if (!m_shaderName.IsEmpty() && (azstricmp(m_shaderName,"nodraw") != 0))
         {
             s_materialHelpers.SetXmlFromLighting(sr, node);
             s_materialHelpers.SetXmlFromTextures(sr, node);

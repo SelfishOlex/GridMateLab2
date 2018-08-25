@@ -36,12 +36,13 @@
 #include <MCore/Source/IDGenerator.h>
 #include <MCore/Source/Compare.h>
 #include <MCore/Source/Quaternion.h>
-#include <MCore/Source/AttributeSet.h>
 #include <MCore/Source/OBB.h>
 
 
 namespace EMotionFX
 {
+    AZ_CLASS_ALLOCATOR_IMPL(Actor, ActorAllocator, 0)
+
     Actor::NodeInfo::NodeInfo()
     {
         mOBB.Init();
@@ -88,6 +89,7 @@ namespace EMotionFX
         mLODs[0].mNodeInfos.SetMemoryCategory(EMFX_MEMCATEGORY_ACTORS);
 
         mMotionExtractionNode       = MCORE_INVALIDINDEX32;
+        mRetargetRootNode           = MCORE_INVALIDINDEX32;
         mThreadIndex                = 0;
         mCustomData                 = nullptr;
         mID                         = MCore::GetIDGenerator().GenerateID();
@@ -96,7 +98,6 @@ namespace EMotionFX
 
         mUsedForVisualization       = false;
         mDirtyFlag                  = false;
-        mAttributeSet               = MCore::AttributeSet::Create();
 
 #if defined(EMFX_DEVELOPMENT_BUILD)
         mIsOwnedByRuntime           = false;
@@ -132,11 +133,6 @@ namespace EMotionFX
         // remove all node groups
         RemoveAllNodeGroups();
 
-        if (mAttributeSet)
-        {
-            mAttributeSet->Destroy();
-        }
-
         //  mBindPose.Clear();
         mInvBindPoseGlobalMatrices.Clear();
 
@@ -151,7 +147,7 @@ namespace EMotionFX
     // create method
     Actor* Actor::Create(const char* name)
     {
-        return new Actor(name);
+        return aznew Actor(name);
     }
 
 
@@ -168,14 +164,14 @@ namespace EMotionFX
         result->mUnitType               = mUnitType;
         result->mFileUnitType           = mFileUnitType;
         result->mStaticAABB             = mStaticAABB;
-        result->mAttributeSet->CopyFrom(*mAttributeSet);
+        result->mRetargetRootNode       = mRetargetRootNode;
 
         result->RecursiveAddDependencies(this);
 
         // clone all nodes groups
         for (uint32 i = 0; i < mNodeGroups.GetLength(); ++i)
         {
-            result->AddNodeGroup(mNodeGroups[i]->Clone());
+            result->AddNodeGroup(aznew NodeGroup(*mNodeGroups[i]));
         }
 
         // clone the materials
@@ -1231,8 +1227,8 @@ namespace EMotionFX
     uint16 Actor::FindBestMatchForNode(const char* nodeName, const char* subStringA, const char* subStringB, bool firstPass) const
     {
         char newString[1024];
-        MCore::String nameA;
-        MCore::String nameB;
+        AZStd::string nameA;
+        AZStd::string nameB;
 
         // search through all nodes to find the best match
         const uint32 numNodes = mSkeleton->GetNumNodes();
@@ -1249,9 +1245,9 @@ namespace EMotionFX
                 nameB = name;
 
                 uint32 offset = 0;
-                char* stringData = nameA.GetPtr();
+                char* stringData = nameA.data();
                 MCore::MemSet(newString, 0, 1024 * sizeof(char));
-                while (offset < nameA.GetLength())
+                while (offset < nameA.size())
                 {
                     // locate the substring
                     stringData = strstr(stringData, subStringA);
@@ -1262,16 +1258,16 @@ namespace EMotionFX
 
                     // replace the substring
                     // replace subStringA with subStringB
-                    offset = static_cast<uint32>(stringData - nameA.GetPtr());
+                    offset = static_cast<uint32>(stringData - nameA.data());
 
-                    azstrncpy(newString, 1024, nameA.AsChar(), offset);
+                    azstrncpy(newString, 1024, nameA.c_str(), offset);
                     azstrcat(newString, 1024, subStringB);
                     azstrcat(newString, 1024, stringData + strlen(subStringA));
 
                     stringData += strlen(subStringA);
 
                     // we found a match
-                    if (nameB.CheckIfIsEqual(newString))
+                    if (nameB == newString)
                     {
                         return static_cast<uint16>(n);
                     }
@@ -1498,7 +1494,7 @@ namespace EMotionFX
         // check if there is a trajectory node
         if (trajectoryNode)
         {
-            if (trajectoryNode->GetNameString().CheckIfIsEqual("EMFX_Trajectory"))
+            if (trajectoryNode->GetNameString() == "EMFX_Trajectory")
             {
                 return;
             }
@@ -2060,7 +2056,7 @@ namespace EMotionFX
         const uint32 numMaterials = mMaterials[lodLevel].GetLength();
         for (uint32 i = 0; i < numMaterials; ++i)
         {
-            if (mMaterials[lodLevel][i]->GetNameString().CheckIfIsEqual(name))
+            if (mMaterials[lodLevel][i]->GetNameString() == name)
             {
                 return i;
             }
@@ -2116,11 +2112,11 @@ namespace EMotionFX
 
     const char* Actor::GetName() const
     {
-        return mName.AsChar();
+        return mName.c_str();
     }
 
 
-    const MCore::String& Actor::GetNameString() const
+    const AZStd::string& Actor::GetNameString() const
     {
         return mName;
     }
@@ -2128,11 +2124,11 @@ namespace EMotionFX
 
     const char* Actor::GetFileName() const
     {
-        return mFileName.AsChar();
+        return mFileName.c_str();
     }
 
 
-    const MCore::String& Actor::GetFileNameString() const
+    const AZStd::string& Actor::GetFileNameString() const
     {
         return mFileName;
     }
@@ -2195,7 +2191,7 @@ namespace EMotionFX
         const uint32 numGroups = mNodeGroups.GetLength();
         for (uint32 i = 0; i < numGroups; ++i)
         {
-            if (mNodeGroups[i]->GetNameString().CheckIfIsEqual(groupName))
+            if (mNodeGroups[i]->GetNameString() == groupName)
             {
                 return i;
             }
@@ -2211,7 +2207,7 @@ namespace EMotionFX
         const uint32 numGroups = mNodeGroups.GetLength();
         for (uint32 i = 0; i < numGroups; ++i)
         {
-            if (mNodeGroups[i]->GetNameString().CheckIfIsEqualNoCase(groupName))
+            if (AzFramework::StringFunc::Equal(mNodeGroups[i]->GetNameString().c_str(), groupName, false /* no case */))
             {
                 return i;
             }
@@ -2227,7 +2223,7 @@ namespace EMotionFX
         const uint32 numGroups = mNodeGroups.GetLength();
         for (uint32 i = 0; i < numGroups; ++i)
         {
-            if (mNodeGroups[i]->GetNameString().CheckIfIsEqual(groupName))
+            if (mNodeGroups[i]->GetNameString() == groupName)
             {
                 return mNodeGroups[i];
             }
@@ -2242,7 +2238,7 @@ namespace EMotionFX
         const uint32 numGroups = mNodeGroups.GetLength();
         for (uint32 i = 0; i < numGroups; ++i)
         {
-            if (mNodeGroups[i]->GetNameString().CheckIfIsEqualNoCase(groupName))
+            if (AzFramework::StringFunc::Equal(mNodeGroups[i]->GetNameString().c_str(), groupName, false /* no case */))
             {
                 return mNodeGroups[i];
             }
@@ -2379,7 +2375,7 @@ namespace EMotionFX
     // calculate the OBB for a given node
     void Actor::CalcOBBFromBindPose(uint32 lodLevel, uint32 nodeIndex, const MCore::Matrix& invBindPoseMatrix)
     {
-        MCore::Array<AZ::Vector3> points;
+        AZStd::vector<AZ::Vector3> points;
 
         // if there is a mesh
         Mesh* mesh = GetMesh(lodLevel, nodeIndex);
@@ -2405,7 +2401,7 @@ namespace EMotionFX
 
                 // get the vertex positions in bind pose
                 const uint32 numVerts = loopMesh->GetNumVertices();
-                points.Reserve(numVerts * 2);
+                points.reserve(numVerts * 2);
                 AZ::PackedVector3f* positions = (AZ::PackedVector3f*)loopMesh->FindOriginalVertexData(Mesh::ATTRIB_POSITIONS);
                 //AZ::Vector3* positions = (AZ::Vector3*)loopMesh->FindOriginalVertexData(Mesh::ATTRIB_POSITIONS);
 
@@ -2431,8 +2427,7 @@ namespace EMotionFX
                             if (nodeNr == nodeIndex)
                             {
                                 AZ::Vector3 tempPos(positions[v]);
-                                points.Add(tempPos * invBindPoseMatrix);
-                                //    points.Add(positions[v] * invBindPoseMatrix);
+                                points.emplace_back(tempPos * invBindPoseMatrix);
                             }
                         } // for all influences
                     } // for all vertices
@@ -2441,9 +2436,9 @@ namespace EMotionFX
         }
 
         // init from the set of points
-        if (points.GetLength() > 0)
+        if (!points.empty())
         {
-            GetNodeOBB(nodeIndex).InitFromPoints(points.GetReadPtr(), points.GetLength());
+            GetNodeOBB(nodeIndex).InitFromPoints(&points[0], static_cast<uint32>(points.size()));
         }
         else
         {
@@ -2629,4 +2624,17 @@ namespace EMotionFX
             return AXIS_Z;
         }
     }
+
+
+    void Actor::SetRetargetRootNodeIndex(uint32 nodeIndex)
+    {
+        mRetargetRootNode = nodeIndex;
+    }
+
+
+    void Actor::SetRetargetRootNode(Node* node)
+    {
+        mRetargetRootNode = node ? node->GetNodeIndex() : MCORE_INVALIDINDEX32;
+    }
+
 } // namespace EMotionFX

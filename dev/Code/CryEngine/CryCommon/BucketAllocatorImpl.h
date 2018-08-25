@@ -11,8 +11,6 @@
 */
 // Original file Copyright Crytek GMBH or its affiliates, used under license.
 
-#ifndef CRYINCLUDE_CRYCOMMON_BUCKETALLOCATORIMPL_H
-#define CRYINCLUDE_CRYCOMMON_BUCKETALLOCATORIMPL_H
 #pragma once
 
 #include "BucketAllocator.h"
@@ -412,7 +410,7 @@ bool BucketAllocator<TraitsT>::Refill(uint8 bucket)
 // Traits
 #if defined(AZ_RESTRICTED_PLATFORM)
 #define AZ_RESTRICTED_SECTION BUCKETALLOCATORIMPL_H_SECTION_TRAITS
-#include AZ_RESTRICTED_FILE(BucketAllocatorImpl_h)
+#include AZ_RESTRICTED_FILE(BucketAllocatorImpl_h, AZ_RESTRICTED_PLATFORM)
 #elif defined(_WIN32) || defined(LINUX) || defined(APPLE)
 #define BUCKETALLOCATORIMPL_H_TRAIT_TRACK_BUCKET_ALLOCATOR 1
 #endif
@@ -528,12 +526,14 @@ void BucketAllocator<TraitsT>::CleanupInternal(bool sortFreeLists)
     CleanupAllocator alloc;
     if (!alloc.IsValid())
     {
+        CRY_ASSERT_MESSAGE(0, "BucketAllocator:  Failed to cleanup, memory will leak.");
         return;
     }
 
     SmallBlockCleanupInfo** pageInfos = (SmallBlockCleanupInfo**) alloc.Calloc(pageCapacity, sizeof(SmallBlockCleanupInfo*));
     if (!pageInfos)
     {
+        CRY_ASSERT_MESSAGE(0, "BucketAllocator:  Failed to cleanup, memory will leak.");
         return;
     }
 
@@ -596,6 +596,7 @@ void BucketAllocator<TraitsT>::CleanupInternal(bool sortFreeLists)
                     if (!sbInfos)
                     {
                         FreeCleanupInfo(alloc, pageInfos, pageCapacity);
+                        CRY_ASSERT_MESSAGE(0, "BucketAllocator:  Failed to cleanup, memory will leak.");
                         return;
                     }
                 }
@@ -628,6 +629,7 @@ void BucketAllocator<TraitsT>::CleanupInternal(bool sortFreeLists)
             if (!cleanupInfos)
             {
                 FreeCleanupInfo(alloc, pageInfos, pageCapacity);
+                CRY_ASSERT_MESSAGE(0, "BucketAllocator:  Failed to cleanup, memory will leak.");
                 return;
             }
         }
@@ -1198,6 +1200,7 @@ inline BucketAllocatorDetail::SystemAllocator::CleanupAllocator::CleanupAllocato
 {
     m_base = VirtualAlloc(NULL, ReserveCapacity, MEM_RESERVE, PAGE_READWRITE);
     m_end = m_base;
+    m_pageSizeAlignment = 4095;
 }
 
 inline BucketAllocatorDetail::SystemAllocator::CleanupAllocator::~CleanupAllocator()
@@ -1213,6 +1216,13 @@ inline bool BucketAllocatorDetail::SystemAllocator::CleanupAllocator::IsValid() 
     return m_base != NULL;
 }
 
+inline size_t BucketAllocatorDetail::SystemAllocator::CleanupAllocator::GetCapacityUsed() const
+{
+    UINT_PTR base = reinterpret_cast<UINT_PTR>(m_base);
+    UINT_PTR end = reinterpret_cast<UINT_PTR>(m_end);
+    return static_cast<size_t>(end - base);
+}
+
 inline void* BucketAllocatorDetail::SystemAllocator::CleanupAllocator::Calloc(size_t num, size_t sz)
 {
     void* result = NULL;
@@ -1222,19 +1232,24 @@ inline void* BucketAllocatorDetail::SystemAllocator::CleanupAllocator::Calloc(si
     UINT_PTR end = reinterpret_cast<UINT_PTR>(m_end);
     if (end + size <= (base + ReserveCapacity))
     {
-        UINT_PTR endAligned = (end + 4095) & ~4095;
-        UINT_PTR sizeNeeded = ((end + size - endAligned) + 4095) & ~4095;
+        UINT_PTR endAligned = (end + m_pageSizeAlignment) & ~m_pageSizeAlignment;
+        UINT_PTR sizeNeeded = ((end + size - endAligned) + m_pageSizeAlignment) & ~m_pageSizeAlignment;
 
         if (sizeNeeded)
         {
             if (!VirtualAlloc(reinterpret_cast<void*>(endAligned), sizeNeeded, MEM_COMMIT, PAGE_READWRITE))
             {
+                CRY_ASSERT_MESSAGE(0, "CleanupAllocator ran out of space, memory will leak.  You should restart the Editor after saving your work.");
                 return NULL;
             }
         }
 
         result = m_end;
         m_end = reinterpret_cast<void*>(end + size);
+    }
+    else
+    {
+        CRY_ASSERT_MESSAGE(0, "CleanupAllocator ran out of space, memory will leak.  You should restart the Editor after saving your work.  To fix the problem, change ReserveCapacity to a larger size.");
     }
 
     return result;
@@ -1244,10 +1259,9 @@ inline void BucketAllocatorDetail::SystemAllocator::CleanupAllocator::Free(void*
 {
     // Will be freed automatically when the allocator is destroyed
 }
-
-#elif defined(AZ_RESTRICTED_FILE)
+#elif defined(AZ_RESTRICTED_PLATFORM)
 #define AZ_RESTRICTED_SECTION BUCKETALLOCATORIMPL_H_SECTION_IMPL
-#include AZ_RESTRICTED_FILE(BucketAllocatorImpl_h)
+#include AZ_RESTRICTED_FILE(BucketAllocatorImpl_h, AZ_RESTRICTED_PLATFORM)
 #elif defined(APPLE) || defined(LINUX)
 inline UINT_PTR BucketAllocatorDetail::SystemAllocator::ReserveAddressSpace(size_t numPages, size_t pageLen)
 {
@@ -1342,6 +1356,7 @@ inline BucketAllocatorDetail::SystemAllocator::CleanupAllocator::CleanupAllocato
     m_base = reinterpret_cast<void*>(mmap(NULL, ReserveCapacity, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0));
     assert(m_base != MAP_FAILED);
     m_end = m_base;
+    m_pageSizeAlignment = sysconf(_SC_PAGESIZE) - 1;
 }
 
 inline BucketAllocatorDetail::SystemAllocator::CleanupAllocator::~CleanupAllocator()
@@ -1359,6 +1374,13 @@ inline bool BucketAllocatorDetail::SystemAllocator::CleanupAllocator::IsValid() 
     return m_base != NULL;
 }
 
+inline size_t BucketAllocatorDetail::SystemAllocator::CleanupAllocator::GetCapacityUsed() const
+{
+    UINT_PTR base = reinterpret_cast<UINT_PTR>(m_base);
+    UINT_PTR end = reinterpret_cast<UINT_PTR>(m_end);
+    return static_cast<size_t>(end - base);
+}
+
 inline void* BucketAllocatorDetail::SystemAllocator::CleanupAllocator::Calloc(size_t num, size_t sz)
 {
     void* result = NULL;
@@ -1368,19 +1390,24 @@ inline void* BucketAllocatorDetail::SystemAllocator::CleanupAllocator::Calloc(si
     UINT_PTR end = reinterpret_cast<UINT_PTR>(m_end);
     if (end + size <= (base + ReserveCapacity))
     {
-        UINT_PTR endAligned = (end + 4095) & ~4095;
-        UINT_PTR sizeNeeded = ((end + size - endAligned) + 4095) & ~4095;
+        UINT_PTR endAligned = (end + m_pageSizeAlignment) & ~m_pageSizeAlignment;
+        UINT_PTR sizeNeeded = ((end + size - endAligned) + m_pageSizeAlignment) & ~m_pageSizeAlignment;
 
         if (sizeNeeded)
         {
             if (MAP_FAILED == mmap(reinterpret_cast<void*>(endAligned), sizeNeeded, PROT_READ | PROT_WRITE, MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0))
             {
+                CRY_ASSERT_MESSAGE(0, "CleanupAllocator failed, memory will leak. You should restart the Editor after saving your work.");
                 return NULL;
             }
         }
 
         result = m_end;
         m_end = reinterpret_cast<void*>(end + size);
+    }
+    else
+    {
+        CRY_ASSERT_MESSAGE(0, "CleanupAllocator ran out of space, memory will leak. To fix the problem, change ReserveCapacity to a larger size.");
     }
 
     return result;
@@ -1393,5 +1420,3 @@ inline void BucketAllocatorDetail::SystemAllocator::CleanupAllocator::Free(void*
 #endif
 
 #endif
-
-#endif // CRYINCLUDE_CRYCOMMON_BUCKETALLOCATORIMPL_H

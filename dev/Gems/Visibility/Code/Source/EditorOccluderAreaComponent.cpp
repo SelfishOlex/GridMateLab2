@@ -13,7 +13,7 @@
 #include "Visibility_precompiled.h"
 #include "EditorOccluderAreaComponent.h"
 
-#include <AZCore/Math/Crc.h>
+#include <AzCore/Math/Crc.h>
 #include <AzCore/Math/VectorConversions.h>
 #include <AzCore/RTTI/BehaviorContext.h>
 #include <Editor/Objects/BaseObject.h>
@@ -249,6 +249,9 @@ namespace Visibility
         }
         //Draw the closing line
         displayInterface->DrawLine(m_config.m_vertices[3], m_config.m_vertices[0]);
+
+        AzToolsFramework::EditorVertexSelectionUtil::DisplayVertexContainerIndices(*displayInterface, m_vertexSelection, GetWorldTM(), IsSelected());
+        
         displayInterface->DepthWriteOn();
         displayInterface->PopMatrix();
 

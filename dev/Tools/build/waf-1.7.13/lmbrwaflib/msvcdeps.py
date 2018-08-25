@@ -75,6 +75,7 @@ def _find_or_make_node_case_correct(base_node, path):
             if insensitive:
                 node = insensitive
                 continue
+
             # fallthrough, create a new node
 
         # create a node, using the case on disk for the node name
@@ -146,8 +147,16 @@ def wrap_compiled_task(classname):
                     node = _find_or_make_node_case_correct(bld.bldnode, path)
                     resolved_nodes.append(node)
 
-        bld.node_deps[self.uid()] = resolved_nodes
-        bld.raw_deps[self.uid()] = unresolved_names
+
+        # Bug workaround.  With VS2015, compiling a pch with /showIncludes with a pre-existing .pch/.obj that doesn't
+        # need updates, results in no include file output.  If we save that empty list, subsequent builds will fail to
+        # rebuild properly.  Only update the save dependencies for pch files if output was detected; otherwise use the
+        # existing dependency set.  This doesn't affect VS2017.
+        if 0 == len(resolved_nodes) and self.__class__.__name__ == 'pch_msvc':
+            Logs.warn("no dependencies returned for {}, using last known dependencies instead".format(str(self)))
+        else:
+            bld.node_deps[self.uid()] = resolved_nodes
+            bld.raw_deps[self.uid()] = unresolved_names
 
         # Free memory (200KB for each file in CryEngine, without UberFiles, this accumulates to 1 GB)
         del self.src_deps_paths

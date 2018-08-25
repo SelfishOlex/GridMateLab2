@@ -12,7 +12,6 @@
 
 #pragma once
 
-#include <AzCore/std/string/string.h>
 #include <MCore/Source/StandardHeaders.h>
 #include <MCore/Source/Endian.h>
 #include <MCore/Source/CommandGroup.h>
@@ -33,6 +32,8 @@ namespace EMStudio
         bool Load(const char* filename, MCore::CommandGroup* commandGroup);
 
         static const char* GetFileExtension()                               { return ".emfxworkspace"; }
+
+        void Reset();
 
         void SetFilename(const char* filename)                              { mFilename = filename; mDirtyFlag = true; }
         const AZStd::string& GetFilenameString() const                      { return mFilename; }

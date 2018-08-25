@@ -57,7 +57,7 @@ namespace ScriptCanvas
                 {
                     const Data::NumberType lhsValue = *lhs.GetAs<Data::NumberType>();
                     const Data::NumberType rhsValue = *rhs.GetAs<Data::NumberType>();
-                    return Datum::CreateInitializedCopy(!AZ::IsClose(rhsValue, 0.0, 0.0001) ? lhsValue / rhsValue : lhsValue);
+                    return Datum(!AZ::IsClose(rhsValue, 0.0, 0.0001) ? lhsValue / rhsValue : lhsValue);
                 }
             };
 

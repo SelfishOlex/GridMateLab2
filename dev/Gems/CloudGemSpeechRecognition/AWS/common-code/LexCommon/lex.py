@@ -15,6 +15,7 @@ import lex_file_util
 import datetime
 import json
 import re
+import uuid
 from botocore.exceptions import ClientError
 from botocore.exceptions import ParamValidationError
 
@@ -135,9 +136,12 @@ def put_bot(bot_section):
             return "ERROR: Unknown parameter in input."
     return "ACCEPTED"
 
-def delete_bot(name):
-    try: 
-        boto3.client('lex-models').delete_bot(name = name)
+def delete_bot(name, version = None):
+    try:
+        if version:
+            boto3.client('lex-models').delete_bot_version(name = name, version = version)
+        else:
+            boto3.client('lex-models').delete_bot(name = name)
     except ClientError as e:
         if e.response['Error']['Code'] == 'ResourceInUseException':
             return "INUSE"
@@ -231,6 +235,11 @@ def get_custom_intent(name, version = "$LATEST"):
     return intent
 
 def put_intent(intent_section):
+    if intent_section['intent'].get('dialogCodeHook', {}).get('uri', ''):
+        __add_lambda_invoke_permission(intent_section['intent']['dialogCodeHook']['uri'])    
+    if intent_section['intent'].get('fulfillmentActivity', {}).get('type', '') == 'CodeHook':
+         __add_lambda_invoke_permission(intent_section['intent']['fulfillmentActivity']['codeHook']['uri'])
+
     client = boto3.client('lex-models')
     try:
         put_intent_response = client.put_intent(**intent_section['intent'])
@@ -241,11 +250,17 @@ def put_intent(intent_section):
 
     return "ACCEPTED"
 
-def delete_intent(name):
-    try: 
-        boto3.client('lex-models').delete_intent(name = name)
+def delete_intent(name, version = None):
+    try:
+        if version:
+            boto3.client('lex-models').delete_intent_version(name = name, version = version)
+        else:
+            boto3.client('lex-models').delete_intent(name = name)
     except ClientError as e:
-        return "ERROR: " + e.response['Error']['Message']
+        if e.response['Error']['Code'] == 'ResourceInUseException':
+            return "INUSE"
+        else:
+            return "ERROR: " + e.response['Error']['Message']
     return "DELETED"
 
 def create_intent_version(name):
@@ -334,11 +349,17 @@ def put_slot_type(slot_type_section):
             return "ERROR: Unknown parameter in input."
     return "ACCEPTED"
 
-def delete_slot_type(name):
-    try: 
-        boto3.client('lex-models').delete_slot_type(name = name)
+def delete_slot_type(name, version = None):
+    try:
+        if version:
+            boto3.client('lex-models').delete_slot_type_version(name = name, version = version)
+        else:
+            boto3.client('lex-models').delete_slot_type(name = name)
     except ClientError as e:
-        return "ERROR: " + e.response['Error']['Message']
+        if e.response['Error']['Code'] == 'ResourceInUseException':
+            return "INUSE"
+        else:
+            return "ERROR: " + e.response['Error']['Message']
     return "DELETED"
 
 def create_slot_type_version(name):
@@ -572,3 +593,12 @@ def build_bot(name):
     except ParamValidationError as e:
             return "ERROR: Unknown parameter in input."
     return "READY"
+
+def __add_lambda_invoke_permission(function_name):
+    client = boto3.client('lambda')
+    client.add_permission(
+        Action='lambda:InvokeFunction',
+        FunctionName=function_name,
+        Principal='lex.amazonaws.com',
+        StatementId=str(uuid.uuid4()),
+    )

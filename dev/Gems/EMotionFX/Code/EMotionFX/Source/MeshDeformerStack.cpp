@@ -15,10 +15,12 @@
 #include "MeshDeformerStack.h"
 #include "Mesh.h"
 #include "Actor.h"
-
+#include <EMotionFX/Source/Allocators.h>
 
 namespace EMotionFX
 {
+    AZ_CLASS_ALLOCATOR_IMPL(MeshDeformerStack, DeformerAllocator, 0)
+
     // constructor
     MeshDeformerStack::MeshDeformerStack(Mesh* mesh)
         : BaseObject()
@@ -47,7 +49,7 @@ namespace EMotionFX
     // create
     MeshDeformerStack* MeshDeformerStack::Create(Mesh* mesh)
     {
-        return new MeshDeformerStack(mesh);
+        return aznew MeshDeformerStack(mesh);
     }
 
 
@@ -85,6 +87,32 @@ namespace EMotionFX
                     // update the mesh deformer
                     mDeformers[i]->Update(actorInstance, node, timeDelta);
                 }
+            }
+        }
+    }
+
+    // update the mesh deformer stack for only the modifier type specified
+    void MeshDeformerStack::UpdateByModifierType(ActorInstance* actorInstance, Node* node, float timeDelta, uint32 typeID, bool resetMesh, bool forceUpdateDisabledDeformers)
+    {
+        bool resetDone = false;
+        // if we have deformers in the stack
+        const uint32 numDeformers = mDeformers.GetLength();
+        // iterate through the deformers and update them
+        for (uint32 i = 0; i < numDeformers; ++i)
+        {
+            // if the deformer of the correct type and is enabled
+            if (mDeformers[i]->GetType() == typeID && (mDeformers[i]->GetIsEnabled() || forceUpdateDisabledDeformers))
+            {
+                // if this is the first enabled deformer
+                if (resetMesh && !resetDone)
+                {
+                    // reset all output vertex data to the original vertex data
+                    mMesh->ResetToOriginalData();
+                    resetDone = true;
+                }
+
+                // update the mesh deformer
+                mDeformers[i]->Update(actorInstance, node, timeDelta);
             }
         }
     }
@@ -128,7 +156,7 @@ namespace EMotionFX
     MeshDeformerStack* MeshDeformerStack::Clone(Mesh* mesh)
     {
         // create the clone passing the mesh pointer
-        MeshDeformerStack* newStack = new MeshDeformerStack(mesh);
+        MeshDeformerStack* newStack = aznew MeshDeformerStack(mesh);
 
         // clone all deformers
         const uint32 numDeformers = mDeformers.GetLength();

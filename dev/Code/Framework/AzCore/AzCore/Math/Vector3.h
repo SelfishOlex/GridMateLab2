@@ -258,6 +258,9 @@ namespace AZ
         AZ_MATH_FORCE_INLINE const Vector3 GetClamp(const Vector3& min, const Vector3& max) const   { return GetMin(max).GetMax(min); }
         /*@}*/
 
+        VectorFloat GetMaxElement() const { return GetX().GetMax(GetY().GetMax(GetZ())); }
+        VectorFloat GetMinElement() const { return GetX().GetMin(GetY().GetMin(GetZ())); }
+
         //===============================================================
         // Standard operators
         //===============================================================
@@ -379,6 +382,18 @@ namespace AZ
         float m_pad;                    //pad to 16 bytes, also for consistency with simd implementations
         #endif
     };
+
+    /// NON member functionality belonging to the AZ namespace
+
+    /// Degrees-Radians conversions on AZ::Vector3
+    AZ_MATH_FORCE_INLINE AZ::Vector3 Vector3RadToDeg(const AZ::Vector3& radians)
+    {
+        return radians * 180.f / AZ::Constants::Pi;
+    }
+    AZ_MATH_FORCE_INLINE AZ::Vector3 Vector3DegToRad(const AZ::Vector3& degrees)
+    {
+        return degrees * AZ::Constants::Pi / 180.f;
+    }
 }
 
 #ifndef AZ_PLATFORM_WINDOWS // Remove this once all compilers support POD (MSVC already does)

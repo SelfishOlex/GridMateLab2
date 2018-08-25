@@ -23,6 +23,14 @@
 
 #include <IScriptSystem.h>
 #include "SystemCFG.h"
+
+#if defined(AZ_RESTRICTED_PLATFORM)
+#undef AZ_RESTRICTED_SECTION
+#define SYSTEMCFG_CPP_SECTION_1 1
+#define SYSTEMCFG_CPP_SECTION_2 2
+#define SYSTEMCFG_CPP_SECTION_3 3
+#endif
+
 #if defined(LINUX) || defined(APPLE)
 #include <Version.h>
 #include "ILog.h"
@@ -45,6 +53,10 @@
 #define EXE_VERSION_INFO_3 1
 #endif
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION SYSTEMCFG_CPP_SECTION_1
+#include AZ_RESTRICTED_FILE(SystemCFG_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 const SFileVersion& CSystem::GetFileVersion()
@@ -108,7 +120,7 @@ void CSystem::QueryVersionInfo()
 #ifdef AZ_MONOLITHIC_BUILD
     GetModuleFileName(NULL, moduleName, _MAX_PATH);  //retrieves the PATH for the current module
 #else // AZ_MONOLITHIC_BUILD
-    strcpy(moduleName, "CrySystem.dll"); // we want to version from the system dll
+    azstrcpy(moduleName, AZ_ARRAY_SIZE(moduleName), "CrySystem.dll"); // we want to version from the system dll
 #endif // AZ_MONOLITHIC_BUILD
 
     int verSize = GetFileVersionInfoSize(moduleName, &dwHandle);
@@ -138,7 +150,7 @@ void CSystem::QueryVersionInfo()
         VerQueryValue(ver, "\\VarFileInfo\\Translation", (LPVOID*)&lpTranslate, &count);
         if (lpTranslate != NULL)
         {
-            _snprintf(path, sizeof(path), "\\StringFileInfo\\%04x%04x\\InternalName", lpTranslate[0].wLanguage, lpTranslate[0].wCodePage);
+            azsnprintf(path, sizeof(path), "\\StringFileInfo\\%04x%04x\\InternalName", lpTranslate[0].wLanguage, lpTranslate[0].wCodePage);
             VerQueryValue(ver, path, (LPVOID*)&version, &count);
             if (version)
             {
@@ -155,24 +167,36 @@ void CSystem::LogVersion()
     // Get time.
     time_t ltime;
     time(&ltime);
-    tm* today = localtime(&ltime);
 
+#ifdef AZ_COMPILER_MSVC
+    tm today;
+    localtime_s(&today, &ltime);
     char s[1024];
-
-
+    strftime(s, 128, "%d %b %y (%H %M %S)", &today);
+#else
+    char s[1024];
+    auto today = localtime(&ltime);
     strftime(s, 128, "%d %b %y (%H %M %S)", today);
+#endif
 
     const SFileVersion& ver = GetFileVersion();
 
     CryLogAlways("BackupNameAttachment=\" Build(%d) %s\"  -- used by backup system\n", ver.v[0], s);          // read by CreateBackupFile()
 
     // Use strftime to build a customized time string.
+#ifdef AZ_COMPILER_MSVC
+    strftime(s, 128, "Log Started at %c", &today);
+#else
     strftime(s, 128, "Log Started at %c", today);
+#endif
     CryLogAlways(s);
 
     CryLogAlways("Built on " __DATE__ " " __TIME__);
 
-#if   defined(ANDROID)
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION SYSTEMCFG_CPP_SECTION_2
+#include AZ_RESTRICTED_FILE(SystemCFG_cpp, AZ_RESTRICTED_PLATFORM)
+#elif defined(ANDROID)
     CryLogAlways("Running 32 bit Android version API VER:%d", __ANDROID_API__);
 #elif defined(IOS)
     CryLogAlways("Running 64 bit iOS version");
@@ -203,7 +227,13 @@ void CSystem::LogVersion()
 
 
 
-#if   defined(_MSC_VER)
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION SYSTEMCFG_CPP_SECTION_3
+#include AZ_RESTRICTED_FILE(SystemCFG_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#elif defined(_MSC_VER)
     CryLogAlways("Using Microsoft (tm) C++ Standard Library implementation\n");
 #elif defined(__clang__)
     CryLogAlways("Using CLANG C++ Standard Library implementation\n");
@@ -413,13 +443,23 @@ void CSystemConfiguration::AddCVarToMap(const string& filename, const string& st
             // default group in sys_spec cfg file
             else if (azstricmp(strGroup, "default") == 0)
             {
-                // New cvar loaded into map
+                CVarFileStatus defaultVal(val, val, val);
                 if (m_editorMap->find(key) == m_editorMap->end())
                 {
-                    CVarInfo* currentCVar = &(*m_editorMap)[key];
-                    currentCVar->type = cvar->GetType();
-                    CVarFileStatus defaultVal(val, val, val);
-                    currentCVar->fileVals.resize(NUM_SPEC_LEVELS, defaultVal);
+                    // New cvar loaded into map
+                    CVarInfo& currentCVar = (*m_editorMap)[key];
+                    currentCVar.type = cvar->GetType();
+                    currentCVar.fileVals.resize(NUM_SPEC_LEVELS, defaultVal);
+                }
+                else
+                {
+                    // Reset values, if there's a platform override it always follows the sys_spec_*.cfg files.
+                    // Resetting avoids the issue where some spec levels are never set because of an extra platform
+                    // override load happening earlier just to store the value of sys_spec_full.
+                    for (int specLevel = 0; specLevel < NUM_SPEC_LEVELS; ++specLevel)
+                    {
+                        (*m_editorMap)[key].fileVals[specLevel] = defaultVal;
+                    }
                 }
                 // Overwrite miscellaneous if mentioned in platform config file
                 (*m_editorMap)[key].cvarGroup = filename;
@@ -429,14 +469,20 @@ void CSystemConfiguration::AddCVarToMap(const string& filename, const string& st
             {
                 int group = 0;
 
-                if (sscanf(strGroup, "%d", &group) == 1)
+                if (azsscanf(strGroup, "%d", &group) == 1)
                 {
+                    auto sysSpecFull = (*m_editorMap).find("sys_spec_full");
+                    if (sysSpecFull == (*m_editorMap).end())
+                    {
+                        return;
+                    }
+
                     CVarFileStatus indexAssignment(val, val, val);
                     for (int specLevel = 0; specLevel < NUM_SPEC_LEVELS; ++specLevel)
                     {
                         // Only apply cvar change to configurations with sys_spec_Full matching the index
                         int overwrittenValue;
-                        if (AZStd::any_numeric_cast<int>(&(*m_editorMap)["sys_spec_full"].fileVals[specLevel].overwrittenValue, overwrittenValue) && group == overwrittenValue)
+                        if (AZStd::any_numeric_cast<int>(&sysSpecFull->second.fileVals[specLevel].overwrittenValue, overwrittenValue) && group == overwrittenValue)
                         {
                             (*m_editorMap)[key].fileVals[specLevel] = indexAssignment;
                         }

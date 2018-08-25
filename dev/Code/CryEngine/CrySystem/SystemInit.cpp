@@ -13,6 +13,24 @@
 
 #include "StdAfx.h"
 #include "SystemInit.h"
+
+#if defined(AZ_RESTRICTED_PLATFORM)
+#undef AZ_RESTRICTED_SECTION
+#define SYSTEMINIT_CPP_SECTION_1 1
+#define SYSTEMINIT_CPP_SECTION_2 2
+#define SYSTEMINIT_CPP_SECTION_3 3
+#define SYSTEMINIT_CPP_SECTION_4 4
+#define SYSTEMINIT_CPP_SECTION_5 5
+#define SYSTEMINIT_CPP_SECTION_6 6
+#define SYSTEMINIT_CPP_SECTION_7 7
+#define SYSTEMINIT_CPP_SECTION_8 8
+#define SYSTEMINIT_CPP_SECTION_9 9
+#define SYSTEMINIT_CPP_SECTION_10 10
+#define SYSTEMINIT_CPP_SECTION_11 11
+#define SYSTEMINIT_CPP_SECTION_12 12
+#define SYSTEMINIT_CPP_SECTION_13 13
+#endif
+
 #if defined(MAP_LOADING_SLICING)
 #include "SystemScheduler.h"
 #endif // defined(MAP_LOADING_SLICING)
@@ -45,6 +63,7 @@
 
 #if defined(APPLE) || defined(LINUX) && !defined(DEDICATED_SERVER)
 #include <dlfcn.h>
+#include <cstdlib>
 #endif
 
 #ifdef WIN32
@@ -118,6 +137,8 @@
 #include "OverloadSceneManager/OverloadSceneManager.h"
 #include "ServiceNetwork.h"
 #include "RemoteCommand.h"
+#include "LevelSystem/LevelSystem.h"
+#include "ViewSystem/ViewSystem.h"
 #include "NullImplementation/NULLAudioSystems.h"
 #include "ISimpleHttpServer.h"
 #include "GemManager.h"
@@ -134,8 +155,6 @@
 
 #include <IGame.h>
 #include <IGameFramework.h>
-
-#include "Stroboscope/Stroboscope.h"
 
 #if USE_STEAM
 #include "Steamworks/public/steam/steam_api.h"
@@ -241,12 +260,9 @@ CUNIXConsole* pUnixConsole;
 #define DLL_SOUND           "CrySoundSystem"
 #define DLL_NETWORK         "CryNetwork"
 #define DLL_ONLINE          "CryOnline"
-#define DLL_ENTITYSYSTEM    "CryEntitySystem"
-#define DLL_SCRIPTSYSTEM    "CryScriptSystem"
+
 #define DLL_PHYSICS           "CryPhysics"
 #define DLL_MOVIE                 "CryMovie"
-#define DLL_AI                      "CryAISystem"
-#define DLL_ANIMATION         "CryAnimation"
 #define DLL_FONT                    "CryFont"
 #define DLL_3DENGINE            "Cry3DEngine"
 #define DLL_RENDERER_DX9  "CryRenderD3D9"
@@ -265,43 +281,31 @@ CUNIXConsole* pUnixConsole;
 #   define DLL_MODULE_INIT_ISYSTEM "ModuleInitISystem"
 #   define DLL_MODULE_SHUTDOWN_ISYSTEM "ModuleShutdownISystem"
 #   define DLL_INITFUNC_RENDERER "PackageRenderConstructor"
-#   define DLL_INITFUNC_ENTITY "CreateEntitySystem"
 #   define DLL_INITFUNC_SOUND "CreateSoundSystem"
 #   define DLL_INITFUNC_PHYSIC "CreatePhysicalWorld"
-#   define DLL_INITFUNC_AI "CreateAISystem"
-#   define DLL_INITFUNC_SCRIPT "CreateScriptSystem"
 #   define DLL_INITFUNC_FONT "CreateCryFontInterface"
 #   define DLL_INITFUNC_3DENGINE "CreateCry3DEngine"
-#   define DLL_INITFUNC_ANIMATION "CreateCharManager"
 #   define DLL_INITFUNC_UI "CreateLyShineInterface"
+#define AZ_RESTRICTED_SECTION_IMPLEMENTED
+#elif defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION SYSTEMINIT_CPP_SECTION_1
+#include AZ_RESTRICTED_FILE(SystemInit_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
 #else
 #   define DLL_MODULE_INIT_ISYSTEM (LPCSTR)2
 #   define DLL_MODULE_SHUTDOWN_ISYSTEM (LPCSTR)3
 #   define DLL_INITFUNC_RENDERER  (LPCSTR)1
 #   define DLL_INITFUNC_RENDERER  (LPCSTR)1
-#   define DLL_INITFUNC_ENTITY    (LPCSTR)1
 #   define DLL_INITFUNC_SOUND     (LPCSTR)1
 #   define DLL_INITFUNC_PHYSIC    (LPCSTR)1
-#   define DLL_INITFUNC_AI        (LPCSTR)1
-#   define DLL_INITFUNC_SCRIPT    (LPCSTR)1
 #   define DLL_INITFUNC_FONT      (LPCSTR)1
 #   define DLL_INITFUNC_3DENGINE  (LPCSTR)1
-#   define DLL_INITFUNC_ANIMATION (LPCSTR)1
 #   define DLL_INITFUNC_UI        (LPCSTR)1
 #endif
 
 #define AZ_TRACE_SYSTEM_WINDOW AZ::Debug::Trace::GetDefaultSystemWindow()
-
-//////////////////////////////////////////////////////////////////////////
-// Extern declarations for static libraries.
-//////////////////////////////////////////////////////////////////////////
-#if defined(AZ_MONOLITHIC_BUILD)
-extern "C"
-{
-IAISystem* CreateAISystem(ISystem* pSystem);
-}
-#endif //AZ_MONOLITHIC_BUILD
-//////////////////////////////////////////////////////////////////////////
 
 extern CMTSafeHeap* g_pPakHeap;
 
@@ -343,6 +347,8 @@ static inline void InlineInitializationProcessing(const char* sDescription)
     }
 }
 
+#pragma warning(push)
+#pragma warning(disable:4723) // Allow divide by zero warnings so we can test the exception
 //////////////////////////////////////////////////////////////////////////
 static void CmdCrashTest(IConsoleCmdArgs* pArgs)
 {
@@ -398,6 +404,7 @@ static void CmdCrashTest(IConsoleCmdArgs* pArgs)
         }
     }
 }
+#pragma warning(pop)
 
 #if USE_STEAM
 //////////////////////////////////////////////////////////////////////////
@@ -420,15 +427,6 @@ static void CmdWipeSteamCloud(IConsoleCmdArgs* pArgs)
 #endif
 
 //////////////////////////////////////////////////////////////////////////
-static void CmdDumpJobManagerJobList(IConsoleCmdArgs* pArgs)
-{
-    if (gEnv->pJobManager)
-    {
-        gEnv->pJobManager->DumpJobList();
-    }
-}
-
-//////////////////////////////////////////////////////////////////////////
 struct SysSpecOverrideSink
     : public ILoadConfigurationEntrySink
 {
@@ -443,7 +441,7 @@ struct SysSpecOverrideSink
             if (applyCvar == false)
             {
                 // Special handling for sys_spec_full
-                if (_stricmp(szKey, "sys_spec_full") == 0)
+                if (azstricmp(szKey, "sys_spec_full") == 0)
                 {
                     // If it is set to 0 then ignore this request to set to something else
                     // If it is set to 0 then the user wants to changes system spec settings in system.cfg
@@ -477,7 +475,7 @@ struct SysSpecOverrideSinkConsole
     virtual void OnLoadConfigurationEntry(const char* szKey, const char* szValue, const char* szGroup)
     {
         // Ignore platform-specific cvars that should just be executed on the console
-        if (stricmp(szGroup, "Platform") == 0)
+        if (azstricmp(szGroup, "Platform") == 0)
         {
             return;
         }
@@ -487,14 +485,28 @@ struct SysSpecOverrideSinkConsole
         {
             pCvar->Set(szValue);
         }
+        else
+        {
+            // If the cvar doesn't exist, calling this function only saves the value in case it's registered later where
+            // at that point it will be set from the stored value. This is required because otherwise registering the 
+            // cvar bypasses any callbacks and uses values directly from the cvar group files.
+            gEnv->pConsole->LoadConfigVar(szKey, szValue);
+        }
     }
 };
 #endif
 
 static ESystemConfigPlatform GetDevicePlatform()
 {
-#if defined(AZ_PLATFORM_WINDOWS) || defined(AZ_PLATFORM_WINDOWS_X64)
+#if defined(AZ_PLATFORM_WINDOWS) || defined(AZ_PLATFORM_WINDOWS_X64) || defined(AZ_PLATFORM_LINUX)
     return CONFIG_PC;
+#define AZ_RESTRICTED_SECTION_IMPLEMENTED
+#elif defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION SYSTEMINIT_CPP_SECTION_2
+#include AZ_RESTRICTED_FILE(SystemInit_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
 #elif defined(AZ_PLATFORM_ANDROID)
     return CONFIG_ANDROID;
 #elif defined(AZ_PLATFORM_APPLE_IOS)
@@ -522,6 +534,18 @@ static void GetSpecConfigFileToLoad(ICVar* pVar, AZStd::string& cfgFile, int pla
     case CONFIG_IOS:
         cfgFile = "ios";
         break;
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION SYSTEMINIT_CPP_SECTION_3
+#include AZ_RESTRICTED_FILE(SystemInit_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_TOOLS_EXPAND_FOR_RESTRICTED_PLATFORMS)
+#define AZ_TOOLS_RESTRICTED_PLATFORM_EXPANSION(PrivateName, PRIVATENAME, privatename, PublicName, PUBLICNAME, publicname, PublicAuxName1, PublicAuxName2, PublicAuxName3)\
+    case CONFIG_##PUBLICNAME:\
+        cfgFile = #publicname;\
+        break;
+        AZ_TOOLS_EXPAND_FOR_RESTRICTED_PLATFORMS
+#undef AZ_TOOLS_RESTRICTED_PLATFORM_EXPANSION
+#endif
     case CONFIG_APPLETV:
     case CONFIG_OSX_GL:
     case CONFIG_OSX_METAL:
@@ -549,6 +573,10 @@ static void GetSpecConfigFileToLoad(ICVar* pVar, AZStd::string& cfgFile, int pla
         cfgFile += "_high.cfg";
         break;
     case CONFIG_VERYHIGH_SPEC:
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION SYSTEMINIT_CPP_SECTION_4
+#include AZ_RESTRICTED_FILE(SystemInit_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
         cfgFile += "_veryhigh.cfg";
         break;
     default:
@@ -690,6 +718,21 @@ static void LoadDetectedSpec(ICVar* pVar)
 #endif
             break;
         }
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION SYSTEMINIT_CPP_SECTION_5
+#include AZ_RESTRICTED_FILE(SystemInit_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_TOOLS_EXPAND_FOR_RESTRICTED_PLATFORMS)
+#define AZ_TOOLS_RESTRICTED_PLATFORM_EXPANSION(PrivateName, PRIVATENAME, privatename, PublicName, PUBLICNAME, publicname, PublicAuxName1, PublicAuxName2, PublicAuxName3)\
+        case CONFIG_##PUBLICNAME:\
+        {\
+            pVar->Set(CONFIG_LOW_SPEC);\
+            GetISystem()->LoadConfiguration(#publicname "_low.cfg", pSysSpecOverrideSinkConsole);\
+            break;\
+        }
+        AZ_TOOLS_EXPAND_FOR_RESTRICTED_PLATFORMS
+#undef AZ_TOOLS_RESTRICTED_PLATFORM_EXPANSION
+#endif
         case CONFIG_APPLETV:
         {
             pVar->Set(CONFIG_MEDIUM_SPEC);
@@ -763,11 +806,11 @@ struct SCryEngineLanguageConfigLoader
     }
     virtual void OnLoadConfigurationEntry(const char* szKey, const char* szValue, const char* szGroup)
     {
-        if (_stricmp(szKey, "Language") == 0)
+        if (azstricmp(szKey, "Language") == 0)
         {
             m_language = szValue;
         }
-        else if (_stricmp(szKey, "PAK") == 0)
+        else if (azstricmp(szKey, "PAK") == 0)
         {
             m_pakFile = szValue;
         }
@@ -1013,39 +1056,47 @@ bool CSystem::OpenRenderLibrary(const char* t_rend, const SSystemInitParams& ini
 {
     LOADING_TIME_PROFILE_SECTION(GetISystem());
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION SYSTEMINIT_CPP_SECTION_6
+#include AZ_RESTRICTED_FILE(SystemInit_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#else
 
     if (gEnv->IsDedicated())
     {
         return OpenRenderLibrary(R_NULL_RENDERER, initParams);
     }
 
-    if (_stricmp(t_rend, "DX9") == 0)
+    if (azstricmp(t_rend, "DX9") == 0)
     {
         return OpenRenderLibrary(R_DX9_RENDERER, initParams);
     }
-    else if (_stricmp(t_rend, "DX11") == 0)
+    else if (azstricmp(t_rend, "DX11") == 0)
     {
         return OpenRenderLibrary(R_DX11_RENDERER, initParams);
     }
-    else if (stricmp(t_rend, "DX12") == 0)
+    else if (azstricmp(t_rend, "DX12") == 0)
     {
         return OpenRenderLibrary(R_DX12_RENDERER, initParams);
     }
-    else if (_stricmp(t_rend, "GL") == 0)
+    else if (azstricmp(t_rend, "GL") == 0)
     {
         return OpenRenderLibrary(R_GL_RENDERER, initParams);
     }
-    else if (_stricmp(t_rend, "METAL") == 0)
+    else if (azstricmp(t_rend, "METAL") == 0)
     {
         return OpenRenderLibrary(R_METAL_RENDERER, initParams);
     }
-    else if (_stricmp(t_rend, "NULL") == 0)
+    else if (azstricmp(t_rend, "NULL") == 0)
     {
         return OpenRenderLibrary(R_NULL_RENDERER, initParams);
     }
 
     AZ_Assert(false, "Unknown renderer type: %s", t_rend);
     return false;
+#endif
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -1131,7 +1182,7 @@ wstring GetErrorStringUnsupportedGPU(const char* gpuName, unsigned int gpuVendor
     wchar_t msg[1024];
     msg[0] = L'\0';
     msg[sizeof(msg) / sizeof(msg[0]) - 1] = L'\0';
-    _snwprintf(msg, sizeof(msg) / sizeof(msg[0]) - 1, pFmt, gpuName, gpuVendorId, gpuDeviceId);
+    azsnwprintf(msg, sizeof(msg) / sizeof(msg[0]) - 1, pFmt, gpuName, gpuVendorId, gpuDeviceId);
 
     return msg;
 }
@@ -1201,6 +1252,10 @@ bool CSystem::OpenRenderLibrary(int type, const SSystemInitParams& initParams)
     }
 #endif
 #endif // !defined(DEDICATED_SERVER)
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION SYSTEMINIT_CPP_SECTION_7
+#include AZ_RESTRICTED_FILE(SystemInit_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
 
 #if defined(DEDICATED_SERVER)
     type = R_NULL_RENDERER;
@@ -1282,15 +1337,11 @@ bool CSystem::InitEntitySystem(const SSystemInitParams& initParams)
 {
     LOADING_TIME_PROFILE_SECTION(GetISystem());
 
-    if (!InitializeEngineModule(DLL_ENTITYSYSTEM, "EngineModule_CryEntitySystem", initParams))
-    {
-        return false;
-    }
+    CryLegacyEntitySystemRequestBus::BroadcastResult(m_env.pEntitySystem, &CryLegacyEntitySystemRequests::InitEntitySystem);
 
     if (!m_env.pEntitySystem)
     {
-        AZ_Assert(false, "Entity System did not initialize correctly; it was not found in the system environment.");
-        return false;
+        AZ_Warning(AZ_TRACE_SYSTEM_WINDOW, false, "The deprecated CryEntitySystem was not created, if you depend on it please enable the CryLegacy Gem");
     }
 
     return true;
@@ -1475,6 +1526,13 @@ bool CSystem::InitRenderer(WIN_HINSTANCE hinst, WIN_HWND hwnd, const SSystemInit
 
 #if (defined(LINUX) && !defined(AZ_PLATFORM_ANDROID))
         return true;
+#define AZ_RESTRICTED_SECTION_IMPLEMENTED
+#elif defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION SYSTEMINIT_CPP_SECTION_8
+#include AZ_RESTRICTED_FILE(SystemInit_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
 #else
         if (h)
         {
@@ -1558,6 +1616,9 @@ char* PhysHelpersToStr(int iHelpers, char* strHelpers)
     {
         *ptr++ = 'j';
     }
+
+#pragma warning( push )
+#pragma warning(disable: 4996)
     if (iHelpers >> 16)
     {
         if (!(iHelpers & 1 << 27))
@@ -1575,6 +1636,8 @@ char* PhysHelpersToStr(int iHelpers, char* strHelpers)
             }
         }
     }
+#pragma warning( pop )
+
     *ptr++ = 0;
     return strHelpers;
 }
@@ -1688,11 +1751,19 @@ bool CSystem::InitPhysics(const SSystemInitParams& initParams)
     MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Physics, 0, "Init Physics");
 
     const char* moduleName = "EngineModule_CryPhysics";
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION SYSTEMINIT_CPP_SECTION_9
+#include AZ_RESTRICTED_FILE(SystemInit_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined (AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#else
     if (!InitializeEngineModule(DLL_PHYSICS, moduleName, initParams))
     {
         AZ_Assert(false, "Physics System did not initialize correctly; the DLL failed to load: %s", DLL_PHYSICS);
         return false;
     }
+#endif
 
     if (!m_env.pPhysicalWorld)
     {
@@ -2014,16 +2085,11 @@ bool CSystem::InitAISystem(const SSystemInitParams& initParams)
 
     MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Init AISystem ");
 
-    const char* sDLLName = m_sys_dll_ai->GetString();
-    if (!InitializeEngineModule(sDLLName, "EngineModule_CryAISystem", initParams))
-    {
-        AZ_Assert(false, "AI System did not initialize correctly; the DLL failed to load: %s", sDLLName);
-        return false;
-    }
+    CryLegacyAISystemRequestBus::BroadcastResult(m_env.pAISystem, &CryLegacyAISystemRequests::InitAISystem);
 
     if (!m_env.pAISystem)
     {
-        AZ_Warning(AZ_TRACE_SYSTEM_WINDOW, false, "AI System did not initialize correctly; it could not be found in the system environment.");
+        AZ_Warning(AZ_TRACE_SYSTEM_WINDOW, false, "The deprecated CryAISystem was not created, if you depend on it please enable the CryLegacy Gem");
     }
 
     return true;
@@ -2037,19 +2103,13 @@ bool CSystem::InitScriptSystem(const SSystemInitParams& initParams)
 
     MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_LUA, 0, "Init ScriptSystem");
 
-    const char* moduleName = "EngineModule_CryScriptSystem";
-    if (!InitializeEngineModule(DLL_SCRIPTSYSTEM, moduleName, initParams))
-    {
-        return false;
-    }
+    CryLegacyScriptSystemRequestBus::BroadcastResult(m_env.pScriptSystem, &CryLegacyScriptSystemRequests::InitScriptSystem);
 
-    if (m_env.pScriptSystem == nullptr)
+    if (!m_env.pScriptSystem)
     {
-        AZ_Assert(false, "Script System did not initialize correctly; it could not be found in system environment.");
-        return false;
+        AZ_Warning(AZ_TRACE_SYSTEM_WINDOW, false, "The deprecated CryScriptSystem was not created, if you depend on it please enable the CryLegacy Gem");
     }
-
-    if (!m_env.IsEditor())
+    else if (!m_env.IsEditor())
     {
         m_env.pScriptSystem->PostInit();
     }
@@ -2059,11 +2119,23 @@ bool CSystem::InitScriptSystem(const SSystemInitParams& initParams)
 
 bool CSystem::LaunchAssetProcessor()
 {
-#if defined(AZ_PLATFORM_WINDOWS) && defined(REMOTE_ASSET_PROCESSOR)
+#if defined(REMOTE_ASSET_PROCESSOR)
+    if (m_pUserCallback)
+    {
+        m_pUserCallback->OnInitProgress("Launching remote Asset Processor...");
+    }
+
     static const char* asset_processor_name = "AssetProcessor";
-    static const char* asset_processor_ext = "exe";
     char assetProcessorExe[AZ_MAX_PATH_LEN] = { 0 };
     char workingDir[AZ_MAX_PATH_LEN] = { 0 };
+
+#if defined(AZ_PLATFORM_WINDOWS)
+    static const char* asset_processor_ext = ".exe";
+#elif defined(AZ_PLATFORM_APPLE_OSX)
+    static const char* asset_processor_ext = ".app";
+#else
+    static const char* asset_processor_ext = "";
+#endif
 
     const char* appRoot = nullptr;
     AzFramework::ApplicationRequests::Bus::BroadcastResult(appRoot, &AzFramework::ApplicationRequests::GetAppRoot);
@@ -2072,15 +2144,17 @@ bool CSystem::LaunchAssetProcessor()
         AZStd::string engineBinFolder = AZStd::string::format("%s%s", appRoot, BINFOLDER_NAME);
         azstrncpy(workingDir, AZ_ARRAY_SIZE(workingDir), engineBinFolder.c_str(), engineBinFolder.length());
 
-        AZStd::string engineAssetProcessorPath = AZStd::string::format("%s%s%s.%s",
-                                                                        engineBinFolder.c_str(),
-                                                                        AZ_CORRECT_FILESYSTEM_SEPARATOR_STRING,
-                                                                        asset_processor_name, 
-                                                                        asset_processor_ext);
+        AZStd::string engineAssetProcessorPath = AZStd::string::format("%s%s%s%s",
+                                                                       engineBinFolder.c_str(),
+                                                                       AZ_CORRECT_FILESYSTEM_SEPARATOR_STRING,
+                                                                       asset_processor_name,
+                                                                       asset_processor_ext);
         azstrncpy(assetProcessorExe, AZ_ARRAY_SIZE(assetProcessorExe), engineAssetProcessorPath.c_str(), engineAssetProcessorPath.length());
-
     }
-    else
+
+
+#if defined(AZ_PLATFORM_WINDOWS)
+    if (appRoot == nullptr)
     {
         char exeName[AZ_MAX_PATH_LEN] = { 0 };
         ::GetModuleFileName(::GetModuleHandle(nullptr), exeName, AZ_MAX_PATH_LEN);
@@ -2089,13 +2163,6 @@ bool CSystem::LaunchAssetProcessor()
         _splitpath_s(exeName, drive, AZ_MAX_PATH_LEN, dir, AZ_MAX_PATH_LEN, nullptr, 0, nullptr, 0);
         _makepath_s(assetProcessorExe, AZ_MAX_PATH_LEN, drive, dir, "AssetProcessor", "exe");
         _makepath_s(workingDir, AZ_MAX_PATH_LEN, drive, dir, nullptr, nullptr);
-    }
-
-
-
-    if (m_pUserCallback)
-    {
-        m_pUserCallback->OnInitProgress("Launching remote Asset Processor...");
     }
 
     STARTUPINFO si;
@@ -2123,80 +2190,20 @@ bool CSystem::LaunchAssetProcessor()
 
     return true;
 #elif defined(AZ_PLATFORM_APPLE_OSX)
-    if (m_pUserCallback)
+    char full_launch_command[AZ_MAX_PATH_LEN] = { 0 };
+    if (appRoot != nullptr)
     {
-        m_pUserCallback->OnInitProgress("Launching remote Asset Processor...");
-    }
-
-    int pipefds[2];
-    if (pipe(pipefds) || fcntl(pipefds[1], F_SETFD, fcntl(pipefds[1], F_GETFD) | FD_CLOEXEC))
-    {
-        return false;
-    }
-
-    pid_t pid = fork();
-    if (pid == -1)
-    {
-        AZ_Assert(false, "Unable to fork process to start AssetProcessor: %s", strerror(errno));
-        return false;
-    }
-    else if (pid == 0)
-    {
-        // This is the child process that we want to run the asset processor
-        close(pipefds[0]);
-
-        // Because execv requires a non-const array of character pointers we
-        // have to allocate and copy the strings manually. The last entry in
-        // the array has to be a null pointer hence 3 being the size of the 
-        // array.
-        char* args[3] = { 0 };
-
-        const int sizeOfAssetProcessorString = sizeof("AssetProcessor") + 1;
-        args[0] = new char[sizeOfAssetProcessorString];
-        azstrcpy(args[0], sizeOfAssetProcessorString, "AssetProcessor");
-        const int sizeOfStartHiddenArg = sizeof("--start-hidden") + 1;
-        args[1] = new char[sizeOfStartHiddenArg];
-        azstrcpy(args[1], sizeOfStartHiddenArg, "--start-hidden");
-
-        // Current assumption, which is true for the editor, is that the current
-        // directory is at the root of the game/editor directory and so we can
-        // build a directory to the AssetProcessor from there.
-        string assetProcessorCommand = "./BinMac64";
-#ifdef _DEBUG
-        assetProcessorCommand += ".Debug";
-#endif
-        assetProcessorCommand += "/AssetProcessor";
-
-        execv(assetProcessorCommand.c_str(), args);
-
-        // If we get here execv failed to run properly and the only thing we can
-        // do without doing any damage is to exit
-        write(pipefds[1], &errno, sizeof(int));
-        exit(errno);
+        azsnprintf(full_launch_command, AZ_MAX_PATH_LEN, "open -g \"%s\" --args --start-hidden --app-root \"%s\"", assetProcessorExe, appRoot);
     }
     else
     {
-        // We are the parent if we get here.
-        close(pipefds[1]);
-        int count = 0; 
-        int err = 0;
-        while ((count = read(pipefds[0], &err, sizeof(errno))) == -1)
-        {
-            if (errno != EAGAIN && errno != EINTR)
-            {
-                break;
-            }
-        }
-
-        if (count) {
-            AZ_Assert(false, "Unable to start AssetProcessor: %s", strerror(err));
-            return false;
-        }
-        close(pipefds[0]);
-        return true;
+        azsnprintf(full_launch_command, AZ_MAX_PATH_LEN, "open -g \"%s\" --args --start-hidden", assetProcessorExe);
     }
-#endif
 
+    int error = system(full_launch_command);
+    return (error == 0);
+#endif // AZ_PLATFORM_APPLE_OSX
+#endif // REMOTE_ASSET_PROCESSOR
     AZ_Assert(false, "Could not start Asset Processor; platform not supported");
     return false;
 }
@@ -2301,6 +2308,7 @@ bool CSystem::ConnectToAssetProcessor(const SSystemInitParams& initParams, bool 
                     m_pUserCallback->OnInitProgress("Negotiation failed with the Asset Processor! Quitting...");
                 }
 
+                AZ_Error(AZ_TRACE_SYSTEM_WINDOW, false, "Negotiation failed with the Asset Processor. This usually occurs when the Editor is launched from a different branch than the Asset Processor.");
                 return false;
             }
             if (!engineConnection->IsConnected() && !engineConnection->NegotiationFailed())
@@ -2314,7 +2322,7 @@ bool CSystem::ConnectToAssetProcessor(const SSystemInitParams& initParams, bool 
             }
 #endif//defined(AZ_PLATFORM_WINDOWS)
 
-            //give the AP 2.5 seconds to connect BUT if we launched the ap then give the AP 120 seconds to connect (virus scanner can really slow it down on its initial launch!)
+            //give the AP 5 seconds to connect BUT if we launched the ap then give the AP 120 seconds to connect (virus scanner can really slow it down on its initial launch!)
             int timeToConnect = isAssetProcessorLaunched ? 120000 : 5000;
             start = AZStd::chrono::system_clock::now();
             last = start;
@@ -2355,7 +2363,7 @@ bool CSystem::ConnectToAssetProcessor(const SSystemInitParams& initParams, bool 
 
                 engineConnection->Disconnect(); //should stop the async connection from retry
 
-                const char* userHelpMessage = "Check your bootstrap.cfg to make sure your settings are correct and that the Asset Processor is running on the computer that is connected via USB to, or on the same network as, this device.";
+                const char* userHelpMessage = "Check your bootstrap.cfg to make sure your settings are correct and that the Asset Processor is running on the computer that is connected via USB to, or on the same network as, this device. Also check the Asset Processor's 'Connections' tab to ensure this device's IP address has been added to the white list.";
                 AZ_Printf(AZ_TRACE_SYSTEM_WINDOW, "%s %s", errorMessage, userHelpMessage);
 
                 if (m_pUserCallback)
@@ -2501,7 +2509,7 @@ bool CSystem::InitFileSystem(const SSystemInitParams& initParams)
     bool bLvlRes = false; // true: all assets since executable start are recorded, false otherwise
 
     // set file IO, used by CryPak and others
-    m_env.pFileIO = aznew AZ::IO::LocalFileIO();
+    m_env.pFileIO = new AZ::IO::LocalFileIO();
     m_env.pResourceCompilerHelper = nullptr;
 
 #if defined(REMOTE_ASSET_PROCESSOR)
@@ -2541,7 +2549,8 @@ bool CSystem::InitFileSystem(const SSystemInitParams& initParams)
 
         if (allowedRemoteIO)
         {
-            m_env.pFileIO = new AZ::IO::RemoteFileIO(m_env.pFileIO); //use the local file io for exclusion io
+            delete m_env.pFileIO;
+            m_env.pFileIO = new AZ::IO::RemoteFileIO();
         }
 
         if (engineConnection->IsConnected())
@@ -2642,13 +2651,14 @@ bool CSystem::InitFileSystem(const SSystemInitParams& initParams)
             finalCachePath = initParams.cachePath;
         }
 
-#if defined(AZ_PLATFORM_WINDOWS) && defined(REMOTE_ASSET_PROCESSOR)
+#if defined(AZ_PLATFORM_WINDOWS)
         // on windows, we might be running editor and game and multiple games and so on (consoles cant do this)
         // pick a non-locked cache, since shaders actually require separate caches:
 
         string originalPath = finalCachePath;
-
+#if defined(REMOTE_ASSET_PROCESSOR)
         if (!allowedRemoteIO) // not running on VFS
+#endif
         {
             int attemptNumber = 0;
             const int maxAttempts = 16;
@@ -2684,12 +2694,13 @@ bool CSystem::InitFileSystem(const SSystemInitParams& initParams)
             if (attemptNumber >= maxAttempts)
             {
                 AZ_Assert(false, "Couldn't find a valid asset cache folder for the Asset Processor after %i attempts.", attemptNumber);
+                AZ_Printf("FileSystem", "Couldn't find a valid asset cache folder for the Asset Processor after %i attempts.", attemptNumber);
                 return false;
             }
         }
 
-#endif // defined(AZ_PLATFORM_WINDOWS)&&defined(REMOTE_ASSET_PROCESSOR)
-        AZ_Printf("FileSystem", "Using %s folder for asset cache.", finalCachePath.c_str());
+#endif // defined(AZ_PLATFORM_WINDOWS)
+        AZ_Printf("FileSystem", "Using %s folder for asset cache.\n", finalCachePath.c_str());
         m_env.pFileIO->SetAlias("@cache@", finalCachePath.c_str());
         m_env.pFileIO->CreatePath("@cache@");
     }
@@ -2976,9 +2987,12 @@ bool CSystem::InitAnimationSystem(const SSystemInitParams& initParams)
     LOADING_TIME_PROFILE_SECTION(GetISystem());
     MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Init AnimationSystem");
 
-    if (!InitializeEngineModule(DLL_ANIMATION, "EngineModule_CryAnimation", initParams))
+    bool success = false;
+    CryLegacyAnimationRequestBus::BroadcastResult(success, &CryLegacyAnimationRequests::InitCharacterManager, initParams);
+
+    if (!success)
     {
-        return false;
+        AZ_Warning(AZ_TRACE_SYSTEM_WINDOW, false, "The deprecated CryAnimation system was not created, if you depend on it please enable the CryLegacy Gem");
     }
 
     return true;
@@ -3316,7 +3330,7 @@ static wstring GetErrorStringUnsupportedCPU()
     wchar_t msg[1024];
     msg[0] = L'\0';
     msg[sizeof(msg) / sizeof(msg[0]) - 1] = L'\0';
-    _snwprintf(msg, sizeof(msg) / sizeof(msg[0]) - 1, pFmt);
+    azsnwprintf(msg, sizeof(msg) / sizeof(msg[0]) - 1, pFmt);
     return msg;
 }
 #endif
@@ -3403,6 +3417,11 @@ bool CSystem::Init(const SSystemInitParams& startupParams)
         g_cvars.sys_no_crash_dialog = true;
         AddPlatformOSCreateFlag(IPlatformOS::eCF_NoDialogs);
     }
+
+#if defined(AZ_PLATFORM_LINUX)
+    // Linux is all console for now and so no room for dialog boxes!
+    m_env.bNoAssertDialog = true;
+#endif
     
     m_pCmdLine = new CCmdLine(startupParams.szSystemCmdLine);
 
@@ -3448,8 +3467,10 @@ bool CSystem::Init(const SSystemInitParams& startupParams)
         OSVERSIONINFO osvi;
 
         osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-
+#pragma warning( push )
+#pragma warning(disable: 4996)
         GetVersionExA(&osvi);
+#pragma warning( pop )
 
         bool bIsWindowsXPorLater = osvi.dwMajorVersion > 5 || (osvi.dwMajorVersion == 5 && osvi.dwMinorVersion >= 1);
 
@@ -3584,8 +3605,9 @@ bool CSystem::Init(const SSystemInitParams& startupParams)
             m_pUserCallback = pConsole;
             pConsole->SetRequireDedicatedServer(true);
 
-            strcpy(
+            azstrcpy(
                 headerString,
+                AZ_ARRAY_SIZE(headerString),
                 "Lumberyard - "
 #if defined(LINUX)
                 "Linux "
@@ -3763,10 +3785,6 @@ bool CSystem::Init(const SSystemInitParams& startupParams)
 
         GetIRemoteConsole()->RegisterConsoleVariables();
 
-#if defined(ENABLE_PROFILING_CODE)
-        CStroboscope::GetInst()->RegisterCommands();
-#endif
-
 #ifdef ENABLE_LOADING_PROFILER
         CBootProfiler::GetInstance().RegisterCVars();
 #endif
@@ -3906,11 +3924,6 @@ bool CSystem::Init(const SSystemInitParams& startupParams)
         }
 
         //////////////////////////////////////////////////////////////////////////
-        // CREATE JOBMANAGER
-        //////////////////////////////////////////////////////////////////////////
-        m_env.pJobManager->Init(m_sys_job_system_max_worker ? m_sys_job_system_max_worker->GetIVal() : 0);
-
-        //////////////////////////////////////////////////////////////////////////
         // Stream Engine
         //////////////////////////////////////////////////////////////////////////
         AZ_Printf(AZ_TRACE_SYSTEM_WINDOW, "Stream Engine Initialization");
@@ -3952,13 +3965,13 @@ bool CSystem::Init(const SSystemInitParams& startupParams)
 #if defined(WIN32) || defined(WIN64)
         if (!startupParams.bSkipRenderer)
         {
-            if (_stricmp(m_rDriver->GetString(), "Auto") == 0)
+            if (azstricmp(m_rDriver->GetString(), "Auto") == 0)
             {
                 m_rDriver->Set("DX11");
             }
         }
 
-        if (gEnv->IsEditor() && _stricmp(m_rDriver->GetString(), "DX12") == 0)
+        if (gEnv->IsEditor() && azstricmp(m_rDriver->GetString(), "DX12") == 0)
         {
             AZ_Warning(AZ_TRACE_SYSTEM_WINDOW, false, "DX12 mode is not supported in the editor. Reverting to DX11 mode.");
             m_rDriver->Set("DX11");
@@ -3970,7 +3983,6 @@ bool CSystem::Init(const SSystemInitParams& startupParams)
         {
             SetUnhandledExceptionFilter(CryEngineExceptionFilterWER);
         }
-
 #endif
 
         //////////////////////////////////////////////////////////////////////////
@@ -4565,6 +4577,23 @@ bool CSystem::Init(const SSystemInitParams& startupParams)
 
         InlineInitializationProcessing("CSystem::Init Dynamic Response System");
 
+        // CryAction has been moved to the optional CryLegacy Gem, so create a
+        // level system and view system here if the CryLegacy Gem is not loaded
+        if (CryGameFrameworkBus::GetTotalNumOfEventHandlers() == 0)
+        {
+            //////////////////////////////////////////////////////////////////////////
+            // LEVEL SYSTEM
+            m_pLevelSystem = new LegacyLevelSystem::CLevelSystem(this, "levels");
+
+            InlineInitializationProcessing("CSystem::Init Level System");
+
+            //////////////////////////////////////////////////////////////////////////
+            // VIEW SYSTEM (must be created after m_pLevelSystem)
+            m_pViewSystem = new LegacyViewSystem::CViewSystem(this);
+
+            InlineInitializationProcessing("CSystem::Init View System");
+        }
+
         //////////////////////////////////////////////////////////////////////////
         // BUDGETING SYSTEM
         m_pIBudgetingSystem = new CBudgetingSystem();
@@ -4660,12 +4689,6 @@ bool CSystem::Init(const SSystemInitParams& startupParams)
         m_env.pLocalMemoryUsage = nullptr;
 #endif
 
-#if defined(WIN32)
-#   if !defined(WIN64)
-        _controlfp(_PC_64, _MCW_PC); // not supported on WIN64
-#   endif
-#endif
-
         if (g_cvars.sys_float_exceptions > 0)
         {
             if (g_cvars.sys_float_exceptions == 3 && gEnv->IsEditor()) // Turn off float exceptions in editor if sys_float_exceptions = 3
@@ -4678,17 +4701,6 @@ bool CSystem::Init(const SSystemInitParams& startupParams)
             }
         }
         EnableFloatExceptions(g_cvars.sys_float_exceptions);
-
-#if defined(WIN64) && defined(SECUROM_64)
-        if (!m_bEditor && !IsDedicated())
-        {
-            int res = TestSecurom64();
-            if (res != b64_ok)
-            {
-                _controlfp(0, _MCW_EM); // Enable floating point exceptions (Will eventually cause crash).
-            }
-        }
-#endif
 
         MarkThisThreadForDebugging("Main");
     }
@@ -4763,7 +4775,7 @@ static void _LvlRes_export_IResourceList(AZ::IO::HandleType fileHandle, const IC
         };
         char szAbsPathBuf[nMaxPath];
 
-        const char* szAbsPath = gEnv->pCryPak->AdjustFileName(filename, szAbsPathBuf, 0);
+        const char* szAbsPath = gEnv->pCryPak->AdjustFileName(filename, szAbsPathBuf, AZ_ARRAY_SIZE(szAbsPathBuf), 0);
 
         gEnv->pCryPak->FPrintf(fileHandle, "%s\n", szAbsPath);
     }
@@ -4802,7 +4814,7 @@ void LvlRes_export(IConsoleCmdArgs* pParams)
     char szAbsPathBuf[nMaxPath];
     szAbsPathBuf[0] = '\0';
 
-    sprintf(szAbsPathBuf, "%s/%s%s", szAbsLevelPath, sPureLevelName.c_str(), g_szLvlResExt);
+    azsprintf(szAbsPathBuf, "%s/%s%s", szAbsLevelPath, sPureLevelName.c_str(), g_szLvlResExt);
 
     // Write resource list to file.
     AZ::IO::HandleType fileHandle = gEnv->pCryPak->FOpen(szAbsPathBuf, "wt");
@@ -5001,7 +5013,7 @@ protected: // ------------------------------------------------------------------
         {
             szLvlResExt += lenName - lenLvlExt;         // "test_LvlRes.txt" -> "_LvlRes.txt"
         }
-        return _stricmp(szLvlResExt, g_szLvlResExt) == 0;
+        return azstricmp(szLvlResExt, g_szLvlResExt) == 0;
     }
 
     // Arguments
@@ -5077,7 +5089,7 @@ public:
         };
         char szAbsPathBuf[nMaxPath];
 
-        const char* szAbsPath = gEnv->pCryPak->AdjustFileName(sPak, szAbsPathBuf, 0);
+        const char* szAbsPath = gEnv->pCryPak->AdjustFileName(sPak, szAbsPathBuf, AZ_ARRAY_SIZE(szAbsPathBuf), 0);
 
         //      string sAbsPath = PathUtil::RemoveSlash(PathUtil::GetPath(szAbsPath));
 
@@ -5101,7 +5113,7 @@ public:
 
         do
         {
-            if (_stricmp(fd.name, szFile) == 0)
+            if (azstricmp(fd.name, szFile) == 0)
             {
                 gEnv->pCryPak->FindClose(handle);
                 return true;
@@ -5213,7 +5225,8 @@ public:
         gEnv->pFileIO->CreatePath(trgFileDir);      // ensure path exists
 
         // Create target file
-        FILE* trgFile = fopen(trgFilename, "wb");
+        FILE* trgFile = nullptr;
+        azfopen(&trgFile, trgFilename, "wb");
 
         if (trgFile)
         {
@@ -5308,11 +5321,11 @@ static void _LvlRes_findunused_recursive(CLvlRes_findunused& sink, const string&
     string sPathPattern = ConcatPath(sPath, "*.*");
 
     // ignore some directories
-    if (_stricmp(sPath.c_str(), "Shaders") == 0
-        || _stricmp(sPath.c_str(), "ScreenShots") == 0
-        || _stricmp(sPath.c_str(), "Scripts") == 0
-        || _stricmp(sPath.c_str(), "Config") == 0
-        || _stricmp(sPath.c_str(), "LowSpec") == 0)
+    if (azstricmp(sPath.c_str(), "Shaders") == 0
+        || azstricmp(sPath.c_str(), "ScreenShots") == 0
+        || azstricmp(sPath.c_str(), "Scripts") == 0
+        || azstricmp(sPath.c_str(), "Config") == 0
+        || azstricmp(sPath.c_str(), "LowSpec") == 0)
     {
         return;
     }
@@ -5340,11 +5353,11 @@ static void _LvlRes_findunused_recursive(CLvlRes_findunused& sink, const string&
         {
             /*
             // ignore some extensions
-            if(_stricmp(PathUtil::GetExt(fd.name),"cry")==0)
+            if(azstricmp(PathUtil::GetExt(fd.name),"cry")==0)
                 continue;
 
             // ignore some files
-            if(_stricmp(fd.name,"TerrainTexture.pak")==0)
+            if(azstricmp(fd.name,"TerrainTexture.pak")==0)
                 continue;
             */
 
@@ -5355,7 +5368,7 @@ static void _LvlRes_findunused_recursive(CLvlRes_findunused& sink, const string&
             };
             char szAbsPathBuf[nMaxPath];
 
-            gEnv->pCryPak->AdjustFileName(sFilePath.c_str(), szAbsPathBuf, 0);
+            gEnv->pCryPak->AdjustFileName(sFilePath.c_str(), szAbsPathBuf, AZ_ARRAY_SIZE(szAbsPathBuf), 0);
 
             if (!sink.IsFileKnown(szAbsPathBuf))
             {
@@ -5603,7 +5616,7 @@ static void ScreenshotCmd(IConsoleCmdArgs* pParams)
 
         char path[ICryPak::g_nMaxPath];
         path[sizeof(path) - 1] = 0;
-        gEnv->pCryPak->AdjustFileName("@user@/ScreenShots", path, ICryPak::FLAGS_PATH_REAL | ICryPak::FLAGS_FOR_WRITING);
+        gEnv->pCryPak->AdjustFileName("@user@/ScreenShots", path, AZ_ARRAY_SIZE(path), ICryPak::FLAGS_PATH_REAL | ICryPak::FLAGS_FOR_WRITING);
 
         if (iScreenshotNumber == -1)       // first time - find max number to start
         {
@@ -5620,7 +5633,7 @@ static void ScreenshotCmd(IConsoleCmdArgs* pParams)
 
                     if (_strnicmp(fd.name, szPrefix, dwPrefixSize) == 0)
                     {
-                        int iCnt = sscanf(fd.name + 10, "%d", &iCurScreenshotNumber);
+                        int iCnt = azsscanf(fd.name + 10, "%d", &iCurScreenshotNumber);
 
                         if (iCnt)
                         {
@@ -5637,7 +5650,7 @@ static void ScreenshotCmd(IConsoleCmdArgs* pParams)
         ++iScreenshotNumber;
 
         char szNumber[16];
-        sprintf(szNumber, "%.4d ", iScreenshotNumber);
+        azsprintf(szNumber, "%.4d ", iScreenshotNumber);
 
         string sScreenshotName = string(szPrefix) + szNumber;
 
@@ -5695,15 +5708,15 @@ static void SysRestoreSpecCmd(IConsoleCmdArgs* pParams)
 
         ICVar::EConsoleLogMode mode = ICVar::eCLM_Off;
 
-        if (_stricmp(szArg, "test") == 0)
+        if (azstricmp(szArg, "test") == 0)
         {
             mode = ICVar::eCLM_ConsoleAndFile;
         }
-        else if (_stricmp(szArg, "test*") == 0)
+        else if (azstricmp(szArg, "test*") == 0)
         {
             mode = ICVar::eCLM_FileOnly;
         }
-        else if (_stricmp(szArg, "info") == 0)
+        else if (azstricmp(szArg, "info") == 0)
         {
             mode = ICVar::eCLM_FullInfo;
         }
@@ -5786,7 +5799,7 @@ static void SysRestoreSpecCmd(IConsoleCmdArgs* pParams)
             {
                 const char* szName = *it;
 
-                if (_stricmp(szName, "sys_spec_Full") == 0)
+                if (azstricmp(szName, "sys_spec_Full") == 0)
                 {
                     continue;
                 }
@@ -5826,7 +5839,7 @@ static void SysRestoreSpecCmd(IConsoleCmdArgs* pParams)
 
 void CmdDrillToFile(IConsoleCmdArgs* pArgs)
 {
-    if (stricmp(pArgs->GetArg(0), "DrillerStop") == 0)
+    if (azstricmp(pArgs->GetArg(0), "DrillerStop") == 0)
     {
         EBUS_EVENT(AzFramework::DrillerConsoleCommandBus, StopDrillerSession, AZ::Crc32("DefaultDrillerSession"));
     }
@@ -5837,12 +5850,12 @@ void CmdDrillToFile(IConsoleCmdArgs* pArgs)
             AZ::Debug::DrillerManager::DrillerListType drillersToEnable;
             for (int iArg = 1; iArg < pArgs->GetArgCount(); ++iArg)
             {
-                if (stricmp(pArgs->GetArg(iArg), "Replica") == 0)
+                if (azstricmp(pArgs->GetArg(iArg), "Replica") == 0)
                 {
                     drillersToEnable.push_back();
                     drillersToEnable.back().id = AZ::Crc32("ReplicaDriller");
                 }
-                else if (stricmp(pArgs->GetArg(iArg), "Carrier") == 0)
+                else if (azstricmp(pArgs->GetArg(iArg), "Carrier") == 0)
                 {
                     drillersToEnable.push_back();
                     drillersToEnable.back().id = AZ::Crc32("CarrierDriller");
@@ -5901,7 +5914,6 @@ void CSystem::CreateSystemVars()
     // Register DLL names as cvars before we load them
     //
     EVarFlags dllFlags = (EVarFlags)0;
-    m_sys_dll_ai = REGISTER_STRING("sys_dll_ai", DLL_AI, dllFlags,                      "Specifies the DLL to load for the AI system");
     m_sys_dll_game = REGISTER_STRING("sys_dll_game", DLL_GAME, dllFlags | VF_READONLY,            "Specifies the game DLL to load (without the .dll extension)");
     m_sys_game_folder = REGISTER_STRING("sys_game_folder", "EmptyTemplate", VF_READONLY,            "Specifies the game folder to read all data from. Can be fully pathed for external folders or relative path for folders inside the root.");
     m_sys_dll_response_system = REGISTER_STRING("sys_dll_response_system", 0, dllFlags,                 "Specifies the DLL to load for the dynamic response system");
@@ -5998,6 +6010,10 @@ void CSystem::CreateSystemVars()
 
     {
         int nDefaultRenderSplashScreen = 1;
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION SYSTEMINIT_CPP_SECTION_10
+#include AZ_RESTRICTED_FILE(SystemInit_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
         REGISTER_CVAR2("sys_rendersplashscreen", &g_cvars.sys_rendersplashscreen, nDefaultRenderSplashScreen, VF_NULL,
             "Render the splash screen during game initialization");
         REGISTER_CVAR2("sys_splashscreenscalemode", &g_cvars.sys_splashScreenScaleMode, static_cast<int>(SSystemCVars::SplashScreenScaleMode_Fill), VF_NULL,
@@ -6147,34 +6163,18 @@ void CSystem::CreateSystemVars()
             "Set to 1 to start sampling profiling");
     m_sys_profile_sampler_max_samples = REGISTER_FLOAT("profile_sampler_max_samples", 2000, 0,
             "Number of samples to collect for sampling profiler");
-    m_sys_job_system_filter = REGISTER_STRING("sys_job_system_filter", "", 0,
-            "Filters a Job.\n"
-            "Usage: sys_job_system_filter name1,name2,..\n"
-            "Where 'name' refers to the exact name of the job, 0 disables it\n"
-            "More than one job can be specified by using a comma separated list");
-    m_sys_job_system_enable = REGISTER_INT("sys_job_system_enable", 1, 0,
-            "Enable the JobSystem.\n"
-            "Usage: sys_job_system_enable 0/1\n"
-            "0: The Jobsystem is disabled, each job is executed in its invoking thread.\n"
-            "1: The JobSystem is enabled, each job is invoked in one of the worker threads.");
-    m_sys_job_system_profiler = REGISTER_INT("sys_job_system_profiler", 0, 0,
-            "Enable the job system profiler.\n"
-            "Usage: sys_job_system_profiler <value>\n"
-            "0: Disable the profiler\n"
-            "1: Show the full profiler\n"
-            "2: Show only the execution graph\n");
 #if defined(WIN32) || defined(WIN64)
     const uint32 nJobSystemDefaultCoreNumber = 8;
+#define AZ_RESTRICTED_SECTION_IMPLEMENTED
+#elif defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION SYSTEMINIT_CPP_SECTION_11
+#include AZ_RESTRICTED_FILE(SystemInit_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
 #else
     const uint32 nJobSystemDefaultCoreNumber = 4;
 #endif
-    m_sys_job_system_max_worker = REGISTER_INT("sys_job_system_max_worker", nJobSystemDefaultCoreNumber, 0,
-            "Sets the number of threads to use for the job system"
-            "Defaults to 4 on consoles and 8 threads an PC"
-            "Set to 0 to create as many threads as cores are available");
-
-    REGISTER_COMMAND("sys_job_system_dump_job_list", CmdDumpJobManagerJobList, VF_CHEAT, "Show a list of all registered job in the console");
-
     m_sys_GraphicsQuality = REGISTER_INT_CB("r_GraphicsQuality", 0, VF_ALWAYSONCHANGE,
         "Specifies the system cfg spec. 1=low, 2=med, 3=high, 4=very high)",
         LoadDetectedSpec);
@@ -6216,6 +6216,10 @@ void CSystem::CreateSystemVars()
             "Specifies the physical CPU index physics will run on");
 #endif
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION SYSTEMINIT_CPP_SECTION_12
+#include AZ_RESTRICTED_FILE(SystemInit_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
 
     m_sys_min_step = REGISTER_FLOAT("sys_min_step", 0.01f, 0,
             "Specifies the minimum physics step in a separate thread");
@@ -6445,6 +6449,9 @@ void CSystem::CreateSystemVars()
 
 #if defined(WIN32)
     REGISTER_CVAR2("sys_display_threads", &g_cvars.sys_display_threads, 0, 0, "Displays Thread info");
+#elif defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION SYSTEMINIT_CPP_SECTION_13
+#include AZ_RESTRICTED_FILE(SystemInit_cpp, AZ_RESTRICTED_PLATFORM)
 #endif
 
 #if defined(WIN32)

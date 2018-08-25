@@ -473,10 +473,19 @@ namespace AZ
              */
             static void ClearQueuedEvents()
             {
-                if (auto* context = Bus::GetContext())
+                if (auto* context = Bus::GetContext(false))
                 {
                     context->m_queue.Clear();
                 }
+            }
+
+            static size_t QueuedEventCount()
+            {
+                if (auto* context = Bus::GetContext(false))
+                {
+                    return context->m_queue.Count();
+                }
+                return 0;
             }
 
             /**
@@ -697,7 +706,7 @@ namespace AZ
                         auto& ebBus = *Traits::BusesContainer::toNodePtr(ebIter);
                         if (ebBus.size())
                         {
-                            typename Bus::CallstackForwardIterator ebCurrentEvent(ebBus.begin(), &ebBus.m_busId);
+                            typename Bus::CallstackForwardIterator ebCurrentEvent(ebBus, ebBus.begin(), &ebBus.m_busId);
                             typename Traits::EBNode::iterator ebEnd = ebBus.end();
                             while (ebCurrentEvent.m_iterator != ebEnd)
                             {
@@ -732,7 +741,7 @@ namespace AZ
                         auto& ebBus = *Traits::BusesContainer::toNodePtr(ebIter);
                         if (ebBus.size())
                         {
-                            typename Bus::CallstackForwardIterator ebCurrentEvent(ebBus.begin(), &ebBus.m_busId);
+                            typename Bus::CallstackForwardIterator ebCurrentEvent(ebBus, ebBus.begin(), &ebBus.m_busId);
                             typename Traits::EBNode::iterator ebEnd = ebBus.end();
                             while (ebCurrentEvent.m_iterator != ebEnd)
                             {
@@ -764,7 +773,7 @@ namespace AZ
                 if (ebBus.size())
                 {
                     typename Bus::DispatchLockGuard lock(context->m_mutex);
-                    typename Bus::CallstackForwardIterator ebCurrentEvent(ebBus.begin(), &ebBus.m_busId);
+                    typename Bus::CallstackForwardIterator ebCurrentEvent(ebBus, ebBus.begin(), &ebBus.m_busId);
                     typename Traits::EBNode::iterator ebEnd = ebBus.end();
                     while (ebCurrentEvent.m_iterator != ebEnd)
                     {
@@ -794,7 +803,7 @@ namespace AZ
                 if (ebBus.size())
                 {
                     typename Bus::DispatchLockGuard lock(context->m_mutex);
-                    typename Bus::CallstackForwardIterator ebCurrentEvent(ebBus.begin(), &ebBus.m_busId);
+                    typename Bus::CallstackForwardIterator ebCurrentEvent(ebBus, ebBus.begin(), &ebBus.m_busId);
                     typename Traits::EBNode::iterator ebEnd = ebBus.end();
                     while (ebCurrentEvent.m_iterator != ebEnd)
                     {
@@ -827,7 +836,7 @@ namespace AZ
                         auto& ebBus = *Traits::BusesContainer::toNodePtr(ebIter);
                         if (ebBus.size())
                         {
-                            typename Bus::CallstackReverseIterator ebCurrentEvent(ebBus.rbegin(), &ebBus.m_busId);
+                            typename Bus::CallstackReverseIterator ebCurrentEvent(ebBus, ebBus.rbegin(), &ebBus.m_busId);
                             while (ebCurrentEvent.m_iterator != ebBus.rend())
                             {
                                 ((*ebCurrentEvent.m_iterator++)->*func)(args...);
@@ -861,7 +870,7 @@ namespace AZ
                         auto& ebBus = *Traits::BusesContainer::toNodePtr(ebIter);
                         if (ebBus.size())
                         {
-                            typename Bus::CallstackReverseIterator ebCurrentEvent(ebBus.rbegin(), &ebBus.m_busId);
+                            typename Bus::CallstackReverseIterator ebCurrentEvent(ebBus, ebBus.rbegin(), &ebBus.m_busId);
                             while (ebCurrentEvent.m_iterator != ebBus.rend())
                             {
                                 results = ((*ebCurrentEvent.m_iterator++)->*func)(args...);
@@ -892,7 +901,7 @@ namespace AZ
                 if (ebBus.size())
                 {
                     typename Bus::DispatchLockGuard lock(context->m_mutex);
-                    typename Bus::CallstackReverseIterator ebCurrentEvent(ebBus.rbegin(), &ebBus.m_busId);
+                    typename Bus::CallstackReverseIterator ebCurrentEvent(ebBus, ebBus.rbegin(), &ebBus.m_busId);
                     while (ebCurrentEvent.m_iterator != ebBus.rend())
                     {
                         ((*ebCurrentEvent.m_iterator++)->*func)(args...);
@@ -921,7 +930,7 @@ namespace AZ
                 if (ebBus.size())
                 {
                     typename Bus::DispatchLockGuard lock(context->m_mutex);
-                    typename Bus::CallstackReverseIterator ebCurrentEvent(ebBus.rbegin(), &ebBus);
+                    typename Bus::CallstackReverseIterator ebCurrentEvent(ebBus, ebBus.rbegin(), &ebBus);
                     while (ebCurrentEvent.m_iterator != ebBus.rend())
                     {
                         results = ((*ebCurrentEvent.m_iterator++)->*func)(args...);
@@ -947,7 +956,7 @@ namespace AZ
                     if (ebBus.size())
                     {
                         ebBus.add_ref();
-                        typename Bus::CallstackForwardIterator ebCurrentEvent(ebBus.begin(), &ebBus.m_busId);
+                        typename Bus::CallstackForwardIterator ebCurrentEvent(ebBus, ebBus.begin(), &ebBus.m_busId);
                         typename Traits::EBNode::iterator ebEnd = ebBus.end();
 
                         while (ebCurrentEvent.m_iterator != ebEnd)
@@ -984,7 +993,7 @@ namespace AZ
                     auto& ebBus = *Traits::BusesContainer::toNodePtr(ebIter);
                     if (ebBus.size())
                     {
-                        typename Bus::CallstackForwardIterator ebCurrentEvent(ebBus.begin(), &ebBus.m_busId);
+                        typename Bus::CallstackForwardIterator ebCurrentEvent(ebBus, ebBus.begin(), &ebBus.m_busId);
                         typename Traits::EBNode::iterator ebEnd = ebBus.end();
                         while (ebCurrentEvent.m_iterator != ebEnd)
                         {
@@ -1011,7 +1020,7 @@ namespace AZ
                     auto* context = Bus::GetContext();
                     AZ_Assert(context, "Internal error: context deleted with bind ptr outstanding.");
                     context->m_mutex.lock();
-                    typename Bus::CallstackForwardIterator ebCurrentEvent(ebBus.begin(), &ebBus.m_busId);
+                    typename Bus::CallstackForwardIterator ebCurrentEvent(ebBus, ebBus.begin(), &ebBus.m_busId);
                     typename Traits::EBNode::iterator ebEnd = ebBus.end();
                     while (ebCurrentEvent.m_iterator != ebEnd)
                     {
@@ -1055,7 +1064,7 @@ namespace AZ
         {
             AZ_STATIC_ASSERT((AZStd::is_same<typename Bus::QueuePolicy::BusMessageCall, typename AZ::Internal::NullBusMessageCall>::value == false),
                 "This EBus doesn't support queued events! Check 'EnableEventQueue'");
-            auto& context = Bus::GetOrCreateContext();
+            auto& context = Bus::GetOrCreateContext(false);
             if (context.m_routing.m_routers.size())
             {
                 context.m_mutex.lock();
@@ -1080,7 +1089,7 @@ namespace AZ
         {
             AZ_STATIC_ASSERT((AZStd::is_same<typename Bus::QueuePolicy::BusMessageCall, typename AZ::Internal::NullBusMessageCall>::value == false),
                 "This EBus doesn't support queued events! Check 'EnableEventQueue'");
-            auto* context = Bus::GetContext();
+            auto* context = Bus::GetContext(false);
             AZ_Assert(context, "Internal error: context deleted with bind ptr outstanding.");
             if (context->m_routing.m_routers.size())
             {
@@ -1106,7 +1115,7 @@ namespace AZ
         {
             AZ_STATIC_ASSERT((AZStd::is_same<typename Bus::QueuePolicy::BusMessageCall, typename AZ::Internal::NullBusMessageCall>::value == false),
                 "This EBus dBus::oesn't support queued events! Check 'EnableEventQueue'");
-            auto& context = Bus::GetOrCreateContext();
+            auto& context = Bus::GetOrCreateContext(false);
             if (context.m_routing.m_routers.size())
             {
                 context.m_mutex.lock();
@@ -1131,7 +1140,7 @@ namespace AZ
         {
             AZ_STATIC_ASSERT((AZStd::is_same<typename Bus::QueuePolicy::BusMessageCall, typename AZ::Internal::NullBusMessageCall>::value == false),
                 "This EBus doesn't support queued events! Check 'EnableEventQueue'");
-            auto* context = Bus::GetContext();
+            auto* context = Bus::GetContext(false);
             AZ_Assert(context, "Internal error: context deleted with bind ptr outstanding.");
             if (context->m_routing.m_routers.size())
             {
@@ -1196,7 +1205,7 @@ namespace AZ
                         if (ebBus.size())
                         {
                             ebBus.add_ref();
-                            typename Bus::CallstackForwardIterator ebCurrentEvent(ebBus.begin(), &ebBus.m_busId);
+                            typename Bus::CallstackForwardIterator ebCurrentEvent(ebBus, ebBus.begin(), &ebBus.m_busId);
                             typename Traits::EBNode::iterator ebEnd = ebBus.end();
                             while (ebCurrentEvent.m_iterator != ebEnd)
                             {
@@ -1239,7 +1248,7 @@ namespace AZ
                         if (ebBus.size())
                         {
                             ebBus.add_ref();
-                            typename Bus::CallstackForwardIterator ebCurrentEvent(ebBus.begin(), &ebBus.m_busId);
+                            typename Bus::CallstackForwardIterator ebCurrentEvent(ebBus, ebBus.begin(), &ebBus.m_busId);
                             typename Traits::EBNode::iterator ebEnd = ebBus.end();
                             while (ebCurrentEvent.m_iterator != ebEnd)
                             {
@@ -1292,7 +1301,7 @@ namespace AZ
                             }
 
                             ebBus.add_ref(); // Hold a reference to the bus we are processing, in case it gets deleted (remove all handlers).
-                            typename Bus::CallstackReverseIterator ebCurrentEvent(ebBus.rbegin(), &ebBus.m_busId);
+                            typename Bus::CallstackReverseIterator ebCurrentEvent(ebBus, ebBus.rbegin(), &ebBus.m_busId);
                             while (ebCurrentEvent.m_iterator != ebBus.rend())
                             {
                                 ((*ebCurrentEvent.m_iterator++)->*func)(args...);
@@ -1367,7 +1376,7 @@ namespace AZ
                             }
 
                             ebBus.add_ref(); // Hold a reference to the bus we are processing, in case it gets deleted (remove all handlers).
-                            typename Bus::CallstackReverseIterator ebCurrentEvent(ebBus.rbegin(), &ebBus.m_busId);
+                            typename Bus::CallstackReverseIterator ebCurrentEvent(ebBus, ebBus.rbegin(), &ebBus.m_busId);
                             while (ebCurrentEvent.m_iterator != ebBus.rend())
                             {
                                 results = ((*ebCurrentEvent.m_iterator++)->*func)(args...);
@@ -1424,7 +1433,7 @@ namespace AZ
                     if (ebBus.size())
                     {
                         ebBus.add_ref();
-                        typename Bus::CallstackForwardIterator ebCurrentEvent(ebBus.begin(), &ebBus.m_busId);
+                        typename Bus::CallstackForwardIterator ebCurrentEvent(ebBus, ebBus.begin(), &ebBus.m_busId);
                         typename Traits::EBNode::iterator ebEnd = ebBus.end();
 
                         while (ebCurrentEvent.m_iterator != ebEnd)
@@ -1507,7 +1516,7 @@ namespace AZ
             AZ_STATIC_ASSERT((AZStd::is_same<typename Bus::QueuePolicy::BusMessageCall, typename AZ::Internal::NullBusMessageCall>::value == false),
                 "This EBus doesn't support queued events! Check 'EnableEventQueue'");
             Internal::QueueFunctionArgumentValidator<Function, Traits::EnableQueuedReferences>::Validate();
-            auto& context = Bus::GetOrCreateContext();
+            auto& context = Bus::GetOrCreateContext(false);
             if (context.m_routing.m_routers.size())
             {
                 context.m_mutex.lock();
@@ -1533,7 +1542,7 @@ namespace AZ
             AZ_STATIC_ASSERT((AZStd::is_same<typename Bus::QueuePolicy::BusMessageCall, typename AZ::Internal::NullBusMessageCall>::value == false),
                 "This EBus doesn't support queued events! Check 'EnableEventQueue'");
             Internal::QueueFunctionArgumentValidator<Function, Traits::EnableQueuedReferences>::Validate();
-            auto& context = Bus::GetOrCreateContext();
+            auto& context = Bus::GetOrCreateContext(false);
             if (context.m_routing.m_routers.size())
             {
                 context.m_mutex.lock();
@@ -1559,7 +1568,7 @@ namespace AZ
             AZ_STATIC_ASSERT((AZStd::is_same<typename Bus::QueuePolicy::BusMessageCall, typename AZ::Internal::NullBusMessageCall>::value == false),
                 "This EBus doesn't support queued events! Check 'EnableEventQueue'");
             Internal::QueueFunctionArgumentValidator<Function, Traits::EnableQueuedReferences>::Validate();
-            auto& context = Bus::GetOrCreateContext();
+            auto& context = Bus::GetOrCreateContext(false);
             if (context.m_queue.IsActive())
             {
                 context.m_queue.m_messagesMutex.lock();

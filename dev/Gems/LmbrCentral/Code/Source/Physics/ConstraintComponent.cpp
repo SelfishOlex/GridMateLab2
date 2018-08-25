@@ -170,7 +170,7 @@ namespace LmbrCentral
         AZ::SerializeContext* serializeContext = azrtti_cast<AZ::SerializeContext*>(context);
         if (serializeContext)
         {
-            serializeContext->Class<ConstraintComponent>()
+            serializeContext->Class<ConstraintComponent, AZ::Component>()
                 ->Version(1)
                 ->Field("ConstraintConfiguration", &ConstraintComponent::m_config);
             ;

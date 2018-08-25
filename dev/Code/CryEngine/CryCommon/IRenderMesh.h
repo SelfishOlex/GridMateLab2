@@ -21,7 +21,7 @@
 #include <IRenderer.h>  // PublicRenderPrimitiveType
 #include <Cry_Geo.h>
 #include <CryArray.h>
-#include <IJobManager.h>
+#include <ITimer.h>
 
 class CMesh;
 struct CRenderChunk;
@@ -47,6 +47,8 @@ namespace AZ
         class Format;
     }
 }
+
+enum eRenderPrimitiveType : int8;
 
 // Keep this in sync with BUFFER_USAGE hints DevBuffer.h
 enum ERenderMeshType
@@ -180,6 +182,15 @@ struct IRenderMesh
     virtual AZ::Vertex::Format GetVertexFormat() = 0;
     virtual ERenderMeshType GetMeshType() = 0;
     virtual float GetGeometricMeanFaceArea() const = 0;
+
+    virtual bool CheckUpdate(uint32 nStreamMask) = 0;
+    virtual int GetStreamStride(int nStream) const = 0;
+
+    virtual const uintptr_t GetVBStream(int nStream) const = 0;
+    virtual const uintptr_t GetIBStream() const = 0;
+    virtual int GetNumVerts() const  = 0;
+    virtual int GetNumInds() const = 0;
+    virtual const eRenderPrimitiveType GetPrimitiveType() const = 0;
 
     virtual void SetSkinned(bool bSkinned = true) = 0;
     virtual uint GetSkinningWeightCount() const = 0;

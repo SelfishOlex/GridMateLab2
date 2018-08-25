@@ -68,7 +68,7 @@ namespace EMStudio
                             commandGroup.AddCommandString( "Unselect -actorInstanceID SELECT_ALL" );
 
                         String command;
-                        command.Format("Select -actorInstanceID %i", actorInstance->GetID());
+                        command = AZStd::string::format("Select -actorInstanceID %i", actorInstance->GetID());
                         commandGroup.AddCommandString( command.AsChar() );
 
                         // execute the commands
@@ -134,15 +134,6 @@ namespace EMStudio
             connect(removeAction,      SIGNAL(triggered()), renderWidget, SLOT(RemoveSelectedActorInstances()));
         }
 
-
-        if (GetCommandManager()->GetCurrentSelection().GetNumSelectedActors() > 0)
-        {
-            QAction* scaleAction = menu.addAction("Scale Actor Data");
-            connect(scaleAction, SIGNAL(triggered()), GetMainWindow(), SLOT(OnScaleSelectedActors()));
-            menu.addSeparator();
-        }
-
-
         // add actions for loading actors
         QAction* openAction         = menu.addAction("Open Actor");
         QAction* mergeAction        = menu.addAction("Merge Actor");
@@ -156,11 +147,11 @@ namespace EMStudio
         menu.addSeparator();
 
         // for opening projects
-        QAction* openProjectAction = menu.addAction("Open Project");
+        QAction* openProjectAction = menu.addAction("Open Workspace");
 
         // create recent projects sub menu
         MysticQt::RecentFiles recentProjects;
-        recentProjects.Init(&menu, maxRecentFiles, "Recent Projects", "recentProjectFiles");
+        recentProjects.Init(&menu, maxRecentFiles, "Recent Workspaces", "recentWorkspaces");
         connect(&recentProjects, SIGNAL(OnRecentFile(QAction*)), (QObject*)mainWindow, SLOT(OnRecentFile(QAction*)));
 
         // add a separator line

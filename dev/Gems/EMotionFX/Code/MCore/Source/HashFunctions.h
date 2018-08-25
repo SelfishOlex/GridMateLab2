@@ -15,7 +15,7 @@
 // include required headers
 #include "StandardHeaders.h"
 #include "Vector.h"
-#include "UnicodeString.h"
+#include <AzCore/std/string/string.h>
 
 
 namespace MCore
@@ -36,11 +36,11 @@ namespace MCore
 
 
     template<>
-    MCORE_INLINE uint32 Hash<String>(const String& key)
+    MCORE_INLINE uint32 Hash<AZStd::string>(const AZStd::string& key)
     {
         uint32 result = 0;
-        const uint32 length = key.GetLength();
-        for (uint32 i = 0; i < length; ++i)
+        const size_t length = key.size();
+        for (size_t i = 0; i < length; ++i)
         {
             result = (result << 4) + key[i];
             const uint32 g = result & 0xf0000000L;
@@ -53,28 +53,7 @@ namespace MCore
 
         return result;
     }
-
-
-    template<>
-    MCORE_INLINE uint32 Hash<StringRef>(const StringRef& key)
-    {
-        uint32 result = 0;
-        const char* keyData = key.AsChar();
-        const uint32 length = key.GetLength();
-        for (uint32 i = 0; i < length; ++i)
-        {
-            result = (result << 4) + keyData[i];
-            const uint32 g = result & 0xf0000000L;
-            if (g != 0)
-            {
-                result ^= g >> 24;
-            }
-            result &= ~g;
-        }
-
-        return result;
-    }
-
+    
 
     template<>
     MCORE_INLINE uint32 Hash<int32>(const int32& key)

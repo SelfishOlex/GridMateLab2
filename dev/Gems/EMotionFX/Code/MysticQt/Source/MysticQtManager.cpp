@@ -12,6 +12,7 @@
 
 // include required files
 #include "MysticQtManager.h"
+#include <MCore/Source/StringConversions.h>
 #include <QtGui/QIcon>
 
 
@@ -26,9 +27,6 @@ namespace MysticQt
     MysticQtManager::MysticQtManager()
     {
         mMainWindow = nullptr;
-
-        // create the attribute widget factory
-        mAttributeWidgetFactory = new AttributeWidgetFactory();
     }
 
 
@@ -42,9 +40,6 @@ namespace MysticQt
             delete mIcons[i];
         }
         mIcons.Clear();
-
-        // get rid of the attribute widget factory
-        delete mAttributeWidgetFactory;
     }
 
 
@@ -52,10 +47,8 @@ namespace MysticQt
     // constructor
     MysticQtManager::IconData::IconData(const char* filename)
     {
-        MCore::String fullPath;
-        fullPath.Format("%s%s", GetMysticQt()->GetDataDir().AsChar(), filename);
         mFileName = filename;
-        mIcon = new QIcon(fullPath.AsChar());
+        mIcon = new QIcon(AZStd::string::format("%s%s", GetMysticQt()->GetDataDir().c_str(), filename).c_str());
     }
 
 
@@ -72,7 +65,7 @@ namespace MysticQt
         const uint32 numIcons = mIcons.GetLength();
         for (uint32 i = 0; i < numIcons; ++i)
         {
-            if (mIcons[i]->mFileName.CheckIfIsEqualNoCase(filename))
+            if (AzFramework::StringFunc::Equal(mIcons[i]->mFileName.c_str(), filename, false /* no case */))
             {
                 return *(mIcons[i]->mIcon);
             }

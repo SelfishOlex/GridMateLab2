@@ -22,6 +22,12 @@
 
 #include <AzFramework/Input/Devices/Mouse/InputDeviceMouse.h>
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#undef AZ_RESTRICTED_SECTION
+#define D3DPOSTPROCESS_CPP_SECTION_1 1
+#define D3DPOSTPROCESS_CPP_SECTION_2 2
+#endif
+
 #pragma warning(disable: 4244)
 
 enum COLORSPACES
@@ -81,8 +87,17 @@ void SD3DPostEffectsUtils::ResolveRT(CTexture*& pDst, const RECT* pSrcRect)
         }
         box.back = 1;
 
+
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION D3DPOSTPROCESS_CPP_SECTION_1
+#include AZ_RESTRICTED_FILE(D3DPostProcess_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+    #else
         ID3D11Resource* pSrcResource;
         pOrigRT->GetResource(&pSrcResource);
+    #endif
 
         HRESULT hr = 0;
         gcpRendD3D->m_RP.m_PS[gcpRendD3D->m_RP.m_nProcessThreadID].m_RTCopied++;
@@ -297,6 +312,10 @@ void SD3DPostEffectsUtils::StretchRect(CTexture* pSrc, CTexture*& pDst, bool bCl
 
 void SD3DPostEffectsUtils::SwapRedBlue(CTexture* pSrc, CTexture* pDst)
 {
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION D3DPOSTPROCESS_CPP_SECTION_2
+#include AZ_RESTRICTED_FILE(D3DPostProcess_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
 }
 
 void SD3DPostEffectsUtils::DownsampleDepth(CTexture* pSrc, CTexture* pDst, bool bFromSingleChannel)
@@ -365,9 +384,7 @@ void SD3DPostEffectsUtils::DownsampleDepth(CTexture* pSrc, CTexture* pDst, bool 
 #endif
     //  Confetti End: Igor Lobanchikov
 
-#if defined(OPENGL_ES)
-    uint32 glVersion = RenderCapabilities::GetDeviceGLVersion();
-    if (glVersion == DXGLES_VERSION_30)
+    if (GetShaderLanguage() == eSL_GLES3_0)
     {
         // There's a bug in Qualcomm OpenGL ES 3.0 drivers that cause the device
         // shader compiler to crash if we use "textureSize" in the shader to get the texture dimensions.
@@ -375,7 +392,6 @@ void SD3DPostEffectsUtils::DownsampleDepth(CTexture* pSrc, CTexture* pDst, bool 
         static CCryNameR texSizeParam("DownsampleDepth_DepthTex_Dimensions");
         CShaderMan::s_shPostEffects->FXSetPSFloat(texSizeParam, &texSize, 1);
     }
-#endif // defined(OPENGL_ES)
 
     // Handle uneven source size by dropping last row/column
     RECT source = { 0, 0, pDst->GetWidth(), pDst->GetHeight() };
@@ -1475,34 +1491,52 @@ bool CREPostProcess:: mfDraw(CShader* ef, SShaderPass* sfm)
     CPostEffectDebugVec& activeParams = pPostMgr->GetActiveEffectsParamsDebug();
 #endif
 
+    AZStd::vector<CPostEffect*> effectsToRender;
     for (CPostEffectItor pItor = pPostMgr->GetEffects().begin(), pItorEnd = pPostMgr->GetEffects().end(); pItor != pItorEnd; ++pItor)
     {
-        CPostEffect* pCurrEffect = (*pItor);
-        if (pCurrEffect->Preprocess())
+        CPostEffect* effectToPreprocess = (*pItor);
+        if (effectToPreprocess->Preprocess())
         {
-            uint32 nRenderFlags = pCurrEffect->GetRenderFlags();
-            if (nRenderFlags & PSP_UPDATE_BACKBUFFER)
-            {
-                PostProcessUtils().CopyScreenToTexture(CTexture::s_ptexBackBuffer);
-            }
-# ifndef _RELEASE
-            SPostEffectsDebugInfo* pDebugInfo = NULL;
-            for (uint32 i = 0, nNumEffects = activeEffects.size(); i < nNumEffects; ++i)
-            {
-                if ((pDebugInfo = &activeEffects[i]) && pDebugInfo->pEffect == pCurrEffect)
-                {
-                    pDebugInfo->fTimeOut = POSTSEFFECTS_DEBUGINFO_TIMEOUT;
-                    break;
-                }
-                pDebugInfo = NULL;
-            }
-            if (pDebugInfo == NULL)
-            {
-                activeEffects.push_back(SPostEffectsDebugInfo(pCurrEffect));
-            }
-#endif
-            pCurrEffect->Render();
+            effectsToRender.push_back(effectToPreprocess);
         }
+    }
+
+    for (auto effectIter = effectsToRender.begin(); effectIter != effectsToRender.end(); ++effectIter)
+    {
+        CPostEffect* currentEffect = (*effectIter);
+        uint32 nRenderFlags = currentEffect->GetRenderFlags();
+        if (nRenderFlags & PSP_UPDATE_BACKBUFFER)
+        {
+            PostProcessUtils().CopyScreenToTexture(CTexture::s_ptexBackBuffer);
+        }
+        if (nRenderFlags & PSP_UPDATE_SCENE_SPECULAR)
+        {
+            PostProcessUtils().CopyScreenToTexture(CTexture::s_ptexSceneSpecular);
+        }
+# ifndef _RELEASE
+        SPostEffectsDebugInfo* pDebugInfo = NULL;
+        for (uint32 i = 0, nNumEffects = activeEffects.size(); i < nNumEffects; ++i)
+        {
+            if ((pDebugInfo = &activeEffects[i]) && pDebugInfo->pEffect == currentEffect)
+            {
+                pDebugInfo->fTimeOut = POSTSEFFECTS_DEBUGINFO_TIMEOUT;
+                break;
+            }
+            pDebugInfo = NULL;
+        }
+        if (pDebugInfo == NULL)
+        {
+            activeEffects.push_back(SPostEffectsDebugInfo(currentEffect));
+        }
+#endif
+        if (CRenderer::CV_r_SkipNativeUpscale > 0 && AZStd::next(effectIter) == effectsToRender.end())
+        {
+            gcpRendD3D->FX_PopRenderTarget(0);
+            gcpRendD3D->RT_SetViewport(0,0, gcpRendD3D->GetNativeWidth(), gcpRendD3D->GetNativeHeight());
+            gcpRendD3D->FX_SetRenderTarget(0, gcpRendD3D->GetBackBuffer(), &gcpRendD3D->m_DepthBufferOrigMSAA);
+            gcpRendD3D->FX_SetActiveRenderTargets();
+        }
+        currentEffect->Render();
     }
 
 # ifndef _RELEASE

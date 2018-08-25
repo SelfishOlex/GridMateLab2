@@ -400,13 +400,13 @@ void CAsyncIOFileRequest::Cancel()
 void CAsyncIOFileRequest::SyncWithDecrypt()
 {
 #if defined(STREAMENGINE_SUPPORT_DECRYPT)
-    m_decryptJobExecutor.WaitForCompletion();
+    m_decryptJobExecutor.reset(); // destructor waits on job completion
 #endif  //STREAMENGINE_SUPPORT_DECRYPT
 }
 
 void CAsyncIOFileRequest::SyncWithDecompress()
 {
-    m_decompJobExecutor.WaitForCompletion();
+    m_decompJobExecutor.reset(); // destructor waits on job completion
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -542,6 +542,11 @@ void CAsyncIOFileRequest::Flush()
 
 void CAsyncIOFileRequest::Reset()
 {
+#if defined(STREAMENGINE_SUPPORT_DECRYPT)
+    m_decryptJobExecutor.reset(); // destructor waits on job completion
+#endif
+    m_decompJobExecutor.reset(); // destructor waits on job completion
+
 #ifndef _RELEASE
     if (m_pMemoryBuffer)
     {
@@ -985,7 +990,7 @@ void CAsyncIOFileRequest::ComputeSortKey(uint64 nCurrentKeyInProgress)
 
     const int g_nMaxPath = 0x800;
     char szFullPathBuf[g_nMaxPath];
-    const char* szFullPath = gEnv->pCryPak->AdjustFileName(m_strFileName.c_str(), szFullPathBuf, ICryPak::FOPEN_HINT_QUIET);
+    const char* szFullPath = gEnv->pCryPak->AdjustFileName(m_strFileName.c_str(), szFullPathBuf, AZ_ARRAY_SIZE(szFullPathBuf), ICryPak::FOPEN_HINT_QUIET);
 
     CCryPak* pCryPak = static_cast<CCryPak*>(gEnv->pCryPak);
 

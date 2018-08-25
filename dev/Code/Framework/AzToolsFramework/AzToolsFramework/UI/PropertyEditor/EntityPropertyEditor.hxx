@@ -189,7 +189,6 @@ namespace AzToolsFramework
         ComponentEditor* CreateComponentEditor();
         void UpdateEntityIcon();
         void UpdateEntityDisplay();
-        bool ShouldDisplayComponent(const AZ::Component* component) const;
         bool IsComponentRemovable(const AZ::Component* component) const;
         bool AreComponentsRemovable(const AZ::Entity::ComponentArrayType& components) const;
 
@@ -234,6 +233,8 @@ namespace AzToolsFramework
         QAction* m_actionToMoveComponentsTop;
         QAction* m_actionToMoveComponentsBottom;
         QAction* m_resetToSliceAction;
+
+        bool m_isShowingContextMenu = false;
 
         void CreateActions();
         void UpdateActions();

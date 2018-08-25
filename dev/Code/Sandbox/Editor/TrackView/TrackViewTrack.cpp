@@ -120,6 +120,37 @@ bool CTrackViewTrack::SnapTimeToNextKey(float& time) const
 }
 
 //////////////////////////////////////////////////////////////////////////
+void CTrackViewTrack::SetExpanded(bool expanded)
+{
+    if (m_pAnimTrack)
+    {
+        CTrackViewSequence* sequence = GetSequence();
+        if (nullptr != sequence)
+        {
+            if (GetExpanded() != expanded)
+            {
+                m_pAnimTrack->SetExpanded(expanded);
+
+                if (expanded)
+                {
+                    sequence->OnNodeChanged(this, ITrackViewSequenceListener::eNodeChangeType_Expanded);
+                }
+                else
+                {
+                    sequence->OnNodeChanged(this, ITrackViewSequenceListener::eNodeChangeType_Collapsed);
+                }
+            }
+        }
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////
+bool CTrackViewTrack::GetExpanded() const
+{
+    return (m_pAnimTrack) ? m_pAnimTrack->GetExpanded() : false;
+}
+
+//////////////////////////////////////////////////////////////////////////
 CTrackViewKeyHandle CTrackViewTrack::GetPrevKey(const float time)
 {
     CTrackViewKeyHandle keyHandle;
@@ -516,13 +547,13 @@ void CTrackViewTrack::SelectKey(unsigned int keyIndex, bool bSelect)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CTrackViewTrack::SetKeyTime(const int index, const float time)
+void CTrackViewTrack::SetKeyTime(const int index, const float time, bool notifyListeners)
 {
     const float bOldTime = m_pAnimTrack->GetKeyTime(index);
 
     m_pAnimTrack->SetKeyTime(index, time);
 
-    if (bOldTime != time)
+    if (notifyListeners && (bOldTime != time))
     {
         m_pTrackAnimNode->GetSequence()->OnKeysChanged();
     }
@@ -764,16 +795,19 @@ void CTrackViewTrack::PasteKeys(XmlNodeRef xmlNode, const float timeOffset)
 {
 
     CTrackViewSequence* sequence = GetSequence();
+    AZ_Assert(sequence, "Expected sequence not to be null.");
 
     if (sequence->GetSequenceType() == SequenceType::Legacy)
-    {
-        m_pAnimTrack->SerializeSelection(xmlNode, true, true, timeOffset);
-    }
-    else
     {
         AZ_Assert(CUndo::IsRecording(), "Expected Undo Recording");
         CUndo::Record(new CUndoTrackObject(this, sequence));
         m_pAnimTrack->SerializeSelection(xmlNode, true, true, timeOffset);
         CUndo::Record(new CUndoAnimKeySelection(sequence));
+    }
+    else
+    {
+        AzToolsFramework::ScopedUndoBatch undoBatch("Paste Keys");
+        m_pAnimTrack->SerializeSelection(xmlNode, true, true, timeOffset);
+        undoBatch.MarkEntityDirty(sequence->GetSequenceComponentEntityId());
     }
 }

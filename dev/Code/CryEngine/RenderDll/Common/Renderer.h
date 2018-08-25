@@ -11,13 +11,10 @@
 */
 // Original file Copyright Crytek GMBH or its affiliates, used under license.
 
-#ifndef CRYINCLUDE_CRYENGINE_RENDERDLL_COMMON_RENDERER_H
-#define CRYINCLUDE_CRYENGINE_RENDERDLL_COMMON_RENDERER_H
 #pragma once
 
 #include <CryPool/PoolAlloc.h>
 #include "TextMessages.h"                                                           // CTextMessages
-#include <CryEngineAPI.h>
 #include "RenderAuxGeom.h"
 #include "Shaders/Vertex.h"
 #include <AzFramework/Asset/AssetCatalogBus.h>
@@ -26,7 +23,18 @@
 
 #include <LoadScreenBus.h>
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#undef AZ_RESTRICTED_SECTION
+#define RENDERER_H_SECTION_1 1
+#define RENDERER_H_SECTION_2 2
+#define RENDERER_H_SECTION_3 3
+#define RENDERER_H_SECTION_4 4
+#endif
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION RENDERER_H_SECTION_1
+#include AZ_RESTRICTED_FILE(Renderer_h, AZ_RESTRICTED_PLATFORM)
+#endif
 
 typedef void (PROCRENDEF)(SShaderPass* l, int nPrimType);
 
@@ -140,6 +148,10 @@ typedef int (* pDrawModelFunc)(void);
     #define CBUFFER_NATIVE_DEPTH_DEAFULT_VAL 0
 #endif
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION RENDERER_H_SECTION_2
+#include AZ_RESTRICTED_FILE(Renderer_h, AZ_RESTRICTED_PLATFORM)
+#endif
 
 //////////////////////////////////////////////////////////////////////
 // Class to manage memory for Skinning Renderer Data
@@ -484,7 +496,7 @@ struct SShowRenderTargetInfo
     int col;
     struct RT
     {
-        CTexture* pTexture;
+        int textureID;
         Vec4 channelWeight;
         bool bFiltered;
         bool bRGBKEncoded;
@@ -517,6 +529,10 @@ private:
 struct SRenderPipeline;
 class CRenderer
     : public IRenderer
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION RENDERER_H_SECTION_3
+#include AZ_RESTRICTED_FILE(Renderer_h, AZ_RESTRICTED_PLATFORM)
+#endif
 {
 public:
 
@@ -749,6 +765,10 @@ public:
     void PostShutDown();
 
     // Multithreading support
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION RENDERER_H_SECTION_4
+#include AZ_RESTRICTED_FILE(Renderer_h, AZ_RESTRICTED_PLATFORM)
+#endif
 
     virtual void SyncComputeVerticesJobs();
 
@@ -799,11 +819,13 @@ public:
     virtual void RT_PushRenderTarget(int nTarget, CTexture* pTex, SDepthTexture* pDS, int nS) = 0;
     virtual void RT_PopRenderTarget(int nTarget) = 0;
     virtual void RT_SetViewport(int x, int y, int width, int height, int id = 0) = 0;
-    virtual void RT_ClearTarget(CTexture* pTex, const ColorF& color) = 0;
+    virtual void RT_ClearTarget(ITexture* pTex, const ColorF& color) = 0;
     virtual void RT_RenderDebug(bool bRenderStats = true) = 0;
     virtual void RT_SetRendererCVar(ICVar* pCVar, const char* pArgText, const bool bSilentMode = false) = 0;
+
+    virtual void RT_PostLevelLoading();
+
     void RT_PrepareLevelTexStreaming();
-    void RT_PostLevelLoading();
     void RT_DisableTemporalEffects();
 
     virtual bool FlushRTCommands(bool bWait, bool bImmediatelly, bool bForce);
@@ -1024,6 +1046,20 @@ public:
     virtual int     GetWhiteTextureId() const;
     virtual int     GetBlackTextureId() const;
 
+    // Methods exposed to external libraries
+    virtual void ApplyDepthTextureState(int unit, int nFilter, bool clamp) override;
+    virtual ITexture* GetZTargetTexture() override;
+    virtual int GetTextureState(const STexState& TS) override;
+    virtual uint32 TextureDataSize(uint32 nWidth, uint32 nHeight, uint32 nDepth, uint32 nMips, uint32 nSlices, const ETEX_Format eTF, ETEX_TileMode eTM = eTM_None) override;
+    virtual void ApplyForID(int nID, int nTUnit, int nTState, int nTexMaterialSlot, int nSUnit, bool useWhiteDefault) override;
+    virtual ITexture* Create3DTexture(const char* szName, int nWidth, int nHeight, int nDepth, int nMips, int nFlags, const byte* pData, ETEX_Format eTFSrc, ETEX_Format eTFDst) override;
+    virtual bool IsTextureExist(const ITexture* pTex) override;
+    virtual const char* NameForTextureFormat(ETEX_Format eTF) override;
+    virtual const char* NameForTextureType(ETEX_Type eTT) override;
+    virtual bool IsVideoThreadModeEnabled() override;
+    virtual IDynTexture* CreateDynTexture2(uint32 nWidth, uint32 nHeight, uint32 nTexFlags, const char* szSource, ETexPool eTexPool) override;
+    virtual uint32 GetCurrentTextureAtlasSize() override;
+
     virtual void  PrintToScreen(float x, float y, float size, const char* buf);
     virtual void TextToScreen(float x, float y, const char* format, ...);
     virtual void TextToScreenColor(int x, int y, float r, float g, float b, float a, const char* format, ...);
@@ -1111,6 +1147,8 @@ public:
 
     int GetBackbufferWidth() { return m_backbufferWidth; }
     int GetBackbufferHeight() { return m_backbufferHeight; }
+
+    void GetClampedWindowSize(int& widthPixels, int& heightPixels);
 
     inline int GetMaxSquareRasterDimension() const override
     {
@@ -1334,7 +1372,7 @@ public:
     void EF_AddClientPolys(const SRenderingPassInfo& passInfo);
     void EF_RemovePolysFromScene();
 
-    bool FX_TryToMerge(CRenderObject* pNewObject, CRenderObject* pOldObject, CRendElementBase* pRE, bool bResIdentical);
+    bool FX_TryToMerge(CRenderObject* pNewObject, CRenderObject* pOldObject, IRenderElement* pRE, bool bResIdentical);
     virtual void* FX_AllocateCharInstCB(SSkinningData*, uint32) { return NULL; }
     virtual void  FX_ClearCharInstCB(uint32) {}
 
@@ -1465,7 +1503,7 @@ public:
     virtual ERenderQuality EF_GetRenderQuality() const;
 
     void RefreshSystemShaders();
-    uint32 EF_BatchFlags(SShaderItem& SH, CRenderObject* pObj, CRendElementBase* re, const SRenderingPassInfo& passInfo);
+    uint32 EF_BatchFlags(SShaderItem& SH, CRenderObject* pObj, IRenderElement* re, const SRenderingPassInfo& passInfo);
 
     virtual void FX_PipelineShutdown(bool bFastShutdown = false) = 0;
 
@@ -1480,8 +1518,8 @@ public:
     virtual CRenderObject* EF_AddPolygonToScene(SShaderItem& si, int numPts, const SVF_P3F_C4B_T2F* verts, const SPipTangents* tangs, CRenderObject* obj, const SRenderingPassInfo& passInfo, uint16* inds, int ninds, int nAW, const SRendItemSorter& rendItemSorter);
     virtual CRenderObject* EF_AddPolygonToScene(SShaderItem& si, CRenderObject* obj, const SRenderingPassInfo& passInfo, int numPts, int ninds, SVF_P3F_C4B_T2F*& verts, SPipTangents*& tangs, uint16*& inds, int nAW, const SRendItemSorter& rendItemSorter);
 
-    virtual void FX_CheckOverflow(int nVerts, int nInds, CRendElementBase* re, int* nNewVerts = NULL, int* nNewInds = NULL) override;
-    virtual void FX_Start(CShader* ef, int nTech, CShaderResources* Res, CRendElementBase* re) override;
+    virtual void FX_CheckOverflow(int nVerts, int nInds, IRenderElement* re, int* nNewVerts = NULL, int* nNewInds = NULL) override;
+    virtual void FX_Start(CShader* ef, int nTech, CShaderResources* Res, IRenderElement* re) override;
 
     virtual int GenerateTextureId() override { return m_TexGenID++; }
 
@@ -1554,7 +1592,7 @@ public:
     virtual _smart_ptr<IImageFile> EF_LoadImage(const char* szFileName, uint32 nFlags);
 
     // Create new RE of type (edt)
-    virtual CRendElementBase* EF_CreateRE (EDataType edt);
+    virtual IRenderElement* EF_CreateRE (EDataType edt);
 
     // Begin using shaders
     virtual void EF_StartEf (const SRenderingPassInfo& passInfo);
@@ -1567,10 +1605,10 @@ public:
     CRenderObject* EF_DuplicateRO(CRenderObject* pObj, const SRenderingPassInfo& passInfo);
 
     // Add shader to the list (virtual)
-    virtual void EF_AddEf (CRendElementBase* pRE, SShaderItem& pSH,  CRenderObject* pObj, const SRenderingPassInfo& passInfo, int nList, int nAW, const SRendItemSorter& rendItemSorter);
+    virtual void EF_AddEf (IRenderElement* pRE, SShaderItem& pSH,  CRenderObject* pObj, const SRenderingPassInfo& passInfo, int nList, int nAW, const SRendItemSorter& rendItemSorter);
 
     // Add shader to the list
-    void EF_AddEf_NotVirtual (CRendElementBase* pRE, SShaderItem& pSH, CRenderObject* pObj, const SRenderingPassInfo& passInfo, int nList, int nAW, const SRendItemSorter& rendItemSorter);
+    void EF_AddEf_NotVirtual (IRenderElement* pRE, SShaderItem& pSH, CRenderObject* pObj, const SRenderingPassInfo& passInfo, int nList, int nAW, const SRendItemSorter& rendItemSorter);
 
     // Draw all shaded REs in the list
     virtual void EF_EndEf3D (const int nFlags, const int nPrecacheUpdateId, const int nNearPrecacheUpdateId, const SRenderingPassInfo& passInfo) = 0;
@@ -1728,7 +1766,7 @@ public:
     virtual void ForceUpdateShaderItem(SShaderItem* pShaderItem, _smart_ptr<IMaterial> pMaterial);
     virtual void RefreshShaderResourceConstants(SShaderItem* pShaderItem, _smart_ptr<IMaterial> pMaterial);
 
-    void RT_UpdateShaderItem (SShaderItem* pShaderItem);
+    void RT_UpdateShaderItem (SShaderItem* pShaderItem, IMaterial* material);
 
     bool UseHalfFloatRenderTargets();
 
@@ -2028,6 +2066,7 @@ public:
     static int CV_r_shadersImport;
     static int CV_r_shadersExport;
     static int CV_r_shadersCacheUnavailableShaders;
+    DeclareStaticConstIntCVar(CV_r_ShadersUseLLVMDirectXCompiler, 0);
     static int CV_r_meshpoolsize;
     static int CV_r_meshinstancepoolsize;
     static int CV_r_multigpu;
@@ -2227,6 +2266,7 @@ public:
     static int CV_r_ParticlesTessellation;
     static int CV_r_ParticlesTessellationTriSize;
     static float CV_r_ParticlesAmountGI;
+    static int CV_r_ParticlesGpuMaxEmitCount;
     static int CV_r_ParticlesHalfRes;
     DeclareStaticConstIntCVar(CV_r_ParticlesHalfResAmount, 0);
     DeclareStaticConstIntCVar(CV_r_ParticlesHalfResBlendMode, 0);
@@ -2262,10 +2302,13 @@ public:
 
     // Confetti David Srour: Upscaling Quality (Metal only at the moment)
     DeclareStaticConstIntCVar(CV_r_UpscalingQuality, 0);
-    // Confetti David Srour: Clears GMEM G-Buffer
+    //Clears GMEM G-Buffer
     DeclareStaticConstIntCVar(CV_r_ClearGMEMGBuffer, 0);
+
     // Confetti David Srour: 0 = disable, 1= resolves LDR GMEM path to an RGBA8 target after deferred composition
     DeclareStaticConstIntCVar(CV_r_GMEM_LDR_ForceResolvePostComposition, 0);
+    // 0 = disable, 1 = enables fast math for metal shaders
+    DeclareStaticConstIntCVar(CV_r_MetalShadersFastMath, 1);
     // Confetti Vera
     static int CV_r_CubeDepthMapResolution;
 
@@ -2487,6 +2530,22 @@ public:
     static int CV_r_FurFinShadowPass;
     static float CV_r_FurMovementBendingBias;
     static float CV_r_FurMaxViewDist;
+    
+    static int CV_r_SkipNativeUpscale;
+
+    // Graphics programmers: Use these in your code for local tests/debugging.
+    // Delete all references in your code before you submit
+    static int CV_r_GraphicsTest00;
+    static int CV_r_GraphicsTest01;
+    static int CV_r_GraphicsTest02;
+    static int CV_r_GraphicsTest03;
+    static int CV_r_GraphicsTest04;
+    static int CV_r_GraphicsTest05;
+    static int CV_r_GraphicsTest06;
+    static int CV_r_GraphicsTest07;
+    static int CV_r_GraphicsTest08;
+    static int CV_r_GraphicsTest09;
+
     //--------------end cvars------------------------
 
 
@@ -2636,5 +2695,3 @@ private:
 #include "CommonRender.h"
 
 #define SKY_BOX_SIZE 32.f
-
-#endif // CRYINCLUDE_CRYENGINE_RENDERDLL_COMMON_RENDERER_H

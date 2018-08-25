@@ -34,6 +34,7 @@
 #include <AzFramework/Asset/AssetCatalogBus.h>
 #include <AzFramework/StringFunc/StringFunc.h>
 
+#include <AzToolsFramework/API/EntityCompositionRequestBus.h>
 #include <AzToolsFramework/API/ToolsApplicationAPI.h>
 #include <AzToolsFramework/Commands/PreemptiveUndoCache.h>
 #include <AzToolsFramework/Commands/EntityStateCommand.h>
@@ -62,7 +63,7 @@ namespace AzToolsFramework
         if (AZ::SerializeContext* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
         {
             serializeContext->Class<EditorEntityContextComponent, AZ::Component>()
-                ->SerializerForEmptyClass();
+                ;
 
             if (AZ::EditContext* editContext = serializeContext->GetEditContext())
             {
@@ -797,7 +798,7 @@ namespace AzToolsFramework
     void EditorEntityContextComponent::OnSlicePreInstantiate(const AZ::Data::AssetId& sliceAssetId, const AZ::SliceComponent::SliceInstanceAddress& sliceAddress)
     {
         AZ_PROFILE_FUNCTION(AZ::Debug::ProfileCategory::AzToolsFramework);
-        const AzFramework::SliceInstantiationTicket& ticket = *AzFramework::SliceInstantiationResultBus::GetCurrentBusId();
+        const AzFramework::SliceInstantiationTicket ticket = *AzFramework::SliceInstantiationResultBus::GetCurrentBusId();
 
         // Start an undo that will wrap the entire slice instantiation event (unable to do this at a higher level since this is queued up by AzFramework and there's no undo concept at that level)
         ToolsApplicationRequests::Bus::Broadcast(&ToolsApplicationRequests::Bus::Events::BeginUndoBatch, "Slice Instantiation");
@@ -844,7 +845,7 @@ namespace AzToolsFramework
     {
         AZ_PROFILE_FUNCTION(AZ::Debug::ProfileCategory::AzToolsFramework);
 
-        const AzFramework::SliceInstantiationTicket& ticket = *AzFramework::SliceInstantiationResultBus::GetCurrentBusId();
+        const AzFramework::SliceInstantiationTicket ticket = *AzFramework::SliceInstantiationResultBus::GetCurrentBusId();
 
         if (ticket == m_queuedSliceReplacement.m_ticket)
         {
@@ -920,7 +921,7 @@ namespace AzToolsFramework
     {
         AZ_PROFILE_FUNCTION(AZ::Debug::ProfileCategory::AzToolsFramework);
 
-        const AzFramework::SliceInstantiationTicket& ticket = *AzFramework::SliceInstantiationResultBus::GetCurrentBusId();
+        const AzFramework::SliceInstantiationTicket ticket = *AzFramework::SliceInstantiationResultBus::GetCurrentBusId();
 
         AzFramework::SliceInstantiationResultBus::MultiHandler::BusDisconnect(ticket);
 
@@ -982,14 +983,16 @@ namespace AzToolsFramework
 
         // Add the metadata entities from every slice instance streamed in as well. We need to grab them directly
         // from their slices so we have the appropriate instance address for each one.
-        for (auto& slice : slices)
+        for (auto& subSlice : slices)
         {
-            for (const auto& instance : slice.GetInstances())
+            for (const auto& instance : subSlice.GetInstances())
             {
-                auto instantiated = instance.GetInstantiated();
-                for (auto* metadataEntity : instantiated->m_metadataEntities)
+                if (auto instantiated = instance.GetInstantiated())
                 {
-                    SliceMetadataEntityContextRequestBus::Broadcast(&SliceMetadataEntityContextRequestBus::Events::AddMetadataEntityToContext, AZ::SliceComponent::SliceInstanceAddress(const_cast<AZ::SliceComponent::SliceReference*>(&slice), const_cast<AZ::SliceComponent::SliceInstance*>(&instance)), *metadataEntity);
+                    for (auto* metadataEntity : instantiated->m_metadataEntities)
+                    {
+                        SliceMetadataEntityContextRequestBus::Broadcast(&SliceMetadataEntityContextRequestBus::Events::AddMetadataEntityToContext, AZ::SliceComponent::SliceInstanceAddress(const_cast<AZ::SliceComponent::SliceReference*>(&subSlice), const_cast<AZ::SliceComponent::SliceInstance*>(&instance)), *metadataEntity);
+                    }
                 }
             }
         }
@@ -1011,6 +1014,16 @@ namespace AzToolsFramework
         AZ_PROFILE_FUNCTION(AZ::Debug::ProfileCategory::AzToolsFramework);
 
         // All editor entities are automatically activated.
+
+        {
+            AZ_PROFILE_SCOPE(AZ::Debug::ProfileCategory::AzToolsFramework, "EditorEntityContextComponent::SetupEditorEntities:ScrubEntities");
+
+            // Scrub entities before initialization.
+            // Anything could go wrong with entities loaded from disk.
+            // Ex: There might be duplicates of components that do not tolerate
+            // duplication and would crash during their Init().
+            EntityCompositionRequestBus::Broadcast(&EntityCompositionRequestBus::Events::ScrubEntities, entities);
+        }
 
         {
             AZ_PROFILE_SCOPE(AZ::Debug::ProfileCategory::AzToolsFramework, "EditorEntityContextComponent::SetupEditorEntities:InitEntities");

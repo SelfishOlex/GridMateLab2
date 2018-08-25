@@ -15,17 +15,19 @@
 
 #include <Integration/Assets/AssetCommon.h>
 
+
 namespace EMotionFX
 {
     class SkeletalMotion;
+    class MotionInstance;
 
     namespace Integration
     {
         class MotionAsset : public EMotionFXAsset
         {
         public:
-            AZ_CLASS_ALLOCATOR(MotionAsset, EMotionFXAllocator, 0);
-            AZ_RTTI(MotionAsset, "{00494B8E-7578-4BA2-8B28-272E90680787}", EMotionFXAsset);
+            AZ_RTTI(MotionAsset, "{00494B8E-7578-4BA2-8B28-272E90680787}", EMotionFXAsset)
+            AZ_CLASS_ALLOCATOR_DECL
 
             MotionAsset();
 
@@ -35,7 +37,7 @@ namespace EMotionFX
         class MotionAssetHandler : public EMotionFXAssetHandler<MotionAsset>
         {
         public:
-            AZ_CLASS_ALLOCATOR(MotionAssetHandler, EMotionFXAllocator, 0);
+            AZ_CLASS_ALLOCATOR_DECL
 
             bool OnInitAsset(const AZ::Data::Asset<AZ::Data::AssetData>& asset) override;
             AZ::Data::AssetType GetAssetType() const override;

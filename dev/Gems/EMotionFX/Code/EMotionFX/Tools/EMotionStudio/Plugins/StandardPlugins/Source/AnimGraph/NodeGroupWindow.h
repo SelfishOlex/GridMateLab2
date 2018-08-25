@@ -10,12 +10,10 @@
 *
 */
 
-#ifndef __EMSTUDIO_ANIMGRAPHNODEGROUPWINDOW_H
-#define __EMSTUDIO_ANIMGRAPHNODEGROUPWINDOW_H
+#pragma once
 
 #include <MCore/Source/StandardHeaders.h>
 #include <MCore/Source/Array.h>
-#include <MCore/Source/UnicodeString.h>
 
 #include <EMotionFX/Source/NodeGroup.h>
 
@@ -32,8 +30,10 @@
 #include <EMotionFX/CommandSystem/Source/AnimGraphParameterCommands.h>
 #include <EMotionFX/CommandSystem/Source/AnimGraphNodeCommands.h>
 
-#include <MysticQt/Source/SearchButton.h>
-
+namespace AzQtComponents
+{
+    class FilteredSearchWidget;
+}
 
 namespace EMStudio
 {
@@ -47,18 +47,17 @@ namespace EMStudio
                  MCORE_MEMORYOBJECTCATEGORY(NodeGroupRenameWindow, MCore::MCORE_DEFAULT_ALIGNMENT, MEMCATEGORY_STANDARDPLUGINS);
 
     public:
-        NodeGroupRenameWindow(QWidget* parent, EMotionFX::AnimGraph* animGraph, const MCore::String& nodeGroup);
+        NodeGroupRenameWindow(QWidget* parent, EMotionFX::AnimGraph* animGraph, const AZStd::string& nodeGroup);
 
     private slots:
         void TextEdited(const QString& text);
         void Accepted();
 
     private:
-        EMotionFX::AnimGraph*  mAnimGraph;
-        MCore::String           mNodeGroup;
+        EMotionFX::AnimGraph*   mAnimGraph;
+        AZStd::string           mNodeGroup;
         QLineEdit*              mLineEdit;
         QPushButton*            mOKButton;
-        //QLabel*               mErrorMsg;
     };
 
     class NodeGroupWindow
@@ -82,14 +81,14 @@ namespace EMStudio
         //void OnNameEdited(QTableWidgetItem* item);
         void OnColorChanged(const QColor& color);
         //void OnCellChanged(int row, int column);
-        void SearchStringChanged(const QString& text);
+        void OnTextFilterChanged(const QString& text);
         void UpdateInterface();
 
     private:
-        virtual void keyPressEvent(QKeyEvent* event) override;
-        virtual void keyReleaseEvent(QKeyEvent* event) override;
+        void keyPressEvent(QKeyEvent* event) override;
+        void keyReleaseEvent(QKeyEvent* event) override;
 
-        virtual void contextMenuEvent(QContextMenuEvent* event) override;
+        void contextMenuEvent(QContextMenuEvent* event) override;
 
         uint32 FindGroupIndexByWidget(QObject* widget) const;
         //bool ValidateName(EMotionFX::AnimGraphNodeGroup* nodeGroup, const char* newName) const;
@@ -121,10 +120,8 @@ namespace EMStudio
         QPushButton*                    mAddButton;
         QPushButton*                    mRemoveButton;
         QPushButton*                    mClearButton;
-        MysticQt::SearchButton*         mFindWidget;
+        AzQtComponents::FilteredSearchWidget* m_searchWidget;
+        AZStd::string                   m_searchWidgetText;
         MCore::Array<WidgetLookup>      mWidgetTable;
     };
 } // namespace EMStudio
-
-
-#endif

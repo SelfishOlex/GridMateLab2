@@ -25,7 +25,7 @@ class ResourceGroupDetailWidget
 
 public:
 
-    ResourceGroupDetailWidget(ResourceManagementView* view, QSharedPointer<IResourceGroupStatusModel> resourceGroupStatusModel);
+    ResourceGroupDetailWidget(ResourceManagementView* view, QSharedPointer<IResourceGroupStatusModel> resourceGroupStatusModel, QWidget* parent);
 
     void show() override;
 
@@ -52,6 +52,7 @@ private:
     void UpdateUI();
     void OnUpdate();
     void OnDelete();
+    void OnEnable();
     void OnUploadCode();
 };
 

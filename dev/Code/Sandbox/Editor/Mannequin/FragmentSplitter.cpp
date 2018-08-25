@@ -11,7 +11,7 @@
 */
 // Original file Copyright Crytek GMBH or its affiliates, used under license.
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "FragmentSplitter.h"
 
 #include "MannequinDialog.h"
@@ -25,7 +25,7 @@ void CFragmentSplitter::showEvent(QShowEvent* event)
 {
     if (auto pMannequinDialog = CMannequinDialog::GetCurrentInstance())
     {
-        connect(pMannequinDialog->findDockWidget<CFragmentBrowser*>(), &QDockWidget::visibilityChanged, [](bool visible)
+        connect(pMannequinDialog->findDockWidget<CFragmentBrowser*>(), &QDockWidget::visibilityChanged, pMannequinDialog, [](bool visible)
             {
                 if (!visible)
                 {

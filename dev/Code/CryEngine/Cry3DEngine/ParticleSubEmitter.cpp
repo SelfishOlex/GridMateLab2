@@ -17,6 +17,7 @@
 #include "ParticleSubEmitter.h"
 #include "ParticleEmitter.h"
 #include <IAudioSystem.h>
+#include <AzCore/Math/Internal/MathTypes.h>
 
 #include <PNoise3.h>
 
@@ -111,7 +112,6 @@ void CParticleSubEmitter::Deactivate()
 
     if (m_pForce)
     {
-        assert(!JobManager::IsWorkerThread());
         GetPhysicalWorld()->DestroyPhysicalEntity(m_pForce);
         m_pForce = 0;
     }
@@ -239,7 +239,7 @@ void CParticleSubEmitter::EmitParticles(SParticleUpdateContext& context)
         
         //Since we are using the original particle lifetime without the strength curve, it's relatively safe to keep this code here; 
         //i.e. it won't ramp down toward zero and suddenly jump up to fEmitterLife.
-        if (fParticleLife == 0.f)
+        if (fParticleLife < AZ_FLT_EPSILON)
         {
             fParticleLife = fEmitterLife;
             if (fParticleLife <= 0.f)
@@ -990,24 +990,6 @@ int CParticleSubEmitter::SpawnParticleToContainer(const ResourceParticleParams& 
         pPart->Transform(*plocPreTransform);
     }
 
-    //If a fade emitter is set, we emit the same particle into a the Fade container. (Container will copy it)
-    //This is done to make sure that the fade particles have the same random values as the trail particles.
-    if (params.bCameraNonFacingFade && m_pContainer->GetFadeEffectContainer() != nullptr)
-    {
-        char fadeBuffer[sizeof(CParticle)] _ALIGN(128);
-        CParticle* pPartFade = new(fadeBuffer)CParticle(*pPart);
-        pPartFade->InitFadeParticle(fAge);
-        auto environmentFlags = context.nEnvFlags;
-        context.nEnvFlags = m_pContainer->GetFadeEffectContainer()->GetEnvironmentFlags();
-        CParticle* pNewPartFade = this->m_pContainer->GetFadeEffectContainer()->AddParticle(context, *pPartFade);
-        context.nEnvFlags = environmentFlags;
-
-        if (!pNewPartFade)
-        {
-            pPartFade->~CParticle();
-            return 0;
-        }
-    }
     CParticle* pNewPart = GetContainer().AddParticle(context, *pPart);
     if (!pNewPart)
     {

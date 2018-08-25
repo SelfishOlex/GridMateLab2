@@ -126,6 +126,9 @@ public:
     //! Get public parameters of material in variable block.
     CVarBlock* GetPublicVars(SInputShaderResources& pShaderResources);
 
+    //! Set the shader public param m_script variable into our own m_script, script contains min/max for a given shader param value
+    void SetShaderParamPublicScript();
+
     //! Sets variable block of public shader parameters.
     //! VarBlock must be in same format as returned by GetPublicVars().
     void SetPublicVars(CVarBlock* pPublicVars, CMaterial* pMtl);
@@ -202,7 +205,7 @@ public:
     bool CanModify(bool bSkipReadOnly = true);
 
     // Save material to file.
-    virtual bool Save(bool bSkipReadOnly = true);
+    virtual bool Save(bool bSkipReadOnly = true, const QString& fullPath = "");
 
     // Dummy material is just a placeholder item for materials that have not been found on disk.
     void SetDummy(bool bDummy) { m_bDummyMaterial = bDummy; }

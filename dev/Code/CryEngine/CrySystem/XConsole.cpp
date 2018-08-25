@@ -314,12 +314,18 @@ int CXConsole::con_showonload = 0;
 int CXConsole::con_debug = 0;
 int CXConsole::con_restricted = 0;
 
+namespace
+{
+    const AzFramework::InputChannelId s_nullRepeatEventId("xconsole_null_repeat_event_id");
+}
+
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
 CXConsole::CXConsole()
     : AzFramework::InputChannelEventListener(AzFramework::InputChannelEventListener::GetPriorityDebug())
     , AzFramework::InputTextEventListener(AzFramework::InputTextEventListener::GetPriorityDebug())
+    , m_nRepeatEventId(s_nullRepeatEventId)
 {
     m_fRepeatTimer = 0;
     m_pSysDeactivateConsole = 0;
@@ -1154,7 +1160,7 @@ ICVar* CXConsole::GetCVar(const char* sName)
             // Much slower but allows names with wrong case (use only where performance doesn't matter).
             for(it=m_mapVariables.begin(); it!=m_mapVariables.end(); ++it)
             {
-                if(_stricmp(it->first,sName)==0)
+                if(azstricmp(it->first,sName)==0)
                     return it->second;
             }
         }
@@ -1162,7 +1168,7 @@ ICVar* CXConsole::GetCVar(const char* sName)
         {
             for(it=m_mapVariables.begin(); it!=m_mapVariables.end(); ++it)
             {
-                if(_stricmp(it->first,sName)==0)
+                if(azstricmp(it->first,sName)==0)
                 {
                     CryFatalError("Error: Wrong case for '%s','%s'",it->first,sName);
                 }
@@ -1223,11 +1229,11 @@ void CXConsole::Update()
 
     if (!m_bConsoleActive)
     {
-        m_nRepeatEventId = AzFramework::InputChannelId();
+        m_nRepeatEventId = s_nullRepeatEventId;
     }
 
     // Process Key press repeat (backspace and cursor on PC)
-    if (m_nRepeatEventId != AzFramework::InputChannelId())
+    if (m_nRepeatEventId != s_nullRepeatEventId)
     {
         const float fRepeatDelay = 1.0f / 40.0f;          // in sec (similar to Windows default but might differ from actual setting)
         const float fHitchDelay = 1.0f / 10.0f;               // in sec. Very low, but still reasonable frame-rate (debug builds)
@@ -1240,7 +1246,7 @@ void CXConsole::Update()
             if (m_fRepeatTimer < -fHitchDelay)
             {
                 // bad framerate or hitch
-                m_nRepeatEventId = AzFramework::InputChannelId();
+                m_nRepeatEventId = s_nullRepeatEventId;
             }
             else
             {
@@ -1274,7 +1280,7 @@ bool CXConsole::OnInputChannelEventFiltered(const AzFramework::InputChannel& inp
 
     if (inputChannel.IsStateEnded() && m_bConsoleActive)
     {
-        m_nRepeatEventId = AzFramework::InputChannelId();
+        m_nRepeatEventId = s_nullRepeatEventId;
     }
 
     if (!inputChannel.IsStateBegan())
@@ -1314,27 +1320,27 @@ bool CXConsole::OnInputChannelEventFiltered(const AzFramework::InputChannel& inp
 
             if (modifierKeyStates.IsActive(AzFramework::ModifierKeyMask::CtrlAny))
             {
-                strcpy(szCombinedName,                "ctrl_");
+                azstrcpy(szCombinedName, AZ_ARRAY_SIZE(szCombinedName), "ctrl_");
                 iLen += 5;
             }
             if (modifierKeyStates.IsActive(AzFramework::ModifierKeyMask::ShiftAny))
             {
-                strcpy(&szCombinedName[iLen], "shift_");
+                azstrcpy(&szCombinedName[iLen], AZ_ARRAY_SIZE(szCombinedName) - iLen, "shift_");
                 iLen += 6;
             }
             if (modifierKeyStates.IsActive(AzFramework::ModifierKeyMask::AltAny))
             {
-                strcpy(&szCombinedName[iLen], "alt_");
+                azstrcpy(&szCombinedName[iLen], AZ_ARRAY_SIZE(szCombinedName) - iLen, "alt_");
                 iLen += 4;
             }
             if (modifierKeyStates.IsActive(AzFramework::ModifierKeyMask::SuperAny))
             {
-                strcpy(&szCombinedName[iLen], "win_");
+                azstrcpy(&szCombinedName[iLen], AZ_ARRAY_SIZE(szCombinedName) - iLen, "win_");
                 iLen += 4;
             }
 
             assert(sizeof(szCombinedName) > (iLen + strlen(channelId.GetName()) + 1));
-            strcpy(&szCombinedName[iLen], channelId.GetName());
+            azstrcpy(&szCombinedName[iLen], AZ_ARRAY_SIZE(szCombinedName) - iLen, channelId.GetName());
 
             cmd = FindKeyBind(szCombinedName);
         }
@@ -1367,7 +1373,7 @@ bool CXConsole::OnInputChannelEventFiltered(const AzFramework::InputChannel& inp
         if (m_bActivationKeyEnable)
         {
             ShowConsole(!GetStatus());
-            m_nRepeatEventId = AzFramework::InputChannelId();
+            m_nRepeatEventId = s_nullRepeatEventId;
             m_bIsConsoleKeyPressed = true;
             return true;
         }
@@ -1406,8 +1412,8 @@ bool CXConsole::OnInputChannelEventFiltered(const AzFramework::InputChannel& inp
 bool CXConsole::OnInputTextEventFiltered(const AZStd::string& textUTF8)
 {
 #ifdef PROCESS_XCONSOLE_INPUT
-    // Ignore tilde/accent character since it is reserved for toggling the console
-    const bool isTilde = (textUTF8 == "~" || textUTF8 == "`");
+    // Ignore tilde/accent/power of two character since it is reserved for toggling the console
+    const bool isTilde = (textUTF8 == "~" || textUTF8 == "`" || textUTF8 == "\xC2\xB2");
     if (m_bConsoleActive && !isTilde)
     {
         AddInputUTF8(textUTF8);
@@ -2006,33 +2012,33 @@ void CXConsole::AuditCVars(IConsoleCmdArgs* pArg)
         {
             const char* arg = pArg->GetArg(numArgs - 1);
 
-            if (_stricmp(arg, "cheat") == 0)
+            if (azstricmp(arg, "cheat") == 0)
             {
                 excludeMask &= ~cheatMask;
             }
 
-            if (_stricmp(arg, "const") == 0)
+            if (azstricmp(arg, "const") == 0)
             {
                 excludeMask &= ~constMask;
             }
 
-            if (_stricmp(arg, "readonly") == 0)
+            if (azstricmp(arg, "readonly") == 0)
             {
                 excludeMask &= ~readOnlyMask;
             }
 
-            if (_stricmp(arg, "dev") == 0)
+            if (azstricmp(arg, "dev") == 0)
             {
                 excludeMask &= ~devOnlyMask;
             }
 
-            if (_stricmp(arg, "dedi") == 0)
+            if (azstricmp(arg, "dedi") == 0)
             {
                 excludeMask &= ~dediOnlyMask;
             }
 
 #if defined(CVARS_WHITELIST)
-            if (_stricmp(arg, "whitelist") == 0)
+            if (azstricmp(arg, "whitelist") == 0)
             {
                 excludeWhitelist = false;
             }
@@ -2120,7 +2126,8 @@ void CXConsole::AuditCVars(IConsoleCmdArgs* pArg)
 #ifndef _RELEASE
 void CXConsole::DumpCommandsVarsTxt(const char* prefix)
 {
-    FILE* f0 = fopen("consolecommandsandvars.txt", "w");
+    FILE* f0 = nullptr;
+    azfopen(&f0, "consolecommandsandvars.txt", "w");
 
     if (!f0)
     {
@@ -2171,8 +2178,8 @@ void CXConsole::DumpCommandsVarsTxt(const char* prefix)
 
 void CXConsole::DumpVarsTxt(const bool includeCheat)
 {
-    FILE* f0 = fopen("consolevars.txt", "w");
-
+    FILE* f0 = nullptr;
+    azfopen(&f0, "consolevars.txt", "w");
     if (!f0)
     {
         return;
@@ -2701,7 +2708,7 @@ void CXConsole::ExecuteCommand(CConsoleCommand& cmd, string& str, bool bIgnoreDe
             for (unsigned int i = 1; i <= args.size(); i++)
             {
                 char pat[10];
-                sprintf(pat, "%%%d", i);
+                azsprintf(pat, "%%%d", i);
                 size_t pos = buf.find(pat);
                 if (pos == string::npos)
                 {
@@ -2747,7 +2754,7 @@ void CXConsole::Exit(const char* szExitComments, ...)
     }
     else
     {
-        strcpy(sResultMessageText, "No comments from application");
+        azstrcpy(sResultMessageText, AZ_ARRAY_SIZE(sResultMessageText), "No comments from application");
     }
 
     CryFatalError("%s", sResultMessageText);
@@ -2998,7 +3005,7 @@ void CXConsole::DisplayVarValue(ICVar* pVar)
         {
             if (iRealState == -1)
             {
-                strcpy(szRealState, " RealState=Custom");
+                azstrcpy(szRealState, AZ_ARRAY_SIZE(szRealState), " RealState=Custom");
             }
             else
             {
@@ -3022,7 +3029,7 @@ void CXConsole::DisplayVarValue(ICVar* pVar)
             if (nonAlphaBits != 0)
             {
                 char nonAlphaChars[3];  // 1..63 + '\0'
-                sValue += itoa(nonAlphaBits, nonAlphaChars, 10);
+                sValue += azitoa(nonAlphaBits, nonAlphaChars, AZ_ARRAY_SIZE(nonAlphaChars), 10);
                 sValue += ", ";
             }
             sValue += alphaChars;
@@ -3451,21 +3458,20 @@ void CXConsole::Copy()
         return;
     }
 
-    size_t cbLength = m_sInputBuffer.length();
+    size_t stringLength = m_sInputBuffer.length();
+    size_t requiredBufferSize = stringLength + 1; // for the null
 
-    HGLOBAL hGlobal;
-    LPVOID  pGlobal;
-
-    hGlobal = GlobalAlloc(GHND, cbLength + 1);
-    pGlobal = GlobalLock (hGlobal);
-
-    strcpy((char*)pGlobal, m_sInputBuffer.c_str());
-
-    GlobalUnlock(hGlobal);
-
-    EmptyClipboard();
-    SetClipboardData(CF_TEXT, hGlobal);
-    CloseClipboard();
+    if (HGLOBAL hGlobal = GlobalAlloc(GHND, requiredBufferSize))
+    {
+        if (LPVOID  pGlobal = GlobalLock(hGlobal))
+        {
+            azstrcpy((char*)pGlobal, requiredBufferSize, m_sInputBuffer.c_str());
+            GlobalUnlock(hGlobal);
+            EmptyClipboard();
+            SetClipboardData(CF_TEXT, hGlobal);
+            CloseClipboard();
+        }
+    }
 
     return;
 #endif //WIN32
@@ -3874,7 +3880,7 @@ const char* CXConsole::AutoComplete(const char* substr)
         const char* szCmd = cmds[i];
 
         size_t cmdlen = strlen(szCmd);
-        if (cmdlen >= substrLen && memicmp(szCmd, substr, substrLen) == 0)
+        if (cmdlen >= substrLen && azmemicmp(szCmd, substr, substrLen) == 0)
         {
             if (substrLen == cmdlen)
             {
@@ -3918,7 +3924,7 @@ const char* CXConsole::AutoCompletePrev(const char* substr)
 
     for (unsigned int i = 0; i < cmdCount; i++)
     {
-        if (_stricmp(substr, cmds[i]) == 0)
+        if (azstricmp(substr, cmds[i]) == 0)
         {
             if (i > 0)
             {

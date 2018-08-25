@@ -14,7 +14,7 @@
 // Description : A dialog bar for quickly accessing menu items and cvars
 
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "QuickAccessBar.h"
 #include "ui_QuickAccessBar.h"
 #include "ToolBox.h"
@@ -43,7 +43,7 @@ CQuickAccessBar::CQuickAccessBar(QWidget* pParent)
     setFocusProxy(m_ui->m_inputEdit);
     OnInitDialog();
 
-    connect(m_ui->m_inputEdit, &QLineEdit::editingFinished, this, &CQuickAccessBar::OnOK);
+    connect(m_ui->m_inputEdit, &QLineEdit::returnPressed, this, &CQuickAccessBar::OnOK);
 }
 
 CQuickAccessBar::~CQuickAccessBar()

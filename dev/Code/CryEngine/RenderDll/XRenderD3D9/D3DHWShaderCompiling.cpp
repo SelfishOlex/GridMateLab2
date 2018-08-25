@@ -16,10 +16,27 @@
 #include "I3DEngine.h"
 #include "CryCrc32.h"
 #include "UnalignedBlit.h"
-    #if !defined(OPENGL)
-            #include <D3D11Shader.h>
-            #include <D3DCompiler.h>
-    #endif
+
+#if defined(AZ_RESTRICTED_PLATFORM)
+#undef AZ_RESTRICTED_SECTION
+#define D3DHWSHADERCOMPILING_CPP_SECTION_1 1
+#define D3DHWSHADERCOMPILING_CPP_SECTION_2 2
+#define D3DHWSHADERCOMPILING_CPP_SECTION_3 3
+#define D3DHWSHADERCOMPILING_CPP_SECTION_4 4
+#define D3DHWSHADERCOMPILING_CPP_SECTION_5 5
+#define D3DHWSHADERCOMPILING_CPP_SECTION_6 6
+#endif
+
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION D3DHWSHADERCOMPILING_CPP_SECTION_1
+#include AZ_RESTRICTED_FILE(D3DHWShaderCompiling_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#elif !defined(OPENGL)
+    #include <D3D11Shader.h>
+    #include <D3DCompiler.h>
+#endif
 
 //  Confetti BEGIN: Igor Lobanchikov
 #ifdef CRY_USE_METAL
@@ -81,27 +98,6 @@ private:
 volatile LONG CSpinLock::s_locked = 0L;
 
 volatile int SShaderAsyncInfo::s_nPendingAsyncShaders = 0;
-
-const char* GetShaderListName()
-{
-#if defined(CRY_USE_METAL)
-    return "ShaderList_METAL.txt";
-#elif defined(OPENGL_ES) && DXGL_INPUT_GLSL
-    uint32 glVersion = RenderCapabilities::GetDeviceGLVersion();
-    if (glVersion == DXGLES_VERSION_30)
-    {
-        return "ShaderList_GLES3_0.txt";
-    }
-    else
-    {
-        return "ShaderList_GLES3_1.txt";
-    }
-#elif defined(OPENGL) && DXGL_INPUT_GLSL
-    return "ShaderList_GL4.txt";
-#else
-    return "ShaderList_PC.txt";
-#endif
-}
 
 //------------------------------------------------------------------------------
 // This is the single method that is used to map a sampler and its HW slot.
@@ -460,7 +456,7 @@ void CHWShader_D3D::mfGatherFXParameters(SHWSInstance* pInst, std::vector<SCGBin
                 for (j = 0; j < (uint32)FXParams.m_FXSamplersOld.size(); j++)
                 {
                     STexSamplerFX* sm = &FXParams.m_FXSamplersOld[j];
-                    if (!_stricmp(sm->m_szName.c_str(), param))
+                    if (!azstricmp(sm->m_szName.c_str(), param))
                     {
                         int nSampler = bn->m_RegisterOffset & 0x7f;
                         if (nSampler < MAX_TMU)
@@ -475,7 +471,7 @@ void CHWShader_D3D::mfGatherFXParameters(SHWSInstance* pInst, std::vector<SCGBin
                             {
                                 if (parameters[k].m_RegisterOffset & SHADER_BIND_TEXTURE)
                                 {
-                                    if (!stricmp(parameters[k].m_Name.c_str(), param))
+                                    if (!azstricmp(parameters[k].m_Name.c_str(), param))
                                     {
                                         samps[nSampler].Sampler.m_nTextureSlot = (int8)parameters[k].m_BindingSlot;
                                     }
@@ -486,7 +482,7 @@ void CHWShader_D3D::mfGatherFXParameters(SHWSInstance* pInst, std::vector<SCGBin
                             {
                                 if (parameters[k].m_RegisterOffset & SHADER_BIND_SAMPLER)
                                 {
-                                    if (!stricmp(parameters[k].m_Name.c_str(), param))
+                                    if (!azstricmp(parameters[k].m_Name.c_str(), param))
                                     {
                                         samps[nSampler].Sampler.m_nSamplerSlot = (int8)parameters[k].m_BindingSlot;
                                     }
@@ -535,7 +531,7 @@ void CHWShader_D3D::mfGatherFXParameters(SHWSInstance* pInst, std::vector<SCGBin
                             n++;
                         }
                         name[n] = 0;
-                        if (!_stricmp(name, param))
+                        if (!azstricmp(name, param))
                         {
                             int nSampler = bn->m_RegisterOffset & 0x7f;
                             if (nSampler < MAX_TMU)
@@ -549,7 +545,7 @@ void CHWShader_D3D::mfGatherFXParameters(SHWSInstance* pInst, std::vector<SCGBin
                                 {
                                     if (parameters[k].m_RegisterOffset & SHADER_BIND_TEXTURE)
                                     {
-                                        if (!stricmp(parameters[k].m_Name.c_str(), param))
+                                        if (!azstricmp(parameters[k].m_Name.c_str(), param))
                                         {
                                             samps[nSampler].Sampler.m_nTextureSlot = (int8)parameters[k].m_BindingSlot;
                                         }
@@ -560,7 +556,7 @@ void CHWShader_D3D::mfGatherFXParameters(SHWSInstance* pInst, std::vector<SCGBin
                                 {
                                     if (parameters[k].m_RegisterOffset & SHADER_BIND_SAMPLER)
                                     {
-                                        if (!stricmp(parameters[k].m_Name.c_str(), param))
+                                        if (!azstricmp(parameters[k].m_Name.c_str(), param))
                                         {
                                             samps[nSampler].Sampler.m_nSamplerSlot = (int8)parameters[k].m_BindingSlot;
                                         }
@@ -899,7 +895,15 @@ AZ::Vertex::Format CHWShader_D3D::mfVertexFormat(SHWSInstance* pInst, CHWShader_
         }
         int nIndex;
         if (!_strnicmp(IDesc.SemanticName, "POSITION", 8)
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION D3DHWSHADERCOMPILING_CPP_SECTION_2
+#include AZ_RESTRICTED_FILE(D3DHWShaderCompiling_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#else
             || !_strnicmp(IDesc.SemanticName, "SV_POSITION", 11)
+#endif
             )
         {
             nIndex = IDesc.SemanticIndex;
@@ -988,7 +992,7 @@ AZ::Vertex::Format CHWShader_D3D::mfVertexFormat(SHWSInstance* pInst, CHWShader_
             }
         }
         else
-        if (!_stricmp(IDesc.SemanticName, "TANGENT"))
+        if (!azstricmp(IDesc.SemanticName, "TANGENT"))
         {
             bTangent[0] = true;
             if (IDesc.ReadWriteMask)
@@ -997,7 +1001,7 @@ AZ::Vertex::Format CHWShader_D3D::mfVertexFormat(SHWSInstance* pInst, CHWShader_
             }
         }
         else
-        if (!stricmp(IDesc.SemanticName, "BITANGENT") || !stricmp(IDesc.SemanticName, "BINORMAL"))
+        if (!azstricmp(IDesc.SemanticName, "BITANGENT") || !azstricmp(IDesc.SemanticName, "BINORMAL"))
         {
             bBitangent[0] = true;
             if (IDesc.ReadWriteMask)
@@ -1029,7 +1033,15 @@ AZ::Vertex::Format CHWShader_D3D::mfVertexFormat(SHWSInstance* pInst, CHWShader_
             }
         }
         else
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION D3DHWSHADERCOMPILING_CPP_SECTION_3
+#include AZ_RESTRICTED_FILE(D3DHWShaderCompiling_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#else
         if (!_strnicmp(IDesc.SemanticName, "SV_", 3))
+#endif
         {
             // SV_ are valid semantics
         }
@@ -1969,7 +1981,13 @@ bool CHWShader_D3D::ConvertBinScriptToASCII(CParserBin& Parser, SHWSInstance* pI
         }
         else
         {
-#if   defined (_DEBUG)
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION D3DHWSHADERCOMPILING_CPP_SECTION_4
+#include AZ_RESTRICTED_FILE(D3DHWShaderCompiling_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#elif defined (_DEBUG)
             int n = 0;
             while (szStr[n])
             {
@@ -2078,7 +2096,7 @@ void CHWShader_D3D::mfGenName(SHWSInstance* pInst, char* dstname, int nSize, byt
 
 void CHWShader_D3D::mfGetDstFileName(SHWSInstance* pInst, CHWShader_D3D* pSH, char* dstname, int nSize, byte bType)
 {
-    cry_strcpy(dstname, nSize, gRenDev->m_cEF.m_ShadersCache);
+    cry_strcpy(dstname, nSize, gRenDev->m_cEF.m_ShadersCache.c_str());
 
     if (pSH->m_eSHClass == eHWSC_Vertex)
     {
@@ -2282,14 +2300,14 @@ SShaderDevCache* CHWShader::mfInitDevCache(const char* name, CHWShader* pSH)
     return new SShaderDevCache(cryShaderName);
 }
 
-#include <lzss/LZSS.H>
+#include <LZSS.H>
 
 SShaderCacheHeaderItem* CHWShader_D3D::mfGetCompressedItem(uint32 nFlags, int32& nSize)
 {
     SHWSInstance*   pInst = m_pCurInst;
     char            name[128];
     {
-        strcpy(name, GetName());
+        azstrcpy(name, AZ_ARRAY_SIZE(name), GetName());
         char* s = strchr(name, '(');
         if (s)
         {
@@ -2724,7 +2742,7 @@ bool CHWShader::mfOptimiseCacheFile(SShaderCache* pCache, bool bForce, SOptimise
         if (pLookupCache == NULL || pLookupCache->m_CacheMajorVer != nMajor || pLookupCache->m_CacheMinorVer != nMinor)
         {
             CRY_ASSERT_MESSAGE(pLookupCache == NULL, "Losing ShaderIdents by recreating lookupdata cache");
-            pLookupCache = pRes->GetLookupData(true, 0, (float)FX_CACHE_VER);
+            pLookupCache = pRes->GetLookupData(true, 0, FX_CACHE_VER);
         }
 
         pRes->mfFlush();
@@ -2903,7 +2921,7 @@ bool CHWShader::_OpenCacheFile(float fVersion, SShaderCache* pCache, CHWShader* 
                 return false;
             }
 
-            SResFileLookupData* pLookup = pRF->GetLookupData(true, CRC32, (float)FX_CACHE_VER);
+            SResFileLookupData* pLookup = pRF->GetLookupData(true, CRC32, FX_CACHE_VER);
             if (pSHHW)
             {
                 pRF->mfFlush();
@@ -3009,7 +3027,7 @@ SShaderCache* CHWShader::mfInitCache(const char* name, CHWShader* pSH, bool bChe
                         continue;
                     }
                     CResFile* pRF = pCache->m_pRes[i];
-                    SResFileLookupData* pLookup = pRF->GetLookupData(false, 0, (float)FX_CACHE_VER);
+                    SResFileLookupData* pLookup = pRF->GetLookupData(false, 0, FX_CACHE_VER);
                     bValid = (pLookup && pLookup->m_CRC32 == CRC32);
                     if (!bValid)
                     {
@@ -3034,7 +3052,7 @@ SShaderCache* CHWShader::mfInitCache(const char* name, CHWShader* pSH, bool bChe
                 }
                 if (!bValid)
                 {
-                    mfOpenCacheFile(name, (float)FX_CACHE_VER, pCache, pSH, bCheckValid, CRC32, bReadOnly);
+                    mfOpenCacheFile(name, FX_CACHE_VER, pCache, pSH, bCheckValid, CRC32, bReadOnly);
                 }
             }
         }
@@ -3048,7 +3066,7 @@ SShaderCache* CHWShader::mfInitCache(const char* name, CHWShader* pSH, bool bChe
         }
         pCache->m_nPlatform = CParserBin::m_nPlatform;
         pCache->m_Name = name;
-        mfOpenCacheFile(name, (float)FX_CACHE_VER, pCache, pSH, bCheckValid, CRC32, bReadOnly);
+        mfOpenCacheFile(name, FX_CACHE_VER, pCache, pSH, bCheckValid, CRC32, bReadOnly);
         m_ShaderCache.insert(FXShaderCacheItor::value_type(CCryNameR(name), pCache));
     }
 
@@ -3188,13 +3206,17 @@ bool CHWShader_D3D::mfUploadHW(SHWSInstance* pInst, byte* pBuf, uint32 nSize, CS
         assert(0);
     }
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION D3DHWSHADERCOMPILING_CPP_SECTION_5
+#include AZ_RESTRICTED_FILE(D3DHWShaderCompiling_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
 
     // Assign name to Shader for enhanced debugging
 #if !defined(RELEASE) && defined(WIN64)
     if (pInst->m_Handle.m_pShader->m_pHandle)
     {
         char name[1024];
-        sprintf(name, "%s_%s(LT%x)@(RT%llx)(MD%x)(MDV%x)(GL%llx)(PSS%llx)", pSH->GetName(), m_EntryFunc.c_str(), pInst->m_Ident.m_LightMask, pInst->m_Ident.m_RTMask, pInst->m_Ident.m_MDMask, pInst->m_Ident.m_MDVMask, pInst->m_Ident.m_GLMask, pInst->m_Ident.m_pipelineState.opaque);
+        azsprintf(name, "%s_%s(LT%x)@(RT%llx)(MD%x)(MDV%x)(GL%llx)(PSS%llx)", pSH->GetName(), m_EntryFunc.c_str(), pInst->m_Ident.m_LightMask, pInst->m_Ident.m_RTMask, pInst->m_Ident.m_MDMask, pInst->m_Ident.m_MDVMask, pInst->m_Ident.m_GLMask, pInst->m_Ident.m_pipelineState.opaque);
         ((ID3D11DeviceChild*)pInst->m_Handle.m_pShader->m_pHandle)->SetPrivateData(WKPDID_D3DDebugObjectName, strlen(name), name);
     }
 #endif
@@ -3439,7 +3461,7 @@ bool CHWShader_D3D::mfCreateCacheItem(SHWSInstance* pInst, std::vector<SCGBind>&
                 pSH->mfFlushCacheFile();
             }
         }
-        strcpy(name, pSH->GetName());
+        azstrcpy(name, AZ_ARRAY_SIZE(name), pSH->GetName());
         char* s = strchr(name, '(');
         if (s)
         {
@@ -3674,7 +3696,7 @@ int CHWShader_D3D::mfAsyncCompileReady(SHWSInstance* pInst)
         }
 
         mfGetDstFileName(pInst, this, nmDst, 256, 3);
-        gEnv->pCryPak->AdjustFileName(nmDst, nameSrc, 0);
+        gEnv->pCryPak->AdjustFileName(nmDst, nameSrc, AZ_ARRAY_SIZE(nameSrc), 0);
         if (pAsync->m_pFXShader && pAsync->m_pFXShader->m_HWTechniques.Num())
         {
             pTech = pAsync->m_pFXShader->m_HWTechniques[0];
@@ -3729,7 +3751,7 @@ int CHWShader_D3D::mfAsyncCompileReady(SHWSInstance* pInst)
         if (pAsync->m_bPendedFlush)
         {
             mfFlushCacheFile();
-            strcpy(nmDst, GetName());
+            azstrcpy(nmDst, AZ_ARRAY_SIZE(nmDst), GetName());
             char* s = strchr(nmDst, '(');
             if (s)
             {
@@ -3775,7 +3797,7 @@ bool CHWShader_D3D::mfRequestAsync(CShader* pSH, SHWSInstance* pInst, std::vecto
 #ifdef SHADER_ASYNC_COMPILATION
     char nameSrc[256], nmDst[256];
     mfGetDstFileName(pInst, this, nmDst, 256, 3);
-    gEnv->pCryPak->AdjustFileName(nmDst, nameSrc, 0);
+    gEnv->pCryPak->AdjustFileName(nmDst, nameSrc, AZ_ARRAY_SIZE(nameSrc), 0);
 
     if (!SShaderAsyncInfo::PendingList().m_Next)
     {
@@ -3803,7 +3825,7 @@ bool CHWShader_D3D::mfRequestAsync(CShader* pSH, SHWSInstance* pInst, std::vecto
     pInst->m_pAsync->m_pFXShader = pSH;
     pInst->m_pAsync->m_pFXShader->AddRef();
     pInst->m_pAsync->m_nCombination = gRenDev->m_cEF.m_nCombinationsProcess;
-    assert(!_stricmp(m_NameSourceFX.c_str(), pInst->m_pAsync->m_pFXShader->m_NameFile.c_str()));
+    assert(!azstricmp(m_NameSourceFX.c_str(), pInst->m_pAsync->m_pFXShader->m_NameFile.c_str()));
     InstContainer* pInstCont = &m_Insts;
     if (m_bUseLookUpTable)
     {
@@ -3905,19 +3927,12 @@ void CHWShader_D3D::mfSubmitRequestLine(SHWSInstance* pInst, string* pRequestLin
     else
 #endif
     {
-        NRemoteCompiler::CShaderSrv::Instance().RequestLine(GetShaderListName(), RequestLine.c_str());
+        NRemoteCompiler::CShaderSrv::Instance().RequestLine(GetShaderListFilename().c_str(), RequestLine.c_str());
     }
 }
 
 bool CHWShader_D3D::mfCompileHLSL_Int(CShader* pSH, char* prog_text, LPD3D10BLOB* ppShader, void** ppConstantTable, LPD3D10BLOB* ppErrorMsgs, string& strErr, std::vector<SCGBind>& InstBindVars)
 {
-    //  Confetti BEGIN: Igor Lobanchikov
-#if defined(CRY_USE_METAL) && defined(_DEBUG)
-    NSString* source = [[NSString alloc] initWithCString:prog_text
-                        encoding:NSASCIIStringEncoding];
-    NSLog(@ "%@", source);
-#endif
-    //  Confetti End: Igor Lobanchikov
     HRESULT hr = S_OK;
     SHWSInstance* pInst = m_pCurInst;
     const char* szProfile = mfProfileString(pInst->m_eClass);
@@ -3935,13 +3950,13 @@ bool CHWShader_D3D::mfCompileHLSL_Int(CShader* pSH, char* prog_text, LPD3D10BLOB
     else
     if (CRenderer::CV_r_shadersremotecompiler)
     {
-        string compiler = gRenDev->m_cEF.mfGetShaderCompileFlags(pInst->m_eClass, pInst->m_Ident.m_pipelineState);
+        AZStd::string lsCompilerFlags = NRemoteCompiler::CShaderSrv::Instance().GetShaderCompilerFlags(pInst->m_eClass, pInst->m_Ident.m_pipelineState);
 
         string RequestLine;
         mfSubmitRequestLine(pInst, &RequestLine);
 
         std::vector<uint8> Data;
-        if (NRemoteCompiler::ESOK != NRemoteCompiler::CShaderSrv::Instance().Compile(Data, szProfile, prog_text, pFunCCryName, compiler.c_str(), RequestLine.c_str()))
+        if (NRemoteCompiler::ESOK != NRemoteCompiler::CShaderSrv::Instance().Compile(Data, szProfile, prog_text, pFunCCryName, lsCompilerFlags.c_str(), RequestLine.c_str()))
         {
             string sErrorText;
             sErrorText.reserve(Data.size());
@@ -4119,13 +4134,8 @@ void CHWShader_D3D::mfPrepareShaderDebugInfo(SHWSInstance* pInst, CHWShader_D3D*
         char nmdst[256];
         mfGetDstFileName(pInst, pSH, nmdst, 256, 4);
 
-        string szName;
-        AZ::IO::HandleType statusdstFileHandle = AZ::IO::InvalidHandle;
-
-        {
-            szName = gRenDev->m_cEF.m_szCachePath + string(nmdst) + string(".fxca");
-            statusdstFileHandle = gEnv->pCryPak->FOpen(szName.c_str(), "wb");
-        }
+        AZStd::string szName = AZStd::string::format("%s%s.fxca", gRenDev->m_cEF.m_szCachePath.c_str(), nmdst);
+        AZ::IO::HandleType statusdstFileHandle = gEnv->pCryPak->FOpen(szName.c_str(), "wb");
 
         if (statusdstFileHandle != AZ::IO::InvalidHandle)
         {
@@ -4413,7 +4423,7 @@ bool CHWShader_D3D::mfActivate(CShader* pSH, uint32 nFlags, FXShaderToken* Table
                     "(%x)(%x)(%x)(%llx)(%s)...", t0 * 1000.0f,
                     GetName(), pInst->m_Ident.m_RTMask, pInst->m_Ident.m_LightMask, pInst->m_Ident.m_MDMask, pInst->m_Ident.m_MDVMask, pInst->m_Ident.m_pipelineState.opaque, mfProfileString(pInst->m_eClass));
                 char name[256];
-                strcpy(name, GetName());
+                azstrcpy(name, AZ_ARRAY_SIZE(name), GetName());
                 char* s = strchr(name, '(');
                 if (s)
                 {
@@ -4695,7 +4705,7 @@ void CAsyncShaderTask::SubmitAsyncRequestLine(SShaderAsyncInfo* pAsync)
         }
         else
         {
-            NRemoteCompiler::CShaderSrv::Instance().RequestLine(GetShaderListName(), pAsync->m_RequestLine.c_str());
+            NRemoteCompiler::CShaderSrv::Instance().RequestLine(GetShaderListFilename().c_str(), pAsync->m_RequestLine.c_str());
         }
     }
 }
@@ -4735,10 +4745,10 @@ bool CAsyncShaderTask::CompileAsyncShader(SShaderAsyncInfo* pAsync)
     bool bResult = true;
     if (CRenderer::CV_r_shadersremotecompiler)
     {
-        string compiler = gRenDev->m_cEF.mfGetShaderCompileFlags(pAsync->m_eClass, pAsync->m_pipelineState);
+        AZStd::string lsCompilerFlags = NRemoteCompiler::CShaderSrv::Instance().GetShaderCompilerFlags(pAsync->m_eClass, pAsync->m_pipelineState);
 
         std::vector<uint8> Data;
-        if (NRemoteCompiler::ESOK != NRemoteCompiler::CShaderSrv::Instance().Compile(Data, pAsync->m_Profile, pAsync->m_Text.c_str(), pAsync->m_Name.c_str(), compiler.c_str(), pAsync->m_RequestLine.c_str()))
+        if (NRemoteCompiler::ESOK != NRemoteCompiler::CShaderSrv::Instance().Compile(Data, pAsync->m_Profile, pAsync->m_Text.c_str(), pAsync->m_Name.c_str(), lsCompilerFlags.c_str(), pAsync->m_RequestLine.c_str()))
         {
 #if !defined(NULL_RENDERER)
             D3D10CreateBlob(sizeof("D3DXCompileShader failed"), (LPD3D10BLOB*)&pAsync->m_pErrors);
@@ -4910,6 +4920,10 @@ void CAsyncShaderTask::CShaderThread::Run()
 {
     CryThreadSetName(-1, SHADER_THREAD_NAME);
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION D3DHWSHADERCOMPILING_CPP_SECTION_6
+#include AZ_RESTRICTED_FILE(D3DHWShaderCompiling_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
 
     while (!m_quit)
     {
@@ -5182,7 +5196,7 @@ bool CHWShader_D3D::Export(SShaderSerializeContext& SC)
     SCHWShader SHW;
 
     char str[256];
-    strcpy(str, GetName());
+    azstrcpy(str, AZ_ARRAY_SIZE(str), GetName());
     char* c = strchr(str, '(');
     if (c)
     {
@@ -5368,7 +5382,7 @@ const char* CHWShader_D3D::mfGetActivatedCombinations(bool bForLevel)
     {
         SHWSInstance* pInst = m_Insts[i];
         char name[256];
-        strcpy(name, GetName());
+        azstrcpy(name, AZ_ARRAY_SIZE(name), GetName());
         char* s = strchr(name, '(');
         if (s)
         {

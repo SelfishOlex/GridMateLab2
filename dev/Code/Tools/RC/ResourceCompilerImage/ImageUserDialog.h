@@ -214,7 +214,7 @@ class MainThreadExecutor : public QObject
 {
     Q_OBJECT
 public:
-    static void execute(std::function<void()> f);
+    static void execute(AZStd::function<void()> f);
 
 private:
     MainThreadExecutor();
@@ -226,7 +226,7 @@ class EventFilter : public QObject
 {
     Q_OBJECT
 public:
-    EventFilter(QObject* target);
+    explicit EventFilter(QObject* target);
 
     bool eventFilter(QObject* object, QEvent* event) override;
 

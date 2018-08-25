@@ -19,7 +19,7 @@
 #include <cctype>
 
 #if defined(AZ_RESTRICTED_PLATFORM)
-#include AZ_RESTRICTED_FILE(LocalFileIO_cpp)
+#include AZ_RESTRICTED_FILE(LocalFileIO_cpp, AZ_RESTRICTED_PLATFORM)
 #elif defined(AZ_PLATFORM_WINDOWS) || defined(AZ_PLATFORM_WINDOWS_X64)
 #include "LocalFileIO_win.inl"
 #elif defined(AZ_PLATFORM_ANDROID)
@@ -461,6 +461,17 @@ namespace AZ
             return DestroyPath_Recurse(this, resolvedPath);
         }
 
+        static void toUnixSlashes(char *path, AZ::u64 size)
+        {
+            for (AZ::u64 i = 0; i < size && path[i] != '\0'; i++)
+            {
+                if (path[i] == '\\')
+                {
+                    path[i] = '/';
+                }
+            }
+        }
+
         bool LocalFileIO::ResolvePath(const char* path, char* resolvedPath, AZ::u64 resolvedPathSize)
         {
             if (path == nullptr)
@@ -481,14 +492,7 @@ namespace AZ
                         LowerIfBeginsWith(resolvedPath, resolvedPathSize, GetAlias("@root@"));
                     }
 
-                    for (AZ::u64 i = 0; i < resolvedPathSize && resolvedPath[i] != '\0'; i++)
-                    {
-                        if (resolvedPath[i] == '\\')
-                        {
-                            resolvedPath[i] = '/';
-                        }
-                    }
-
+                    toUnixSlashes(resolvedPath, resolvedPathSize);
                     return true;
                 }
                 else
@@ -527,15 +531,13 @@ namespace AZ
                 rootedPath = rootedPathBuffer;
             }
 
-            for (AZ::u64 i = 0; i < resolvedPathSize && resolvedPath[i] != '\0'; i++)
+            if (ResolveAliases(rootedPath, resolvedPath, resolvedPathSize))
             {
-                if (resolvedPath[i] == '\\')
-                {
-                    resolvedPath[i] = '/';
-                }
+                toUnixSlashes(resolvedPath, resolvedPathSize);
+                return true;
             }
 
-            return ResolveAliases(rootedPath, resolvedPath, resolvedPathSize);
+            return false;
         }
 
         void LocalFileIO::SetAlias(const char* key, const char* path)
@@ -576,7 +578,15 @@ namespace AZ
 
             for (const auto& alias : m_aliases)
             {
-                if (((longest_match == 0) || (alias.second.size() > longest_match)) && (alias.second.size() <= bufStringLength))
+                // here we are making sure that the buffer being passed in has enough space to include the alias in it.
+                // we are trying to find the LONGEST match, meaning of the following two examples, the second should 'win'
+                // File:  g:/lumberyard/dev/files/morefiles/blah.xml
+                // Alias1 links to 'g:/lumberyard/dev/'
+                // Alias2 links to 'g:/lumberyard/dev/files/morefiles'
+                // so returning Alias2 is preferred as it is more specific, even though alias1 includes it.
+                // note that its not possible for this to be matched if the string is shorter than the length of the alias itself so we skip
+                // strings that are shorter than the alias's mapped path without checking.
+                if ((longest_match == 0) || (alias.second.size() > longest_match) && (alias.second.size() <= bufStringLength))
                 {
                     // custom strcmp that ignores slash directions
                     bool allMatch = true;
@@ -623,7 +633,7 @@ namespace AZ
                 size_t finalStringSize = alias_size + remainingData;
                 if (finalStringSize >= bufferLength)
                 {
-                    AZ_Error("FileIO", false, "Buffer overflow avoided for ConverToAlias on %s (len %llu) with alias %s", inOutBuffer, bufferLength, longestAlias);
+                    AZ_Error("FileIO", false, "Buffer overflow avoided for ConvertToAlias on %s (max len %llu, actual len %llu) with alias %s", inOutBuffer, bufferLength, finalStringSize, longestAlias);
                     // avoid buffer overflow, return original untouched
                     return bufStringLength;
                 }
@@ -643,6 +653,13 @@ namespace AZ
         {
             AZ_Assert(path != resolvedPath && resolvedPathSize > strlen(path), "Resolved path is incorrect");
             AZ_Assert(path && path[0] != '%', "%% is deprecated, @ is the only valid alias token");
+
+            // we assert above, but we also need to properly handle the case when the resolvedPath buffer size
+            // is too small to copy the source into.
+            if (path == resolvedPath || (resolvedPathSize < strlen(path)))
+            {
+                return false;
+            }
 
             size_t pathLen = strlen(path) + 1; // account for null
             azstrncpy(resolvedPath, resolvedPathSize, path, pathLen);

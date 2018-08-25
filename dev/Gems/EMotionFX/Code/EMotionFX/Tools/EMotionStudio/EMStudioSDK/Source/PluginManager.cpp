@@ -11,8 +11,6 @@
 */
 
 // include required headers
-#include <AzCore/std/sort.h>
-#include <AzFramework/StringFunc/StringFunc.h>
 #include "EMStudioManager.h"
 #include <MysticQt/Source/MysticQtConfig.h>
 #include "PluginManager.h"
@@ -27,6 +25,7 @@
 #include <QApplication>
 
 // include MCore related
+#include <MCore/Source/StringConversions.h>
 #include <MCore/Source/LogManager.h>
 
 // include mac reladed
@@ -131,8 +130,8 @@ namespace EMStudio
         dir.setSorting(QDir::Name);
 
         // iterate over all files
-        MCore::String filename;
-        MCore::String finalFile;
+        AZStd::string filename;
+        AZStd::string finalFile;
         QFileInfoList list = dir.entryInfoList();
         for (int i = 0; i < list.size(); ++i)
         {
@@ -140,15 +139,17 @@ namespace EMStudio
             FromQtString(fileInfo.fileName(), &filename);
 
             // only add files with the .plugin extension
-            if (filename.ExtractFileExtension().Lowered() == "plugin")
+            AZStd::string extension;
+            AzFramework::StringFunc::Path::GetExtension(filename.c_str(), extension, false /* include dot */);
+            if (extension == "plugin")
             {
             #ifdef MCORE_DEBUG
-                if (filename.Lowered().Contains("_debug") == false) // skip non-debug versions of the plugins
+                if (extension.find("_debug") == AZStd::string::npos) // skip non-debug versions of the plugins
                 {
                     continue;
                 }
             #else
-                if (filename.Lowered().Contains("_debug"))  // skip debug versions of the plugins
+                if (extension.find("_debug") != AZStd::string::npos)  // skip debug versions of the plugins
                 {
                     continue;
                 }
@@ -156,7 +157,7 @@ namespace EMStudio
 
                 finalFile = directory;
                 finalFile += filename;
-                LoadPlugins(finalFile.AsChar());
+                LoadPlugins(finalFile.c_str());
             }
         }
     }
@@ -263,7 +264,6 @@ namespace EMStudio
         newPlugin->Init();
         newPlugin->RegisterKeyboardShortcuts();
 
-        SortActivePlugins();
         return newPlugin;
     }
 
@@ -300,7 +300,7 @@ namespace EMStudio
     // generate a unique object name
     QString PluginManager::GenerateObjectName() const
     {
-        MCore::String randomString;
+        AZStd::string randomString;
 
         // random seed
         qsrand(QTime(0, 0, 0).secsTo(QTime::currentTime()));
@@ -309,7 +309,7 @@ namespace EMStudio
         for (;; )
         {
             // generate a string from a set of random numbers
-            randomString.Format("PLUGIN%d%d%d", qrand(), qrand(), qrand());
+            randomString = AZStd::string::format("PLUGIN%d%d%d", qrand(), qrand(), qrand());
 
             // check if we have a conflict with a current plugin
             bool hasConflict = false;
@@ -328,18 +328,12 @@ namespace EMStudio
 
             if (hasConflict == false)
             {
-                return randomString.AsChar();
+                return randomString.c_str();
             }
         }
 
         //return QString("INVALID");
     }
-
-    void PluginManager::SortActivePlugins()
-    {
-        AZStd::sort(mActivePlugins.begin(), mActivePlugins.end());
-    }
-
 
     // find the number of active plugins of a given type
     uint32 PluginManager::GetNumActivePluginsOfType(const char* pluginType) const

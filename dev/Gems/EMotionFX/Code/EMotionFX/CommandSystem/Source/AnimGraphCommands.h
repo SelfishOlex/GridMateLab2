@@ -12,7 +12,7 @@
 
 #pragma once
 
-// include the required headers
+#include <AzCore/std/string/string.h>
 #include "CommandSystemConfig.h"
 #include <MCore/Source/Command.h>
 #include "CommandManager.h"
@@ -20,70 +20,39 @@
 
 namespace CommandSystem
 {
-    // scale anim graph data
-        MCORE_DEFINECOMMAND_START(CommandScaleAnimGraphData, "Scale anim graph data", true)
-public:
-    MCore::String       mOldUnitType;
-    uint32              mID;
-    float               mScaleFactor;
-    bool                mOldDirtyFlag;
-    bool                mUseUnitType;
-    MCORE_DEFINECOMMAND_END
-
-
     // load the given anim graph
-        MCORE_DEFINECOMMAND_START(CommandLoadAnimGraph, "Load a anim graph", true)
+    MCORE_DEFINECOMMAND_START(CommandLoadAnimGraph, "Load a anim graph", true)
 public:
     uint32              mOldAnimGraphID;
     bool                mOldWorkspaceDirtyFlag;
     MCORE_DEFINECOMMAND_END
 
 
-    // adjust a anim graph
-        MCORE_DEFINECOMMAND_START(CommandAdjustAnimGraph, "Adjust anim graph", true)
-    MCore::String       mOldName;
-    MCore::String       mOldDescription;
-    bool                mOldRetargetingEnabled;
-    bool                mOldDirtyFlag;
-    MCORE_DEFINECOMMAND_END
-
-
     // create a new anim graph
-        MCORE_DEFINECOMMAND_START(CommandCreateAnimGraph, "Create a anim graph", true)
+    MCORE_DEFINECOMMAND_START(CommandCreateAnimGraph, "Create a anim graph", true)
 public:
     uint32              mPreviouslyUsedID;
-    MCore::String       mOldName;
     bool                mOldWorkspaceDirtyFlag;
     MCORE_DEFINECOMMAND_END
 
 
     // delete the given anim graph
-        MCORE_DEFINECOMMAND_START(CommandRemoveAnimGraph, "Remove a anim graph", true)
+    MCORE_DEFINECOMMAND_START(CommandRemoveAnimGraph, "Remove a anim graph", true)
 public:
-    MCore::String       mOldName;
-    MCore::String       mOldFileName;
-    uint32              mOldID;
-    uint32              mOldIndex;
-    bool                mOldWorkspaceDirtyFlag;
-    MCORE_DEFINECOMMAND_END
-
-
-    // clone the given anim graph
-        MCORE_DEFINECOMMAND_START(CommandCloneAnimGraph, "Clone a anim graph", true)
-public:
-    uint32              mOldAnimGraphID;
-    bool                mOldWorkspaceDirtyFlag;
+    AZStd::vector<AZStd::pair<AZStd::string, uint32>> m_oldFileNamesAndIds;
+    bool                             mOldWorkspaceDirtyFlag;
     MCORE_DEFINECOMMAND_END
 
 
     // Activate the given anim graph.
     MCORE_DEFINECOMMAND_START(CommandActivateAnimGraph, "Activate a anim graph", true)
-    public:
-        uint32              mActorInstanceID;
-        uint32              mOldAnimGraphUsed;
-        uint32              mOldMotionSetUsed;
-        float               mOldVisualizeScaleUsed;
-        bool                mOldWorkspaceDirtyFlag;
+public:
+    uint32              mActorInstanceID;
+    uint32              mOldAnimGraphUsed;
+    uint32              mOldMotionSetUsed;
+    float               mOldVisualizeScaleUsed;
+    bool                mOldWorkspaceDirtyFlag;
+    static const char*  s_activateAnimGraphCmdName;
     MCORE_DEFINECOMMAND_END
 
 

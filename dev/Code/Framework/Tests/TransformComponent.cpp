@@ -10,7 +10,7 @@
 *
 */
 
-#include "TestTypes.h"
+#include <Tests/TestTypes.h>
 
 #include <AzCore/Math/Matrix3x3.h>
 #include <AzCore/Math/Random.h>
@@ -19,7 +19,6 @@
 #include <AzFramework/Application/Application.h>
 #include <AzFramework/Components/TransformComponent.h>
 
-#include <AzFramework/Math/MathUtils.h>
 #include <AzCore/Component/ComponentApplication.h>
 
 using namespace AZ;
@@ -40,6 +39,7 @@ namespace UnitTest
     protected:
         void SetUp() override
         {
+            AllocatorsFixture::SetUp();
             ComponentApplication::Descriptor desc;
             desc.m_useExistingAllocator = true;
 
@@ -49,6 +49,7 @@ namespace UnitTest
         void TearDown() override
         {
             m_app.Stop();
+            AllocatorsFixture::TearDown();
         }
 
         AzFramework::Application m_app;
@@ -225,18 +226,18 @@ namespace UnitTest
             // CreateLookAt
             AZ::Vector3 lookAtEye(1.0f, 2.0f, 3.0f);
             AZ::Vector3 lookAtTarget(10.0f, 5.0f, -5.0f);
-            AZ::Transform t1 = AzFramework::CreateLookAt(lookAtEye, lookAtTarget);
+            AZ::Transform t1 = AZ::Transform::CreateLookAt(lookAtEye, lookAtTarget);
             AZ_TEST_ASSERT(t1.GetBasisY().IsClose((lookAtTarget - lookAtEye).GetNormalized()));
             AZ_TEST_ASSERT(t1.GetTranslation() == lookAtEye);
             AZ_TEST_ASSERT(t1.IsOrthogonal());
 
             AZ_TEST_START_ASSERTTEST;
-            t1 = AzFramework::CreateLookAt(lookAtEye, lookAtEye); //degenerate direction
+            t1 = AZ::Transform::CreateLookAt(lookAtEye, lookAtEye); //degenerate direction
             AZ_TEST_STOP_ASSERTTEST(1);
             AZ_TEST_ASSERT(t1.IsOrthogonal());
             AZ_TEST_ASSERT(t1 == AZ::Transform::CreateIdentity());
 
-            t1 = AzFramework::CreateLookAt(lookAtEye, lookAtEye + AZ::Vector3::CreateAxisZ()); //degenerate with up direction
+            t1 = AZ::Transform::CreateLookAt(lookAtEye, lookAtEye + AZ::Vector3::CreateAxisZ()); //degenerate with up direction
             AZ_TEST_ASSERT(t1.GetBasisY().IsClose(AZ::Vector3::CreateAxisZ()));
             AZ_TEST_ASSERT(t1.GetTranslation() == lookAtEye);
             AZ_TEST_ASSERT(t1.IsOrthogonal());

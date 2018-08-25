@@ -17,6 +17,7 @@
 #include "StandardHeaders.h"
 #include "Attribute.h"
 #include "Vector.h"
+#include "StringConversions.h"
 
 namespace MCore
 {
@@ -40,7 +41,6 @@ namespace MCore
 
         MCORE_INLINE uint8* GetRawDataPointer()                     { return reinterpret_cast<uint8*>(&mValue); }
         MCORE_INLINE uint32 GetRawDataSize() const                  { return sizeof(AZ::Vector2); }
-        bool GetSupportsRawDataPointer() const override             { return true; }
 
         // adjust values
         MCORE_INLINE const AZ::Vector2& GetValue() const                { return mValue; }
@@ -59,19 +59,13 @@ namespace MCore
             mValue = static_cast<const AttributeVector2*>(other)->GetValue();
             return true;
         }
-        bool InitFromString(const String& valueString) override
+        bool InitFromString(const AZStd::string& valueString) override
         {
-            if (valueString.CheckIfIsValidVector2() == false)
-            {
-                return false;
-            }
-            mValue = valueString.ToVector2();
-            return true;
+            return AzFramework::StringFunc::LooksLikeVector2(valueString.c_str(), &mValue);
         }
-        bool ConvertToString(String& outString) const override      { outString.FromVector2(mValue); return true; }
+        bool ConvertToString(AZStd::string& outString) const override      { AZStd::to_string(outString, mValue); return true; }
         uint32 GetClassSize() const override                        { return sizeof(AttributeVector2); }
         uint32 GetDefaultInterfaceType() const override             { return ATTRIBUTE_INTERFACETYPE_VECTOR2; }
-        void Scale(float scaleFactor) override                      { mValue *= scaleFactor; }
 
     private:
         AZ::Vector2     mValue;     /**< The Vector2 value. */
@@ -104,17 +98,5 @@ namespace MCore
             return true;
         }
 
-        // write to a stream
-        bool WriteData(MCore::Stream* stream, MCore::Endian::EEndianType targetEndianType) const override
-        {
-            AZ::Vector2 streamValue = mValue;
-            Endian::ConvertVector2To(&streamValue, targetEndianType);
-            if (stream->Write(&streamValue, sizeof(AZ::Vector2)) == 0)
-            {
-                return false;
-            }
-
-            return true;
-        }
     };
 }   // namespace MCore

@@ -15,9 +15,11 @@
 #include <AzCore/Socket/AzSocket.h>
 #include <AzCore/std/string/conversions.h>
 
-#if _MSC_VER == 1900
+#if _MSC_VER >= 1910
+    #define CRYSCOMPILESERVER_EXE_BUILD_TOOL "_vc141x64"
+#elif _MSC_VER >= 1900
     #define CRYSCOMPILESERVER_EXE_BUILD_TOOL "_vc140x64"
-#elif _MSC_VER == 1800
+#elif _MSC_VER >= 1800
     #define CRYSCOMPILESERVER_EXE_BUILD_TOOL "_vc120x64"
 #else // _MSC_VER
     #define CRYSCOMPILESERVER_EXE_BUILD_TOOL ""
@@ -78,7 +80,10 @@ bool DeploymentUtil::LaunchShaderCompiler()
     }
     else
     {
-        const AZStd::string data = "<?xml version=\"1.0\"?><Compile Version=\"2.1\" Platform=\"DX11\" JobType=\"RequestLine\" ShaderRequest=\"&lt;3&gt;FixedPipelineEmu@FPPS()()(2a2a0505)(0)(0)(0)(PS)\"/>";
+        // XML for Remote Shader Compiler v2.3 for a RequestLine job type.
+        // Using Mac Metal with LLVM compiler because it's supported in both Mac and PC.
+        const AZStd::string data = "<?xml version=\"1.0\"?><Compile Version=\"2.3\" JobType=\"RequestLine\" Project=\"SamplesProject\" Platform=\"Mac\" Compiler=\"METAL_LLVM_DXC\" Language=\"METAL\" ShaderList=\"ShaderList_METAL.txt\" ShaderRequest=\"&lt;3&gt;FixedPipelineEmu@FPPS()()(2a2a0505)(0)(0)(0)(PS)\"/>";
+        
         const uint64 size = data.size();
         AZ::AzSock::Send(socket, (const char*)&size, 8, 0);
         result = AZ::AzSock::Send(socket, data.c_str(), static_cast<uint32>(size), 0);

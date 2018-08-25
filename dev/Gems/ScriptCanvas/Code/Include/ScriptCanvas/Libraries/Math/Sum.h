@@ -56,7 +56,7 @@ namespace ScriptCanvas
             protected:
                 Datum Evaluate(const Datum& lhs, const Datum& rhs) override
                 {
-                    return Datum::CreateInitializedCopy(*lhs.GetAs<Data::NumberType>() + *rhs.GetAs<Data::NumberType>());
+                    return Datum(*lhs.GetAs<Data::NumberType>() + *rhs.GetAs<Data::NumberType>());
                 }
             };
 

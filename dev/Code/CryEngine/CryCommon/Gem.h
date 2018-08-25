@@ -13,6 +13,9 @@
 
 #include <platform.h>
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#include AZ_RESTRICTED_FILE(Gem_h, AZ_RESTRICTED_PLATFORM)
+#endif
 
 #if defined(LINUX) || defined(APPLE) || defined(ANDROID)
     #define OPENGL 1
@@ -47,7 +50,7 @@
 #include <cvars.h>
 #include <Material.h>
 #include <terrain.h>
-#include <3DEngine.h>
+#include <3dEngine.h>
 #include <ObjMan.h>
 #include <StlUtils.h>
 

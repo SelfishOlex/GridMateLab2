@@ -202,8 +202,6 @@ void C3DEngine::UpdateSun(const SRenderingPassInfo& passInfo)
         gEnv->p3DEngine->SetSunAnimColor(Vec3(lightProps->m_Color.r, lightProps->m_Color.g, lightProps->m_Color.b));
 
         RegisterEntity(m_pSun);
-
-        SetupLightScissors(lightProps, passInfo);
     }
     else if (m_pSun)
     {
@@ -510,11 +508,12 @@ void CLightEntity::InitShadowFrustum_SUN_Conserv(ShadowMapFrustum* pFr, int dwAl
 
     //TOFIX: replace fGSMBoxSize  by fRadius
     float fRadius = fGSMBoxSize;
-
 #ifdef FEATURE_SVO_GI
-    if (GetCVars()->e_svoTI_Apply && GetCVars()->e_svoTI_InjectionMultiplier && nLod == GetCVars()->e_svoTI_GsmCascadeLod)
+    if (gEnv->pConsole->GetCVar("e_svoTI_Active") && 
+        gEnv->pConsole->GetCVar("e_svoTI_Active")->GetIVal() && 
+        nLod == 2)
     {
-        fRadius += GetCVars()->e_svoTI_ConeMaxLength * 0.5f;
+        fRadius += gEnv->pConsole->GetCVar("e_svoTI_ConeMaxLength")->GetFVal() * 0.5f;
     }
 #endif
 
@@ -1424,7 +1423,8 @@ void CLightEntity::FillFrustumCastersList_SUN(ShadowMapFrustum* pFr, int dwAllow
         {
             PodArray<SPlaneObject>* pShadowHull = (pFr->nShadowMapLod && !passInfo.IsRenderingCubemap()) ? &lstCastersHull : NULL;
 #ifdef FEATURE_SVO_GI
-            if (GetCVars()->e_svoTI_Apply && GetCVars()->e_svoTI_GsmShiftBack && (nLod == GetCVars()->e_svoTI_GsmCascadeLod) && GetCVars()->e_svoTI_InjectionMultiplier)
+            if (gEnv->pConsole->GetCVar("e_svoTI_Active") &&
+                gEnv->pConsole->GetCVar("e_svoTI_Active")->GetIVal())
             {
                 pShadowHull = NULL; // TODO: enable hull usage for GI (use extended hull check)
             }
@@ -1610,12 +1610,13 @@ void CLightEntity::UpdateCastShadowFlag(float fDistance, const SRenderingPassInf
 void CLightEntity::Render(const SRendParams& rParams, const SRenderingPassInfo& passInfo)
 {
 #if defined(FEATURE_SVO_GI)
-    if (GetCVars()->e_svoTI_SkipNonGILights && GetCVars()->e_svoTI_Apply && !GetVoxelGIMode())
+    if (gEnv->pConsole->GetCVar("e_svoTI_Active") && 
+        gEnv->pConsole->GetCVar("e_svoTI_Active")->GetIVal() && 
+        !GetVoxelGIMode())
     {
         return;
     }
 #endif
-
     if (m_layerId != uint16(~0) && m_dwRndFlags & ERF_HIDDEN)
     {
         return;
@@ -1677,9 +1678,9 @@ void CLightEntity::Render(const SRendParams& rParams, const SRenderingPassInfo& 
 
     if ((m_light.m_Flags & DLF_PROJECT) && (m_light.m_fLightFrustumAngle < 90.f) && (m_light.m_pLightImage))
     {
-#if defined(FEATURE_SVO_GI)
-        if (!GetCVars()->e_svoTI_Apply || GetVoxelGIMode() != VM_Dynamic)
-#endif
+        if (!gEnv->pConsole->GetCVar("e_GI")->GetIVal() || 
+            (gEnv->pConsole->GetCVar("e_svoTI_Active") && !gEnv->pConsole->GetCVar("e_svoTI_Active")->GetIVal()) || 
+            GetVoxelGIMode() != VM_Dynamic)
         {
             CCamera lightCam = passInfo.GetCamera();
             lightCam.SetPositionNoUpdate(m_light.m_Origin);
@@ -1827,21 +1828,13 @@ void CLightEntity::Render(const SRendParams& rParams, const SRenderingPassInfo& 
         const float mult = SATURATE(6.f * (1.f - (rParams.fDistance / m_fWSMaxViewDist)));
         IF (m_light.m_Color.Luminance() * mult > 0, 1)
         {
-            if (passInfo.IsGeneralPass())
-            {
-                Get3DEngine()->SetupLightScissors(&m_light, passInfo);
-            }
-
             Get3DEngine()->AddLightToRenderer(m_light, mult, passInfo, SRendItemSorter(rParams.rendItemSorter));
         }
     }
 }
 
-#if defined(FEATURE_SVO_GI)
 IRenderNode::EVoxelGIMode CLightEntity::GetVoxelGIMode()
 {
-    if (!(m_light.m_Flags & (DLF_DISABLED | DLF_FAKE | DLF_VOLUMETRIC_FOG_ONLY | DLF_AMBIENT | DLF_DEFERRED_CUBEMAPS)) && !(m_dwRndFlags & ERF_HIDDEN))
-    {
         if (m_light.m_BaseColor.Luminance() > .01f && m_light.m_fBaseRadius > 0.5f)
         {
             if (m_light.m_Flags & DLF_SUN)
@@ -1855,18 +1848,8 @@ IRenderNode::EVoxelGIMode CLightEntity::GetVoxelGIMode()
                     return VM_None;
                 }
             }
-
-            if (m_VoxelGIMode == VM_Static)
-            {
-                return VM_Static;
-            }
-
-            if (m_VoxelGIMode || (GetCVars()->e_svoTI_ForceGIForAllLights))
-            {
-                return VM_Dynamic;
-            }
+            return m_VoxelGIMode;
         }
-    }
     return VM_None;
 }
 
@@ -1874,7 +1857,6 @@ void CLightEntity::SetDesiredVoxelGIMode(EVoxelGIMode mode)
 {
     m_VoxelGIMode = mode;
 }
-#endif
 
 void CLightEntity::SetName(const char* name)
 {

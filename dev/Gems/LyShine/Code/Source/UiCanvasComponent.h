@@ -43,6 +43,7 @@ class UiCanvasComponent
     , public AZ::EntityBus::Handler
     , public UiAnimationBus::Handler
     , public UiInteractableActiveNotificationBus::Handler
+    , public ISystem::CrySystemNotificationBus::Handler
     , public IGameFrameworkListener
     , public IUiAnimationListener
 {
@@ -89,7 +90,7 @@ public: // member functions
     void FindElementsByName(const LyShine::NameType& name, LyShine::EntityArray& result) override;
     AZ::EntityId FindElementEntityIdByName(const LyShine::NameType& name) override;
     AZ::Entity* FindElementByHierarchicalName(const LyShine::NameType& name) override;
-    void FindElements(std::function<bool(const AZ::Entity*)> predicate, LyShine::EntityArray& result) override;
+    void FindElements(AZStd::function<bool(const AZ::Entity*)> predicate, LyShine::EntityArray& result) override;
 
     AZ::Entity* PickElement(AZ::Vector2 point) override;
     LyShine::EntityArray PickElements(const AZ::Vector2& bound0, const AZ::Vector2& bound1) override;
@@ -129,6 +130,10 @@ public: // member functions
 
     bool GetIsPositionalInputSupported() override;
     void SetIsPositionalInputSupported(bool isSupported) override;
+    bool GetIsConsumingAllInputEvents() override;
+    void SetIsConsumingAllInputEvents(bool isConsuming) override;
+    bool GetIsMultiTouchSupported() override;
+    void SetIsMultiTouchSupported(bool isSupported) override;
     bool GetIsNavigationSupported() override;
     void SetIsNavigationSupported(bool isSupported) override;
 
@@ -153,6 +158,7 @@ public: // member functions
     void ForceActiveInteractable(AZ::EntityId interactableId, bool shouldStayActive, AZ::Vector2 point) override;
     AZ::EntityId GetHoverInteractable() override;
     void ForceHoverInteractable(AZ::EntityId interactableId) override;
+    void ClearAllInteractables() override;
 
     void SetTransformsNeedRecomputeFlag() override;
     // ~UiCanvasInterface
@@ -179,9 +185,9 @@ public: // member functions
     void ActiveChanged(AZ::EntityId m_newActiveInteractable, bool shouldStayActive) override;
     // ~UiInteractableActiveNotifications
 
-    // IGameFrameworkListener
+    // IGameFrameworkListener / ISystem::CrySystemNotifications
     void OnPreRender() override;
-    // ~IGameFrameworkListener
+    // ~IGameFrameworkListener / ISystem::CrySystemNotifications
 
     // IUiAnimationListener
     void OnUiAnimationEvent(EUiAnimationEvent uiAnimationEvent, IUiAnimSequence* pAnimSequence) override;
@@ -261,9 +267,13 @@ private: // member functions
     // A key was pressed to transfer hover to the ancestor interactable
     bool PassHoverToAncestorByKeyInput(const AzFramework::InputChannel::Snapshot& inputSnapshot);
 
-    // Code shared by HandleInputEvent and HandleTouchEvent
+    // Code shared by all positional input events
     bool HandlePrimaryPress(AZ::Vector2 point);
     bool HandlePrimaryRelease(AZ::Vector2 point);
+    bool HandleMultiTouchPress(AZ::Vector2 point, int multiTouchIndex);
+    bool HandleMultiTouchRelease(AZ::Vector2 point, int multiTouchIndex);
+    bool HandleMultiTouchUpdated(AZ::Vector2 point, int multiTouchIndex);
+    bool IsInteractableActiveOrPressed(AZ::EntityId interactableId) const;
 
     // Functions to change the hover and active interactables
     void SetHoverInteractable(AZ::EntityId interactableId);
@@ -353,6 +363,8 @@ private: // data
     bool m_isPixelAligned;    //! if true all visual elements have their vertices snapped to the nearest pixel
     AZ::EntityId m_firstHoverInteractable;
     bool m_isPositionalInputSupported = true;
+    bool m_isConsumingAllInputEvents = false;
+    bool m_isMultiTouchSupported = true;
     bool m_isNavigationSupported = true;
     AZ::EntityId m_tooltipDisplayElement;
 
@@ -392,6 +404,10 @@ private: // data
 
     //! The last mouse position. Used to detect mouse movement
     AZ::Vector2 m_lastMousePosition;
+
+    //! A map of all interactables that have handled a multi-touch (non-primary) pressed
+    //! event but that are still waiting to receive the corresponding released event
+    AZStd::unordered_map<int, AZ::EntityId> m_multiTouchInteractablesByTouchIndex;
 
     LyShine::CanvasId m_id;
     int m_drawOrder;

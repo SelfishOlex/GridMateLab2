@@ -19,7 +19,7 @@
 #include <QListWidget>
 #include <QTextEdit>
 #include <QApplication>
-
+#include <QHBoxLayout>
 
 namespace EMStudio
 {
@@ -57,28 +57,18 @@ namespace EMStudio
                 for (uint32 i = 0; i < numParameters; ++i)
                 {
                     mTempString += " -";
-                    mTempString += commandLine.GetParameterName(i).AsChar();
+                    mTempString += commandLine.GetParameterName(i);
                     mTempString += " ";
-                    mTempString += commandLine.GetParameterValue(i).AsChar();
+                    mTempString += commandLine.GetParameterValue(i);
                 }
-
-                if (mTempString.size() < 4096)
-                {
-                    MCore::LogDebug(mTempString.c_str());
-                }
-                else
-                {
-                    AZStd::string s = mTempString;
-                    s.resize(4095);
-                    MCore::LogDebug(s.c_str());
-                }
+                MCore::LogDebugMsg(mTempString.c_str());
             }
         }
     }
 
 
     // After executing a command.
-    void ActionHistoryCallback::OnPostExecuteCommand(MCore::CommandGroup* group, MCore::Command* command, const MCore::CommandLine& commandLine, bool wasSuccess, const MCore::String& outResult)
+    void ActionHistoryCallback::OnPostExecuteCommand(MCore::CommandGroup* group, MCore::Command* command, const MCore::CommandLine& commandLine, bool wasSuccess, const AZStd::string& outResult)
     {
         MCORE_UNUSED(group);
         MCORE_UNUSED(commandLine);
@@ -95,16 +85,7 @@ namespace EMStudio
         if (command && MCore::GetLogManager().GetLogLevels() & MCore::LogCallback::LOGLEVEL_DEBUG)
         {
             mTempString = AZStd::string::format("%sExecution of command '%s' %s", wasSuccess ?  "    " : "*** ", command->GetName(), wasSuccess ? "completed successfully" : " FAILED");
-            if (mTempString.size() < 4096)
-            {
-                MCore::LogDebug(mTempString.c_str());
-            }
-            else
-            {
-                AZStd::string s = mTempString;
-                s.resize(4095);
-                MCore::LogDebug(s.c_str());
-            }
+            MCore::LogDebugMsg(mTempString.c_str()); 
         }
     }
 
@@ -130,16 +111,7 @@ namespace EMStudio
         if (group && MCore::GetLogManager().GetLogLevels() & MCore::LogCallback::LOGLEVEL_DEBUG)
         {
             mTempString = AZStd::string::format("Starting %s of command group '%s'", undo ? "undo" : "execution", group->GetGroupName());
-            if (mTempString.size() < 4096)
-            {
-                MCore::LogDebug(mTempString.c_str());
-            }
-            else
-            {
-                AZStd::string s = mTempString;
-                s.resize(4095);
-                MCore::LogDebug(s.c_str());
-            }
+            MCore::LogDebugMsg(mTempString.c_str());
         }
     }
 
@@ -162,16 +134,7 @@ namespace EMStudio
         if (group && MCore::GetLogManager().GetLogLevels() & MCore::LogCallback::LOGLEVEL_DEBUG)
         {
             mTempString = AZStd::string::format("%sExecution of command group '%s' %s", wasSuccess ?  "    " : "*** ", group->GetGroupName(), wasSuccess ? "completed successfully" : " FAILED");
-            if (mTempString.size() < 4096)
-            {
-                MCore::LogDebug(mTempString.c_str());
-            }
-            else
-            {
-                AZStd::string s = mTempString;
-                s.resize(4095);
-                MCore::LogDebug(s.c_str());
-            }
+            MCore::LogDebugMsg(mTempString.c_str());
         }
     }
 
@@ -231,52 +194,52 @@ namespace EMStudio
         const uint32 historyIndex = GetCommandManager()->GetHistoryIndex();
         if (historyIndex == MCORE_INVALIDINDEX32)
         {
-            MCore::String outResult;
+            AZStd::string outResult;
             const uint32 numRedos = index + 1;
             for (uint32 i = 0; i < numRedos; ++i)
             {
-                outResult.Clear();
+                outResult.clear();
                 const bool result = GetCommandManager()->Redo(outResult);
-                if (outResult.GetLength() > 0)
+                if (outResult.size() > 0)
                 {
                     if (!result)
                     {
-                        MCore::LogError(outResult.AsChar());
+                        MCore::LogError(outResult.c_str());
                     }
                 }
             }
         }
         else if (historyIndex > index) // if we need to perform undo's
         {
-            MCore::String outResult;
+            AZStd::string outResult;
             const int32 numUndos = historyIndex - index;
             for (int32 i = 0; i < numUndos; ++i)
             {
                 // try to undo
-                outResult.Clear();
+                outResult.clear();
                 const bool result = GetCommandManager()->Undo(outResult);
-                if (outResult.GetLength() > 0)
+                if (outResult.size() > 0)
                 {
                     if (!result)
                     {
-                        MCore::LogError(outResult.AsChar());
+                        MCore::LogError(outResult.c_str());
                     }
                 }
             }
         }
         else if (historyIndex < index) // if we need to redo commands
         {
-            MCore::String outResult;
+            AZStd::string outResult;
             const int32 numRedos = index - historyIndex;
             for (int32 i = 0; i < numRedos; ++i)
             {
-                outResult.Clear();
+                outResult.clear();
                 const bool result = GetCommandManager()->Redo(outResult);
-                if (outResult.GetLength() > 0)
+                if (outResult.size() > 0)
                 {
                     if (!result)
                     {
-                        MCore::LogError(outResult.AsChar());
+                        MCore::LogError(outResult.c_str());
                     }
                 }
             }

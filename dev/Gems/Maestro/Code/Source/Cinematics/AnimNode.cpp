@@ -16,6 +16,8 @@
 #include "AnimNode.h"
 #include "AnimTrack.h"
 #include "AnimSequence.h"
+#include <Maestro/Types/AssetBlendKey.h>
+#include "AssetBlendTrack.h"
 #include "CharacterTrack.h"
 #include "AnimSplineTrack.h"
 #include "BoolTrack.h"
@@ -37,6 +39,7 @@
 
 #include <AzCore/std/sort.h>
 #include <AzCore/Math/MathUtils.h>
+#include <AzCore/Component/TickBus.h>
 #include <I3DEngine.h>
 #include <ctime>
 #include "Maestro/Types/AnimValueType.h"
@@ -273,18 +276,20 @@ bool CAnimNode::RemoveTrack(IAnimTrack* pTrack)
 void CAnimNode::Reflect(AZ::SerializeContext* serializeContext)
 {
     serializeContext->Class<CAnimNode>()
-        ->Version(1)
+        ->Version(2)
         ->Field("ID", &CAnimNode::m_id)
         ->Field("Name", &CAnimNode::m_name)
         ->Field("Flags", &CAnimNode::m_flags)
         ->Field("Tracks", &CAnimNode::m_tracks)
         ->Field("Parent", &CAnimNode::m_parentNodeId)
-        ->Field("Type", &CAnimNode::m_nodeType);
+        ->Field("Type", &CAnimNode::m_nodeType)
+        ->Field("Expanded", &CAnimNode::m_expanded);    
 }
 
 //////////////////////////////////////////////////////////////////////////
 IAnimTrack* CAnimNode::CreateTrackInternal(const CAnimParamType& paramType, EAnimCurveType trackType, AnimValueType valueType)
 {
+
     if (valueType == AnimValueType::Unknown)
     {
         SParamInfo info;
@@ -371,6 +376,9 @@ IAnimTrack* CAnimNode::CreateTrackInternal(const CAnimParamType& paramType, EAni
             break;
         case AnimValueType::CharacterAnim:
             pTrack = aznew CCharacterTrack;
+            break;
+        case AnimValueType::AssetBlend:
+            pTrack = aznew CAssetBlendTrack;
             break;
         }
     }
@@ -615,6 +623,7 @@ CAnimNode::CAnimNode(const CAnimNode& other)
     , m_flags(other.m_flags)
     , m_pParentNode(other.m_pParentNode)
     , m_nLoadedParentNodeId(other.m_nLoadedParentNodeId)
+    , m_expanded(other.m_expanded)
 {
     // m_bIgnoreSetParam not copied
 }
@@ -632,6 +641,7 @@ CAnimNode::CAnimNode(const int id, AnimNodeType nodeType)
     m_bIgnoreSetParam = false;
     m_pParentNode = 0;
     m_nLoadedParentNodeId = 0;
+    m_expanded = true;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -912,7 +922,7 @@ IAnimTrack* CAnimNode::CreateTrackInternalVector(EAnimCurveType trackType, const
         subTrackParamTypes[0] = AnimParamType::RotationX;
         subTrackParamTypes[1] = AnimParamType::RotationY;
         subTrackParamTypes[2] = AnimParamType::RotationZ;
-        IAnimTrack* pTrack = aznew CCompoundSplineTrack(3, AnimValueType::Quat, subTrackParamTypes);
+        IAnimTrack* pTrack = aznew CCompoundSplineTrack(3, AnimValueType::Quat, subTrackParamTypes, false);
         return pTrack;
     }
     else if (paramType == AnimParamType::DepthOfField)
@@ -920,7 +930,7 @@ IAnimTrack* CAnimNode::CreateTrackInternalVector(EAnimCurveType trackType, const
         subTrackParamTypes[0] = AnimParamType::FocusDistance;
         subTrackParamTypes[1] = AnimParamType::FocusRange;
         subTrackParamTypes[2] = AnimParamType::BlurAmount;
-        IAnimTrack* pTrack = aznew CCompoundSplineTrack(3, AnimValueType::Vector, subTrackParamTypes);
+        IAnimTrack* pTrack = aznew CCompoundSplineTrack(3, AnimValueType::Vector, subTrackParamTypes, false);
         pTrack->SetSubTrackName(0, "FocusDist");
         pTrack->SetSubTrackName(1, "FocusRange");
         pTrack->SetSubTrackName(2, "BlurAmount");
@@ -933,14 +943,14 @@ IAnimTrack* CAnimNode::CreateTrackInternalVector(EAnimCurveType trackType, const
         subTrackParamTypes[0] = AnimParamType::ColorR;
         subTrackParamTypes[1] = AnimParamType::ColorG;
         subTrackParamTypes[2] = AnimParamType::ColorB;
-        IAnimTrack* pTrack = aznew CCompoundSplineTrack(3, AnimValueType::RGB, subTrackParamTypes);
+        IAnimTrack* pTrack = aznew CCompoundSplineTrack(3, AnimValueType::RGB, subTrackParamTypes, false);
         pTrack->SetSubTrackName(0, "Red");
         pTrack->SetSubTrackName(1, "Green");
         pTrack->SetSubTrackName(2, "Blue");
         return pTrack;
     }
 
-    return aznew CCompoundSplineTrack(3, AnimValueType::Vector, subTrackParamTypes);
+    return aznew CCompoundSplineTrack(3, AnimValueType::Vector, subTrackParamTypes, false);
 }
 
 IAnimTrack* CAnimNode::CreateTrackInternalQuat(EAnimCurveType trackType, const CAnimParamType& paramType) const
@@ -958,7 +968,7 @@ IAnimTrack* CAnimNode::CreateTrackInternalQuat(EAnimCurveType trackType, const C
         assert(0);
     }
 
-    return aznew CCompoundSplineTrack(3, AnimValueType::Quat, subTrackParamTypes);
+    return aznew CCompoundSplineTrack(3, AnimValueType::Quat, subTrackParamTypes, false);
 }
 
 IAnimTrack* CAnimNode::CreateTrackInternalVector4(const CAnimParamType& paramType) const
@@ -986,7 +996,7 @@ IAnimTrack* CAnimNode::CreateTrackInternalVector4(const CAnimParamType& paramTyp
     }
 
     // create track
-    pTrack = aznew CCompoundSplineTrack(4, AnimValueType::Vector4, subTrackParamTypes);
+    pTrack = aznew CCompoundSplineTrack(4, AnimValueType::Vector4, subTrackParamTypes, true);
 
     // label subtypes
     if (paramType == AnimParamType::TransformNoise)
@@ -1145,10 +1155,33 @@ void CAnimNode::UpdateDynamicParams()
         // which could happen from multiple threads. Lock to avoid a crash iterating over the lua stack
         AZStd::lock_guard<AZStd::mutex> lock(m_updateDynamicParamsLock);
 
-        UpdateDynamicParamsInternal();
+        // run this on the main thread to prevent further threading issues downstream in 
+        // AnimNodes that may use EBuses that are not thread safe
+        if (gEnv && gEnv->mMainThreadId == CryGetCurrentThreadId())
+        {
+            UpdateDynamicParamsInternal();
+        }
+        else
+        {
+            AZ::TickBus::QueueFunction([this] {
+                UpdateDynamicParamsInternal();
+            });
+        }
     }
     else
     {
         UpdateDynamicParamsInternal();
     }
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CAnimNode::SetExpanded(bool expanded)
+{
+    m_expanded = expanded;
+}
+
+//////////////////////////////////////////////////////////////////////////
+bool CAnimNode::GetExpanded() const
+{
+    return m_expanded;
 }

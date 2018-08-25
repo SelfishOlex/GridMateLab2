@@ -28,7 +28,8 @@ HierarchyHeader::HierarchyHeader(HierarchyWidget* parent)
 
     QObject::connect(this,
         &QHeaderView::sectionClicked,
-        [this, parent](int logicalIndex)
+        this,
+        [parent](int logicalIndex)
         {
             if (logicalIndex == kHierarchyColumnName)
             {

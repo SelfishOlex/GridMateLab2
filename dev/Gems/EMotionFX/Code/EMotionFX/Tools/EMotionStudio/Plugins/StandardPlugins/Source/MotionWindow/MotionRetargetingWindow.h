@@ -16,10 +16,7 @@
 // include MCore
 #include "../StandardPluginsConfig.h"
 #include <MCore/Source/StandardHeaders.h>
-#include <MCore/Source/UnicodeString.h>
 #include <EMotionFX/Source/PlayBackInfo.h>
-#include <MysticQt/Source/DoubleSpinbox.h>
-#include <MysticQt/Source/IntSpinbox.h>
 #include <MysticQt/Source/LinkWidget.h>
 #include "../../../../EMStudioSDK/Source/NodeSelectionWindow.h"
 #include <EMotionFX/CommandSystem/Source/SelectionCommands.h>
@@ -90,7 +87,7 @@ namespace EMStudio
         EMotionFX::ActorInstance*           mSelectedActorInstance;
         EMotionFX::Actor*                   mActor;
         CommandSystem::SelectionList        mSelectionList;
-        //MCore::String                     mNodeBeforeSelectionWindow;
+        //AZStd::string                     mNodeBeforeSelectionWindow;
     };
 } // namespace EMStudio
 

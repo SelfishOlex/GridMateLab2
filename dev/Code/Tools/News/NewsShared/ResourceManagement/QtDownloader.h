@@ -14,55 +14,56 @@
 
 #include <mutex>
 #include <functional>
+#include <QObject>
+#include <QMap>
 
-#include <QNetworkAccessManager>
+class QNetworkAccessManager;
+class QNetworkReply;
+class QThread;
 
 namespace News
 {
     //! QtDownloader is a wrapper around Qt's file download functions
+    /*!
+        The QtDownloader spins up another thread and does all downloads in that thread.
+        The public slot methods (Finish, Download and Abort) can all be called from any thread.
+        The response signals (successfullyFinished and failed) should be QObject::connect to with
+        Qt::QueuedConnection, as they will be emitted from the worker thread.
+    */
     class QtDownloader
         : public QObject
     {
         Q_OBJECT
+
     public:
         QtDownloader();
         ~QtDownloader();
 
-        //! Download a file from url and return it as QByteArray
-        /*!
-        \param url - file url to download
-        \param downloadSuccessCallback - if download is successful pass file's data as QByteArray
-        \param downloadFailCallback - if download failed, pass error message
-        */
-        void Download(const QString& url,
-            std::function<void(QByteArray)> downloadSuccessCallback,
-            std::function<void()> downloadFailCallback);
+    public Q_SLOTS:
+        void Finish();
 
+        int Download(const QString& url);
         void Abort();
 
-        void SetUseCertPinning(bool value);
+    Q_SIGNALS:
+        void successfullyFinished(int downloadId, QByteArray data);
+        void failed(int downloadId);
 
-Q_SIGNALS:
-        void downloadFinishedSignal(QtDownloader*);
+        // ***********************************************
+        // private - DO NOT CONNECT TO outside of the class!
+        // (qt signals can't be made private)
+        void triggerAbortAll();
+        void triggerDownload(int downloadId, QString url);
+        void triggerQuit();
+        // ***********************************************
 
     private:
-        QNetworkAccessManager m_networkManager;
-        QNetworkReply* m_reply;
-        bool m_useCertPinning = true;
-        bool m_certValid = false;
+        void downloadFinished(QNetworkReply* reply);
 
-        std::function<void(QByteArray)> m_downloadSuccessCallback;
-        std::function<void()> m_downloadFailCallback;
+        int m_lastId = 0;
 
-    private Q_SLOTS:
-        //! Performs certificate verification of the request
-        /*!
-        This is always called before downloadFinishedSlot when SSL/TLS session 
-        has successfully completed the initial handshake. The request's public key 
-        hash is then checked against local copy to verify whether certificate is valid.
-        */
-        void encryptedSlot(QNetworkReply* pReply);
-        //! Performs actual handling of the request
-        void downloadFinishedSlot(QNetworkReply* pReply);
+        QMap<QNetworkReply*, int> m_downloads;
+        QNetworkAccessManager* m_networkManager = nullptr;
+        QThread* m_thread;
     };
 }

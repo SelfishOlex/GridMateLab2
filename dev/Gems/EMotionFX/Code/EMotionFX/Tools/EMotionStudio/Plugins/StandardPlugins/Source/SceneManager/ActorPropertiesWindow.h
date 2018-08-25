@@ -15,7 +15,6 @@
 #include "../StandardPluginsConfig.h"
 #include <AzCore/std/containers/vector.h>
 #include <MCore/Source/StandardHeaders.h>
-#include <MCore/Source/UnicodeString.h>
 #include <EMotionFX/Source/PlayBackInfo.h>
 #include "../../../../EMStudioSDK/Source/NodeSelectionWindow.h"
 #include "CollisionMeshesSetupWindow.h"
@@ -64,6 +63,9 @@ namespace EMStudio
         void OnSelectMotionExtractionNode();
         void OnMotionExtractionNodeSelected(MCore::Array<SelectionItem> selection);
         void ResetMotionExtractionNode();
+        void OnSelectRetargetRootNode();
+        void OnRetargetRootNodeSelected(MCore::Array<SelectionItem> selection);
+        void ResetRetargetRootNode();
         void OnFindBestMatchingNode();
         void OnMirrorSetup();
         //void OnRetargetSetup();
@@ -94,6 +96,10 @@ namespace EMStudio
         QPushButton*                    mResetMotionExtractionNodeButton;
         MysticQt::LinkWidget*           mMotionExtractionNode;
         QPushButton*                    mFindBestMatchButton;
+
+        // retarget root node
+        QPushButton*                    mResetRetargetRootNodeButton;
+        MysticQt::LinkWidget*           mRetargetRootNode;
 
         // nodes excluded from bounding volume calculations
         MysticQt::LinkWidget*           mExcludedNodesLink;

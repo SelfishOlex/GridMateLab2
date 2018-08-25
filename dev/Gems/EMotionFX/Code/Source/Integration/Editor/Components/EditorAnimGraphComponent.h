@@ -26,7 +26,7 @@ namespace EMotionFX
     {
         class EditorAnimGraphComponent
             : public AzToolsFramework::Components::EditorComponentBase
-            , private AZ::Data::AssetBus::Handler
+            , private AZ::Data::AssetBus::MultiHandler
             , private EditorAnimGraphComponentRequestBus::Handler
         {
         public:
@@ -80,18 +80,21 @@ namespace EMotionFX
             //////////////////////////////////////////////////////////////////////////
 
         private:
+            AZ::Data::Asset<MotionSetAsset>* GetMotionAsset() { return &m_motionSetAsset; }
 
             // Property callbacks.
             void OnAnimGraphAssetSelected();
+            void OnMotionSetAssetSelected();
 
             // Called at edit-time when creating the component directly from an asset.
-            void SetPrimaryAsset(const AZ::Data::AssetId& assetId);
+            void SetPrimaryAsset(const AZ::Data::AssetId& assetId) override;
 
             // Called at export-time to produce runtime entities/components.
             void BuildGameEntity(AZ::Entity* gameEntity) override;
 
-            AZ::Data::Asset<AnimGraphAsset>            m_animGraphAsset;      ///< Selected anim graph.
-            AZ::Data::Asset<MotionSetAsset>             m_motionSetAsset;       ///< Selected motion set.
+            AZ::Data::Asset<AnimGraphAsset>             m_animGraphAsset;       ///< Selected anim graph.
+            AZ::Data::Asset<MotionSetAsset>             m_motionSetAsset;       ///< Selected motion set asset.
+            AZStd::string                               m_activeMotionSetName;  ///< Selected motion set.
 
             AnimGraphComponent::ParameterDefaults      m_parameterDefaults;    ///< AnimGraph parameter defaults.
         };

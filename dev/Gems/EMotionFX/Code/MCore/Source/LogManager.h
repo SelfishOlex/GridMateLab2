@@ -15,7 +15,6 @@
 // include the required headers
 #include <AzCore/std/string/string.h>
 #include "StandardHeaders.h"
-#include "UnicodeString.h"
 #include "Array.h"
 #include "MultiThreadManager.h"
 
@@ -168,6 +167,7 @@ namespace MCore
     void MCORE_API LogInfo(const char* what, ...);
     void MCORE_API LogDetailedInfo(const char* what, ...);
     void MCORE_API LogDebug(const char* what, ...);
+    void MCORE_API LogDebugMsg(const char* what);
 
     /**
      * Log a message to the console, visual studio output, or similar.

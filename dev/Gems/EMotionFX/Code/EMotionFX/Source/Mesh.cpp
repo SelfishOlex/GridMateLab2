@@ -19,10 +19,13 @@
 #include "Actor.h"
 #include "SoftSkinDeformer.h"
 #include "MeshDeformerStack.h"
-
+#include <EMotionFX/Source/Allocators.h>
 
 namespace EMotionFX
 {
+    AZ_CLASS_ALLOCATOR_IMPL(Mesh, MeshAllocator, 0)
+
+
     // default constructor
     Mesh::Mesh()
         : BaseObject()
@@ -73,14 +76,14 @@ namespace EMotionFX
     // creation
     Mesh* Mesh::Create()
     {
-        return new Mesh();
+        return aznew Mesh();
     }
 
 
     // extended creation
     Mesh* Mesh::Create(uint32 numVerts, uint32 numIndices, uint32 numPolygons, uint32 numOrgVerts, bool isCollisionMesh)
     {
-        return new Mesh(numVerts, numIndices, numPolygons, numOrgVerts, isCollisionMesh);
+        return aznew Mesh(numVerts, numIndices, numPolygons, numOrgVerts, isCollisionMesh);
     }
 
 
@@ -890,7 +893,7 @@ namespace EMotionFX
     Mesh* Mesh::Clone()
     {
         // allocate a mesh of the same dimensions
-        Mesh* clone = new Mesh(mNumVertices, mNumIndices, mNumPolygons, mNumOrgVerts, mIsCollisionMesh);
+        Mesh* clone = aznew Mesh(mNumVertices, mNumIndices, mNumPolygons, mNumOrgVerts, mIsCollisionMesh);
 
         // copy the mesh data
         MCore::MemCopy(clone->mIndices, mIndices, sizeof(uint32) * mNumIndices);
@@ -1586,10 +1589,10 @@ namespace EMotionFX
 
 
     // extract the original vertex positions
-    void Mesh::ExtractOriginalVertexPositions(MCore::Array<AZ::Vector3>& outPoints) const
+    void Mesh::ExtractOriginalVertexPositions(AZStd::vector<AZ::Vector3>& outPoints) const
     {
         // allocate space
-        outPoints.Resize(mNumOrgVerts);
+        outPoints.resize(mNumOrgVerts);
 
         // get the mesh data
         const AZ::PackedVector3f*   positions = (AZ::PackedVector3f*)FindOriginalVertexData(ATTRIB_POSITIONS);
@@ -1857,7 +1860,7 @@ namespace EMotionFX
 
 
     // find by name as string
-    uint32 Mesh::FindVertexAttributeLayerIndexByNameString(const MCore::String& name) const
+    uint32 Mesh::FindVertexAttributeLayerIndexByNameString(const AZStd::string& name) const
     {
         const uint32 numLayers = mVertexAttributes.GetLength();
         for (uint32 i = 0; i < numLayers; ++i)
@@ -1905,7 +1908,7 @@ namespace EMotionFX
 
 
     // find by name as string
-    uint32 Mesh::FindSharedVertexAttributeLayerIndexByNameString(const MCore::String& name) const
+    uint32 Mesh::FindSharedVertexAttributeLayerIndexByNameString(const AZStd::string& name) const
     {
         const uint32 numLayers = mSharedVertexAttributes.GetLength();
         for (uint32 i = 0; i < numLayers; ++i)

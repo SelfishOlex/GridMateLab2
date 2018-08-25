@@ -18,7 +18,8 @@ from waflib.Scripting import _is_option_true
 from waflib.TaskGen import after_method, before_method, feature, extension, taskgen_method
 from waflib.Task import Task, RUN_ME, SKIP_ME
 from waflib.Errors import BuildError, WafError
-
+from waf_branch_spec import BINTEMP_FOLDER
+import utils
 import json, os
 import shutil
 import stat
@@ -36,8 +37,10 @@ except ImportError:
 ###############################################################################
 WAF_EXECUTABLE = 'lmbr_waf.bat'
 
+REGEX_PATH_ALIAS = re.compile('@(.*)@')
+
 #############################################################################
-# Helper method for getting the host platform's command line character limit 
+# Helper method for getting the host platform's command line character limit
 def get_command_line_limit():
     arg_max = 16384 # windows command line length limit
 
@@ -66,8 +69,8 @@ def append_kw_entry(kw,key,value):
         kw[key] += value
     else:
         kw[key] += [value]
-		
-		
+
+
 def append_unique_kw_entry(kw,key,value):
     """
     Helper method to add a unique kw entry
@@ -156,14 +159,14 @@ def flatten_list(input):
 def is_option_true(ctx, option_name):
     """ Util function to better intrepret all flavors of true/false """
     return _is_option_true(ctx.options, option_name)
-    
+
 #############################################################################
 #############################################################################
 # Helper functions to handle error and warning output
 @conf
 def cry_error(conf, msg):
-    conf.fatal("error: %s" % msg) 
-    
+    conf.fatal("error: %s" % msg)
+
 @conf
 def cry_file_error(conf, msg, filePath, lineNum = 0 ):
     if isinstance(filePath, Node.Node):
@@ -171,17 +174,17 @@ def cry_file_error(conf, msg, filePath, lineNum = 0 ):
     if not os.path.isabs(filePath):
         filePath = conf.path.make_node(filePath).abspath()
     conf.fatal('%s(%s): error: %s' % (filePath, lineNum, msg))
-    
+
 @conf
 def cry_warning(conf, msg):
-    Logs.warn("warning: %s" % msg) 
-    
+    Logs.warn("warning: %s" % msg)
+
 @conf
 def cry_file_warning(conf, msg, filePath, lineNum = 0 ):
     Logs.warn('%s(%s): warning: %s.' % (filePath, lineNum, msg))
-    
+
 #############################################################################
-#############################################################################   
+#############################################################################
 # Helper functions to json file parsing and validation
 
 def _decode_list(data):
@@ -195,7 +198,7 @@ def _decode_list(data):
             item = _decode_dict(item)
         rv.append(item)
     return rv
-        
+
 def _decode_dict(data):
     rv = {}
     for key, value in data.iteritems():
@@ -211,7 +214,7 @@ def _decode_dict(data):
     return rv
 
 @conf
-def parse_json_file(conf, file_node):   
+def parse_json_file(conf, file_node):
     try:
         file_content_raw = file_node.read()
         file_content_parsed = json.loads(file_content_raw, object_hook=_decode_dict)
@@ -219,29 +222,29 @@ def parse_json_file(conf, file_node):
     except Exception as e:
         line_num = 0
         exception_str = str(e)
-        
+
         # Handle invalid last entry in list error
         if "No JSON object could be decoded" in exception_str:
             cur_line = ""
             prev_line = ""
             file_content_by_line = file_content_raw.split('\n')
             for lineIndex, line in enumerate(file_content_by_line):
-            
+
                 # Sanitize string
-                cur_line = ''.join(line.split())    
-                
+                cur_line = ''.join(line.split())
+
                 # Handle empty line
                 if not cur_line:
                     continue
-                
+
                 # Check for invalid JSON schema
                 if any(substring in (prev_line + cur_line) for substring in [",]", ",}"]):
                     line_num = lineIndex
                     exception_str = 'Invalid JSON, last list/dictionary entry should not end with a ",". [Original exception: "%s"]' % exception_str
                     break;
-                    
+
                 prev_line = cur_line
-      
+
         # If exception has not been handled yet
         if not line_num:
             # Search for 'line' in exception and output pure string
@@ -250,7 +253,7 @@ def parse_json_file(conf, file_node):
                 if elem == 'line':
                     line_num = exception_str_list[index+1]
                     break
-                    
+
         # Raise fatal error
         conf.cry_file_error(exception_str, file_node.abspath(), line_num)
 
@@ -299,6 +302,10 @@ def get_output_folder_name(self, platform, configuration):
     # Find the path for the current platform based on build options
     if platform == 'win_x86':
         path = self.options.out_folder_win32
+    elif platform == 'win_x64_clang':
+        path = self.options.out_folder_win64_clang
+    elif platform == 'win_x64_vs2017':
+        path = self.options.out_folder_win64_vs2017
     elif platform == 'win_x64_vs2015':
         path = self.options.out_folder_win64_vs2015
     elif platform == 'win_x64_vs2013':
@@ -399,9 +406,204 @@ def get_output_folders(self, platform, configuration, ctx=None, target=None):
 
 @conf
 def read_file_list(bld, file):
+    """
+    Read and process a file list file (.waf_file) and manage duplicate files and possible globbing patterns to prepare
+    the list for injestion by the project
+
+    :param bld:     The build context
+    :param file:    The .waf_file file list to process
+    :return:        The processed list file
+    """
+
+    if not os.path.isfile(os.path.join(bld.path.abspath(), file)):
+        raise Errors.WafError("Invalid waf file list file: {}.  File not found.".format(file))
+
+    def _invalid_alias_callback(alias_key):
+        error_message = "Invalid alias '{}' specified in {}".format(alias_key, file)
+        raise Errors.WafError(error_message)
+
+    def _alias_not_enabled_callback(alias_key, roles):
+        error_message = "3rd Party alias '{}' specified in {} is not enabled. Make sure that at least one of the " \
+                        "following roles is enabled: [{}]".format(alias_key, file, ', '.join(roles))
+        raise Errors.WafError(error_message)
+
+    # Manage duplicate files and glob hits
+    dup_set = set()
+    glob_hits = 0
+
+    waf_file_node = bld.path.make_node(file)
+    waf_file_node_abs = waf_file_node.abspath()
+    base_path_abs = waf_file_node.parent.abspath()
+
+    if not os.path.exists(waf_file_node_abs):
+        raise Errors.WafError('Invalid WAF file list: {}'.format(waf_file_node_abs))
+
+    def _determine_vs_filter(input_rel_folder_path, input_filter_name, input_filter_pattern):
+        """
+        Calculate the vvs filter based on the resulting relative path, the input filter name,
+        and the pattern used to derive the input relative path
+        """
+        vs_filter = input_filter_name
+        if len(input_rel_folder_path) > 0:
+            # If the resulting relative path has a subfolder, the base the filter on the following conditions
+            if input_filter_name.lower()=='root':
+                # This is the root folder, use the relative folder subpath as the filter
+                vs_filter = input_rel_folder_path
+            else:
+                # This is a named filter, the filter will place all results under this filter
+                pattern_dirname = os.path.dirname(input_filter_pattern)
+                if len(pattern_dirname) > 0:
+                    if input_rel_folder_path != pattern_dirname:
+                        # Strip out the base of the filter name
+                        vs_filter = input_filter_name + '/' + input_rel_folder_path.replace(pattern_dirname, '')
+                    else:
+                        vs_filter = input_filter_name
+                else:
+                    vs_filter = input_filter_name + '/' + input_rel_folder_path
+
+        return vs_filter
+
+    def _process_glob_entry(glob_content, filter_name, current_uber_dict):
+        """
+        Process a glob content from the input file list
+        """
+        if 'pattern' not in glob_content:
+            raise Errors.WafError('Missing keyword "pattern" from the glob entry"')
+
+        original_pattern = glob_content.pop('pattern').replace('\\', '/')
+        if original_pattern.startswith('@'):
+
+            ALIAS_PATTERN = re.compile('@.*@')
+            alias_match = ALIAS_PATTERN.search(original_pattern)
+            if alias_match:
+                alias = alias_match.group(0)[1:-1]
+                pattern = original_pattern[len(alias)+2:]
+                if alias=='ENGINE':
+                    search_node = bld.path
+                else:
+                    search_node = bld.root.make_node(bld.ThirdPartyPath(alias))
+            else:
+                pattern = original_pattern
+                search_node = waf_file_node.parent
+        else:
+            pattern = original_pattern
+            search_node = waf_file_node.parent
+
+        while pattern.startswith('../'):
+            pattern = pattern[3:]
+            search_node = search_node.parent
+
+        glob_results = search_node.ant_glob(pattern, **glob_content)
+
+        for globbed_file in glob_results:
+
+            rel_path = globbed_file.path_from(waf_file_node.parent).replace('\\', '/')
+            abs_path = globbed_file.abspath().replace('\\', '/')
+            rel_folder_path = os.path.dirname(rel_path)
+
+            vs_filter = _determine_vs_filter(rel_folder_path, filter_name, original_pattern)
+
+            if vs_filter not in current_uber_dict:
+                current_uber_dict[vs_filter] = []
+            if abs_path in dup_set:
+                Logs.warn("[WARN] File '{}' specified by the pattern '{}' in waf file '{}' is a duplicate.  It will be ignored"
+                          .format(abs_path, original_pattern, waf_file_node_abs))
+            else:
+                current_uber_dict[vs_filter].append(rel_path)
+                dup_set.add(abs_path)
+
+    def _clear_empty_uber_dict(current_uber_dict):
+        """
+        Perform house clean in case glob pattern overrides move all files out of a 'root' group.
+        """
+        empty_filters = []
+        for filter_name, filter_contents in current_uber_dict.items():
+            if len(filter_contents)==0:
+                empty_filters.append(filter_name)
+        for empty_filter in empty_filters:
+            current_uber_dict.pop(empty_filter)
+        return current_uber_dict
+
+    def _process_uber_dict(uber_section, uber_dict):
+        """
+        Process each uber dictionary value
+        """
+        processed_uber_dict = {}
+
+        for filter_name, filter_contents in uber_dict.items():
+            for filter_content in filter_contents:
+
+                if isinstance(filter_content, str):
+
+                    if '*' in filter_content or '?' in filter_content:
+                        # If this is a raw glob pattern, stuff it into the expected glob dictionary
+                        _process_glob_entry(dict(pattern=filter_content), filter_name, processed_uber_dict)
+                    elif filter_content.startswith('@ENGINE@'):
+                        file_path = os.path.normpath(filter_content.replace('@ENGINE@', bld.engine_path))
+                        if not os.path.exists(file_path):
+                            Logs.warn("[WARN] File '{}' specified in '{}' does not exist.  It will be ignored"
+                                      .format(file_path, waf_file_node_abs))
+                        else:
+                            if filter_name not in processed_uber_dict:
+                                processed_uber_dict[filter_name] = []
+                            processed_uber_dict[filter_name].append(filter_content)
+                            dup_set.add(file_path)
+                    else:
+                        # This is a straight up file reference.
+                        # Do any processing on an aliased reference
+                        if filter_content.startswith('@'):
+                            processed_path = bld.PreprocessFilePath(filter_content, _invalid_alias_callback,
+                                                                    _alias_not_enabled_callback)
+                        else:
+                            processed_path = os.path.normpath(os.path.join(base_path_abs, filter_content))
+
+                        if not os.path.exists(processed_path):
+                            Logs.warn("[WARN] File '{}' specified in '{}' does not exist.  It will be ignored"
+                                      .format(processed_path, waf_file_node_abs))
+                        elif not os.path.isfile(processed_path):
+                            Logs.warn("[WARN] Path '{}' specified in '{}' is a folder, only files or glob patterns are "
+                                      "allowed.  It will be ignored"
+                                      .format(processed_path, waf_file_node_abs))
+                        elif processed_path in dup_set:
+                            Logs.warn("[WARN] File '{}' specified in '{}' is a duplicate.  It will be ignored"
+                                      .format(processed_path, waf_file_node_abs))
+                        else:
+                            if filter_name not in processed_uber_dict:
+                                processed_uber_dict[filter_name] = []
+                            processed_uber_dict[filter_name].append(processed_path)
+                            dup_set.add(processed_path)
+
+                elif isinstance(filter_content, dict):
+                    # Dictionaries automatically go through the glob pattern working
+                    _process_glob_entry(filter_content, filter_name, processed_uber_dict)
+                else:
+                    raise Errors.WafError("Invalid entry '{}' in file '{}', section '{}/{}'"
+                                          .format(filter_content, file, uber_section, filter_name))
+
+        return _clear_empty_uber_dict(processed_uber_dict)
+
+    def _get_cached_file_list():
+        """
+        Calculate the location of the cached waf_files path
+        """
+        bintemp_path = os.path.join(bld.srcnode.abspath(), BINTEMP_FOLDER)
+        src_relative_path = file_node.path_from(bld.srcnode)
+        cached_waf_files_abs_path = os.path.join(bintemp_path, src_relative_path)
+        return cached_waf_files_abs_path
+
     file_node = bld.path.make_node(file)
 
-    return bld.parse_json_file(file_node)
+    # Read the source waf_file list
+    source_file_list = bld.parse_json_file(file_node)
+
+    # Prepare a processed waf_file list
+    processed_file_list = {}
+
+    for uber_file_entry, uber_file_dict in source_file_list.items():
+        processed_file_list[uber_file_entry] = _process_uber_dict(uber_file_entry, uber_file_dict)
+        pass
+
+    return processed_file_list
 
 @conf
 def get_platform_and_configuration(bld):
@@ -692,6 +894,34 @@ def get_configuration(ctx, target):
 
 cached_folders = {}
 
+def detect_windows_sdk_folder(fallback_path):
+    """
+    Detect the current installed windows sdk folder from the registry
+    :return: The windows sdk folder from the registry
+    """
+
+    if not winreg_available:
+        raise SystemError('[ERR] Windows registry is not supported on this platform.')
+
+    cache_key = 'windows_sdk_folder'
+    if cache_key in cached_folders:
+        return cached_folders[cache_key]
+
+    microsoft_sdks_folder = fallback_path
+    try:
+        microsoft_sdks_folder_entry = _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE, "Software\\Microsoft\\Microsoft SDKs\\Windows", 0, _winreg.KEY_READ)
+        (microsoft_sdks_folder, type) = _winreg.QueryValueEx(microsoft_sdks_folder_entry, 'CurrentInstallFolder')
+        microsoft_sdks_folder = microsoft_sdks_folder.encode('ascii')  # Make asci string (as we get unicode)
+    except:
+        Logs.warn('[WARN] Unable to find windows sdk folder from the registry. Falling back to path {} as a good guess..."'.format(fallback_path))
+
+    if not os.path.exists(microsoft_sdks_folder):
+        raise SystemError('[ERR] Unable to locate the windows sdk folder {})'.format(microsoft_sdks_folder))
+
+    cached_folders[cache_key] = microsoft_sdks_folder
+
+    return microsoft_sdks_folder
+
 
 def detect_visual_studio_vc_path(version, fallback_path):
     """
@@ -716,7 +946,7 @@ def detect_visual_studio_vc_path(version, fallback_path):
         vs_tools_path += 'VC'
     except:
         Logs.warn('[WARN] Unable to find visual studio tools path from the registry. Falling back to path {} as a good guess..."'.format(fallback_path))
-                   
+
     if not os.path.exists(vs_tools_path):
         raise SystemError('[ERR] Unable to locate the visual studio VC folder {} for (vs version {})'.format(vs_tools_path, version))
 
@@ -747,7 +977,8 @@ def detect_windows_kits_include_path(fallback_path):
         windows_sdk_include_path += 'Include'
     except:
         Logs.warn('[WARN] Unable to find windows sdk include path from the registry. Falling back to path {} as a good guess..."'.format(fallback_path))
-                   
+        windows_sdk_include_path = fallback_path
+
     if not os.path.exists(windows_sdk_include_path):
         raise SystemError('[ERR] Unable to locate the Windows SDK include folder {}'.format(windows_sdk_include_path))
 
@@ -900,3 +1131,39 @@ def get_waf_host_platform(conf):
         return UNVERSIONED_HOST_PLATFORM_TO_WAF_PLATFORM_MAP[unversioned_platform]
     else:
         conf.fatal('[ERROR] Host \'%s\' not supported' % Utils.unversioned_sys_platform())
+
+
+@conf
+def cached_does_path_exist(ctx, path):
+    """
+    Check if a path exists or not, but cache the result to reduce multiple calls to the OS for the same path.  This
+    should only be used when we know for certain paths/files wont be created during processing.
+
+    For example:
+
+    if not ctx.cached_does_path_exist(my_file):
+        while open(my_file,'w') as file:
+            file.write(...)
+
+    The above will cause the result to be out of sync and invalid
+
+    :param ctx:         Context
+    :param path:        The path to check for existence
+    :return: True if the path exists, false if not
+    """
+    try:
+        path_cache = ctx.cached_path_check
+    except AttributeError:
+        path_cache = ctx.cached_path_check = {}
+
+    path_to_check = os.path.normcase(path)
+    if not path_to_check in path_cache:
+        path_exists = os.path.exists(path_to_check)
+        path_cache[path_to_check] = path_exists
+    else:
+        path_exists = path_cache[path_to_check]
+    return path_exists
+
+
+
+

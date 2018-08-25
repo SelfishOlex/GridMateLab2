@@ -158,7 +158,7 @@ bool CDialogEditorDialog::DoSourceControlOp(CEditorDialogScript* script, ESource
     QString gamePath = m_dialogManager->ScriptToFilename(scriptId);
     QString path = gamePath;
 
-    CryLogAlways("[DialogEditor] Doing SC-Op: %s for %s", SCToName(scOp), path);
+    CryLogAlways("[DialogEditor] Doing SC-Op: %s for %s", SCToName(scOp), path.toUtf8().constData());
 
 #ifdef  DE_USE_SOURCE_CONTROL
     switch (scOp)
@@ -527,7 +527,7 @@ void CDialogEditorDialog::RenameScript()
                 QString newPath = m_dialogManager->ScriptToFilename(newId);
                 CryLogAlways("[DialogEditor] Renaming file in SourceControl:"
                     "\nOld: %s"
-                    "\nNew: %s", oldPath, newPath);
+                    "\nNew: %s", oldPath.toUtf8().constData(), newPath.toUtf8().constData());
 
                 if (!CFileUtil::RenameFile(oldPath.toUtf8().data(), newPath.toUtf8().data()))
                 {
@@ -974,7 +974,7 @@ void ScriptTreeView::contextMenuEvent(QContextMenuEvent* ev)
         {
             // If not managed.
             action = m_menu->addAction(tr("Add To Source Control"));
-            connect(action, &QAction::triggered, [this, script]() { m_editor->DoSourceControlOp(script, CDialogEditorDialog::ESCM_IMPORT); });
+            connect(action, &QAction::triggered, this, [this, script]() { m_editor->DoSourceControlOp(script, CDialogEditorDialog::ESCM_IMPORT); });
         }
         else
         {
@@ -982,17 +982,17 @@ void ScriptTreeView::contextMenuEvent(QContextMenuEvent* ev)
             if (nFileAttr & SCC_FILE_ATTRIBUTE_READONLY)
             {
                 action = m_menu->addAction(tr("Check Out"));
-                connect(action, &QAction::triggered, [this, script]() { m_editor->DoSourceControlOp(script, CDialogEditorDialog::ESCM_CHECKOUT); });
+                connect(action, &QAction::triggered, this, [this, script]() { m_editor->DoSourceControlOp(script, CDialogEditorDialog::ESCM_CHECKOUT); });
             }
             if (nFileAttr & SCC_FILE_ATTRIBUTE_CHECKEDOUT)
             {
                 action = m_menu->addAction(tr("Undo Check Out"));
-                connect(action, &QAction::triggered, [this, script]() { m_editor->DoSourceControlOp(script, CDialogEditorDialog::ESCM_UNDO_CHECKOUT); });
+                connect(action, &QAction::triggered, this, [this, script]() { m_editor->DoSourceControlOp(script, CDialogEditorDialog::ESCM_UNDO_CHECKOUT); });
             }
             if (nFileAttr & SCC_FILE_ATTRIBUTE_MANAGED)
             {
                 action = m_menu->addAction(tr("Get Latest Version"));
-                connect(action, &QAction::triggered, [this, script]() { m_editor->DoSourceControlOp(script, CDialogEditorDialog::ESCM_GETLATEST); });
+                connect(action, &QAction::triggered, this, [this, script]() { m_editor->DoSourceControlOp(script, CDialogEditorDialog::ESCM_GETLATEST); });
             }
         }
     }

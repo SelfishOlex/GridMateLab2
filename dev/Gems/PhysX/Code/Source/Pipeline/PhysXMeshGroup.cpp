@@ -18,6 +18,7 @@
 #include <SceneAPI/SceneCore/DataTypes/Rules/IRule.h>
 #include <SceneAPI/SceneCore/DataTypes/GraphData/IBoneData.h>
 #include <SceneAPI/SceneCore/DataTypes/GraphData/IMeshData.h>
+#include <SceneAPI/SceneData/Rules/MaterialRule.h>
 
 #include <Pipeline/PhysXMeshGroup.h>
 
@@ -98,7 +99,7 @@ namespace PhysX
             // Check if the context is serialized and has PhysXMeshGroup class data.
             if (serializeContext)
             {
-                serializeContext->Class<PhysXMeshGroup, AZ::SceneAPI::DataTypes::ISceneNodeGroup>()->Version(0)
+                serializeContext->Class<PhysXMeshGroup, AZ::SceneAPI::DataTypes::ISceneNodeGroup>()->Version(1, &PhysXMeshGroup::VersionConverter)
                     ->Field("name", &PhysXMeshGroup::m_name)
                     ->Field("export as convex", &PhysXMeshGroup::m_exportAsConvex)
 
@@ -217,12 +218,14 @@ namespace PhysX
 
                     // Both convex and trimesh
                         ->DataElement(AZ_CRC("BuildGPUData", 0x0b7b0568), &PhysXMeshGroup::m_buildGPUData, "Build GPU Data",
-                        "<span>When true, addigional information required for GPU-accelerated rigid body simulation is created. This can increase memory usage and cooking times for convex meshes "
+                        "<span>When true, additional information required for GPU-accelerated rigid body simulation is created. This can increase memory usage and cooking times for convex meshes "
                         "and triangle meshes. Convex hulls are created with respect to GPU simulation limitations. Vertex limit is set to 64 and vertex limit per face is internally set to 32.</span>")
 
                         ->DataElement(AZ::Edit::UIHandlers::Default, &PhysXMeshGroup::m_nodeSelectionList, "Select meshes", "<span>Select the meshes to be included in the mesh group.</span>")
                         ->Attribute("FilterName", "meshes")
-                        ->Attribute("FilterType", AZ::SceneAPI::DataTypes::IMeshData::TYPEINFO_Uuid());
+                        ->Attribute("FilterType", AZ::SceneAPI::DataTypes::IMeshData::TYPEINFO_Uuid())
+                        ->DataElement(AZ::Edit::UIHandlers::Default, &PhysXMeshGroup::m_rules, "", "Add or remove rules to fine-tune the export process.")
+                            ->Attribute(AZ::Edit::Attributes::Visibility, AZ_CRC("PropertyVisibility_ShowChildrenOnly", 0xef428f20));
                 }
             }
         }
@@ -326,5 +329,28 @@ namespace PhysX
         {
             return m_buildGPUData;
         }
-    }
-}
+
+        bool PhysXMeshGroup::VersionConverter(AZ::SerializeContext& context, AZ::SerializeContext::DataElementNode& classElement)
+        {
+            // Remove the material rule
+            if (classElement.GetVersion() < 1)
+            {
+                int ruleContainerNodeIndex = classElement.FindElement(AZ_CRC("rules", 0x899a993c));
+                if (ruleContainerNodeIndex >= 0)
+                {
+                    AZ::SerializeContext::DataElementNode& ruleContainerNode = classElement.GetSubElement(ruleContainerNodeIndex);
+                    AZ::SceneAPI::Containers::RuleContainer ruleContainer;
+                    if (ruleContainerNode.GetData<AZ::SceneAPI::Containers::RuleContainer>(ruleContainer))
+                    {
+                        auto materialRule = ruleContainer.FindFirstByType<AZ::SceneAPI::SceneData::MaterialRule>();
+                        ruleContainer.RemoveRule(materialRule);
+                    }
+
+                    ruleContainerNode.SetData<AZ::SceneAPI::Containers::RuleContainer>(context, ruleContainer);
+                }
+            }
+
+            return true;
+        }
+    } // namespace Pipeline
+} // namespace PhysX

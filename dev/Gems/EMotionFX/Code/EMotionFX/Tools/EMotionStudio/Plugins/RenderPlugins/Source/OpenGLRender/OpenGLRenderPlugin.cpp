@@ -89,11 +89,11 @@ namespace EMStudio
         }
 
         // get the absolute directory path where all the shaders will be located
-        const MCore::String shaderPath = MysticQt::GetDataDir() + "Shaders/";
+        const AZStd::string shaderPath = MysticQt::GetDataDir() + "Shaders/";
 
         // create graphics manager and initialize it
         mGraphicsManager = new RenderGL::GraphicsManager();
-        if (mGraphicsManager->Init(shaderPath.AsChar()) == false)
+        if (mGraphicsManager->Init(shaderPath.c_str()) == false)
         {
             MCore::LogError("Could not initialize OpenGL graphics manager.");
             //      delete mGraphicsManager;
@@ -121,26 +121,10 @@ namespace EMStudio
             return false;
         }
 
-        MCore::String texturePath;
-        if (mRenderOptions.mTexturePath.GetIsEmpty() == false)
-        {
-            // use the texture path specified in the render options
-            texturePath = mRenderOptions.mTexturePath;
-        }
-        else
-        {
-            // extract the file path from the actor name, assuming the actor name is its full filename
-            texturePath = actor->GetFileNameString().ExtractPath();
-        }
-
-        // set the automatic mip mapping creation and the skip loading textures flag
-        mGraphicsManager->SetCreateMipMaps(mRenderOptions.mCreateMipMaps);
-        mGraphicsManager->SetSkipLoadingTextures(mRenderOptions.mSkipLoadingTextures);
-
         // create a new OpenGL actor and try to initialize it
         //GetMainWindow()->GetOpenGLShareWidget()->makeCurrent();
         RenderGL::GLActor* glActor = RenderGL::GLActor::Create();
-        if (glActor->Init(actor, texturePath.AsChar(), true, false) == false)
+        if (glActor->Init(actor, "", true, false) == false)
         {
             MCore::LogError("Initializing the OpenGL actor for '%s' failed.", actor->GetFileName());
             glActor->Destroy();
@@ -195,8 +179,8 @@ namespace EMStudio
             if (widget->GetRenderFlag(RenderViewWidget::RENDER_LIGHTING))
             {
                 renderFlags |= RenderGL::GLActor::RENDER_LIGHTING;
-                renderActor->SetGroundColor(renderOptions->mLightGroundColor);
-                renderActor->SetSkyColor(renderOptions->mLightSkyColor);
+                renderActor->SetGroundColor(renderOptions->GetLightGroundColor());
+                renderActor->SetSkyColor(renderOptions->GetLightSkyColor());
             }
             if (widget->GetRenderFlag(RenderViewWidget::RENDER_SHADOWS))
             {

@@ -13,7 +13,6 @@
 #pragma once
 
 #include <MCore/Source/StandardHeaders.h>
-#include <MCore/Source/UnicodeString.h>
 #include <EMotionFX/Source/AnimGraphTransitionCondition.h>
 #include "../StandardPluginsConfig.h"
 #include <QDialog>
@@ -37,14 +36,15 @@ namespace EMStudio
         ConditionSelectDialog(QWidget* parent);
         ~ConditionSelectDialog();
 
-        uint32 GetSelectedConditionType() const { return mSelectedConditionType; }
+        AZ::TypeId GetSelectedConditionType() const { return m_selectedTypeId; }
 
     protected slots:
         void OnCreateButton();
         void OnItemDoubleClicked(QListWidgetItem* item);
 
     private:
-        QListWidget*        mListBox;
-        uint32              mSelectedConditionType;
+        QListWidget*              m_listBox;
+        AZStd::vector<AZ::TypeId> m_typeIds;
+        AZ::TypeId                m_selectedTypeId;
     };
 } // namespace EMStudio

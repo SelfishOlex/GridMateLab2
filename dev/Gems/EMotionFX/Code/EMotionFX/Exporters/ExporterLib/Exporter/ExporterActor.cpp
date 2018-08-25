@@ -11,12 +11,10 @@
 */
 
 #include <AzCore/Debug/Timer.h>
-#include <AzFramework/StringFunc/StringFunc.h>
 #include "Exporter.h"
 #include <EMotionFX/Source/Actor.h>
 #include <EMotionFX/Source/ActorInstance.h>
 #include <EMotionFX/Source/EventManager.h>
-#include <MCore/Source/AttributeSet.h>
 
 
 //#define EMFX_DETAILED_SAVING_PERFORMANCESTATS
@@ -59,9 +57,7 @@ namespace ExporterLib
         SaveActorHeader(file, targetEndianType);
 
         // save actor info
-        MCore::String sourceApplication = actor->GetAttributeSet()->GetStringAttribute("sourceApplication");
-        MCore::String originalFileName  = actor->GetAttributeSet()->GetStringAttribute("originalFileName");
-        SaveActorFileInfo(file, actor->GetNumLODLevels(), actor->GetMotionExtractionNodeIndex(), sourceApplication.AsChar(), originalFileName.AsChar(), actor->GetName(), /*actor->GetRetargetOffset()*/ 0.0f, actor->GetUnitType(), targetEndianType);
+        SaveActorFileInfo(file, actor->GetNumLODLevels(), actor->GetMotionExtractionNodeIndex(), actor->GetRetargetRootNodeIndex(), "", "", actor->GetName(), actor->GetUnitType(), targetEndianType);
 
         // save nodes
         EMotionFX::GetEventManager().OnSubProgressText("Saving nodes");

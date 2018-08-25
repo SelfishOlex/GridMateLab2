@@ -20,6 +20,7 @@
 #include <AzCore/std/smart_ptr/scoped_array.h>
 #include <AzCore/std/smart_ptr/intrusive_ptr.h>
 #include <AzCore/std/smart_ptr/unique_ptr.h>
+#include <AzCore/std/smart_ptr/intrusive_base.h>
 
 #include <AzCore/std/parallel/thread.h>
 #include <AzCore/std/functional.h>
@@ -1932,6 +1933,13 @@ namespace UnitTest
         EXPECT_TRUE(px2.use_count() == 2);
     }
 
+
+#if defined(AZ_RESTRICTED_PLATFORM)
+#undef AZ_RESTRICTED_SECTION
+#define SMARTPTR_CPP_SECTION_1 1
+#define SMARTPTR_CPP_SECTION_2 2
+#endif
+
 #if !defined(AZ_NO_RTTI)
     TEST_F(SmartPtr, DynamicPointerUpCastNull)
     {
@@ -2842,6 +2850,9 @@ namespace SharedPtr
 #if defined(AZ_PLATFORM_ANDROID)
         static int const n = 256 * 1024;
         static const int numThreads = 4;
+#elif defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION SMARTPTR_CPP_SECTION_1
+#include AZ_RESTRICTED_FILE(SmartPtr_cpp, AZ_RESTRICTED_PLATFORM)
 #elif defined(AZ_PLATFORM_WINDOWS) || defined(AZ_PLATFORM_LINUX) || defined(AZ_PLATFORM_APPLE)
         static int const n = 1024 * 1024;
         static const int numThreads = 16;
@@ -2862,7 +2873,10 @@ namespace SharedPtr
         {
             AZ::SystemAllocator::Descriptor desc;
             desc.m_heap.m_numMemoryBlocks = 1;
-#if   defined(AZ_PLATFORM_WINDOWS) || defined(AZ_PLATFORM_LINUX) || defined(AZ_PLATFORM_APPLE)
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION SMARTPTR_CPP_SECTION_2
+#include AZ_RESTRICTED_FILE(SmartPtr_cpp, AZ_RESTRICTED_PLATFORM)
+#elif defined(AZ_PLATFORM_WINDOWS) || defined(AZ_PLATFORM_LINUX) || defined(AZ_PLATFORM_APPLE)
             desc.m_heap.m_memoryBlocksByteSize[0] = 800 * 1024 * 1024;
 #elif defined(AZ_PLATFORM_ANDROID)
             desc.m_heap.m_memoryBlocksByteSize[0] = 400 * 1024 * 1024;
@@ -4605,60 +4619,8 @@ namespace WeakPtr
 
 namespace IntrusivePointer
 {
-    namespace N
-    {
-        class base
-        {
-        private:
-            AZStd::atomic<long> use_count_;
-            base(base const&);
-            base& operator=(base const&);
-        protected:
-
-            base()
-                : use_count_(0)
-            {
-            }
-            virtual ~base()
-            {
-            }
-
-        public:
-            long use_count() const
-            {
-                return use_count_.load();
-            }
-
-            inline friend void intrusive_ptr_add_ref(base* p)
-            {
-                ++p->use_count_;
-            }
-
-            inline friend void intrusive_ptr_release(base* p)
-            {
-                if (--p->use_count_ == 0)
-                {
-                    delete p;
-                }
-            }
-
-            void add_ref()
-            {
-                ++use_count_;
-            }
-
-            void release()
-            {
-                if (--use_count_ == 0)
-                {
-                    delete this;
-                }
-            }
-        };
-    } // namespace N
-
     struct X
-        : public virtual N::base
+        : public virtual AZStd::intrusive_base
     {
     };
 
@@ -4716,7 +4678,7 @@ namespace IntrusivePointer
                 X* p = new X;
                 EXPECT_TRUE(p->use_count() == 0);
 
-                intrusive_ptr_add_ref(p);
+                IntrusivePtrCountPolicy<X>::add_ref(p);
                 EXPECT_TRUE(p->use_count() == 1);
 
                 AZStd::intrusive_ptr<X> px(p, false);

@@ -68,10 +68,12 @@ namespace EMotionFX
 
                 CMesh*                                  m_mesh;      // Non-null only until asset is finalized.
                 AZStd::vector<SMeshBoneMapping_uint16>  m_vertexBoneMappings;
+                bool                                    m_IsDynamic; // Indicates if the mesh is dynamic (e.g. has morph targets)
                 AZStd::atomic_bool                      m_isReady;
 
                 MeshLOD()
                     : m_mesh(nullptr)
+                    , m_IsDynamic(false)
                 {
                     m_isReady.store(false);
                 }
@@ -88,8 +90,8 @@ namespace EMotionFX
 
             friend class ActorAssetHandler;
 
-            AZ_CLASS_ALLOCATOR(ActorAsset, EMotionFXAllocator, 0);
-            AZ_RTTI(ActorAsset, "{F67CC648-EA51-464C-9F5D-4A9CE41A7F86}", EMotionFXAsset);
+            AZ_RTTI(ActorAsset, "{F67CC648-EA51-464C-9F5D-4A9CE41A7F86}", EMotionFXAsset)
+            AZ_CLASS_ALLOCATOR_DECL
 
             ActorAsset();
             ~ActorAsset() override;
@@ -100,7 +102,7 @@ namespace EMotionFX
             EMotionFXPtr<EMotionFX::Actor> GetActor() const { return m_emfxActor; }
 
             size_t GetNumLODs() const { return m_meshLODs.size(); }
-            IRenderMesh* GetMesh(AZ::u32 lodIndex) const { return m_meshLODs[lodIndex].m_isReady ? m_meshLODs[lodIndex].m_renderMesh : nullptr; }
+            MeshLOD* GetMeshLOD(AZ::u32 lodIndex) { return m_meshLODs[lodIndex].m_isReady ? &m_meshLODs[lodIndex] : nullptr; }
 
         private:
 
@@ -116,13 +118,13 @@ namespace EMotionFX
         class ActorAssetHandler : public EMotionFXAssetHandler<ActorAsset>
         {
         public:
-            AZ_CLASS_ALLOCATOR(ActorAssetHandler, EMotionFXAllocator, 0);
+            AZ_CLASS_ALLOCATOR_DECL
 
             bool OnInitAsset(const AZ::Data::Asset<AZ::Data::AssetData>& asset) override;
             AZ::Data::AssetType GetAssetType() const override;
             void GetAssetTypeExtensions(AZStd::vector<AZStd::string>& extensions) override;
             AZ::Uuid GetComponentTypeId() const override;
-            const char* GetAssetTypeDisplayName() const;
+            const char* GetAssetTypeDisplayName() const override;
 
         private:
 
@@ -141,8 +143,7 @@ namespace EMotionFX
             , private LmbrCentral::SkeletalHierarchyRequestBus::Handler
         {
         public:
-
-            AZ_CLASS_ALLOCATOR(ActorRenderNode, EMotionFXAllocator, 0);
+            AZ_CLASS_ALLOCATOR_DECL
 
             ActorRenderNode(AZ::EntityId entityId,
                 const EMotionFXPtr<EMotionFX::ActorInstance>& actorInstance,
@@ -161,6 +162,7 @@ namespace EMotionFX
             const char* GetName() const override;
             const char* GetEntityClassName() const override;
             Vec3 GetPos(bool bWorldOnly = true) const override;
+            void GetLocalBounds(AABB& bbox) override;
             const AABB GetBBox() const override;
             void SetBBox(const AABB& WSBBox) override;
             void OffsetPosition(const Vec3& delta) override;
@@ -190,11 +192,20 @@ namespace EMotionFX
             //////////////////////////////////////////////////////////////////////////
 
             void UpdateWorldBoundingBox();
-            void RegisterWithRenderer(bool registerWithRenderer);
-            void AttachToEntity(AZ::EntityId id);
+            void RegisterWithRenderer();
+            void DeregisterWithRenderer();
             void UpdateWorldTransform(const AZ::Transform& entityTransform);
             SSkinningData* GetSkinningData();
             void SetSkinningMethod(SkinningMethod method);
+
+            // Determines if the morph target weights were updated since the last call. 
+            // It is used to avoid calling UpdateDynamicSkin if the weights have not been
+            // updated.
+            bool MorphTargetWeightsWereUpdated(uint32 lodLevel);
+            
+            // Updates the vertices, normals and tangents buffers in cry based on the emfx
+            // mesh. This is used to update morph targets in the ly viewport.
+            void UpdateDynamicSkin(AZ::u32 lodIndex);
 
             AZ::Data::Asset<ActorAsset>             m_actorAsset;
             EMotionFXPtr<EMotionFX::ActorInstance>  m_actorInstance;
@@ -208,6 +219,8 @@ namespace EMotionFX
 
             bool                                    m_isRegisteredWithRenderer;
             SkinningMethod                          m_skinningMethod;
+
+            AZStd::vector<float>                    m_lastMorphTargetWeights;
 
             // history for skinning data, needed for motion blur
             struct

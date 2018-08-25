@@ -11,7 +11,7 @@
 */
 // Original file Copyright Crytek GMBH or its affiliates, used under license.
 
-#include "StdAfx.h"
+#include "stdafx.h"
 #include <assert.h>          // assert()
 #include <iterator>
 
@@ -26,7 +26,7 @@
 ///////////////////////////////////////////////////////////////////////////////////
 
 #define _TIFF_DATA_TYPEDEFS_                // because we defined uint32,... already
-#include "../../../SDKs/tiff/libtiff/tiffio.h"  // TIFF library
+#include <libtiff/tiffio.h>  // TIFF library
 ///////////////////////////////////////////////////////////////////////////////////
 
 namespace ImageTIFF

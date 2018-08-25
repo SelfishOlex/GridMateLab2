@@ -46,6 +46,8 @@ struct IKey
     IKey()
         : time(0)
         , flags(0) {};
+
+    virtual ~IKey() = default;
 };
 
 /** I2DBezierKey used in float tracks.
@@ -133,7 +135,7 @@ struct IEventKey
     AZStd::string eventValue;
     AZStd::string animation;
     AZStd::string target;
-   
+
     union
     {
         float value;
@@ -170,7 +172,7 @@ struct ISelectKey
 struct ISequenceKey
     : public IKey
 {
-    AZStd::string szSelection;          //!@deprecated : use sequenceEntityId to identify sequences 
+    AZStd::string szSelection;          //!@deprecated : use sequenceEntityId to identify sequences
     AZ::EntityId sequenceEntityId;
     float fDuration;
     float fStartTime;
@@ -214,10 +216,10 @@ struct ITimeRangeKey
     : public IKey
 {
     float m_duration;       //!< Duration in seconds of this animation.
-    float m_startTime;  //!< Start time of this animtion (Offset from begining of animation).
+    float m_startTime;      //!< Start time of this animation (Offset from beginning of animation).
     float m_endTime;        //!< End time of this animation (can be smaller than the duration).
     float m_speed;          //!< Speed multiplier for this key.
-    bool    m_bLoop;            //!< True if time is looping
+    bool  m_bLoop;          //!< True if time is looping
 
     ITimeRangeKey()
     {
@@ -247,6 +249,12 @@ struct ITimeRangeKey
             speed = 1.0f;
         }
         return (endTime - m_startTime) / speed;
+    }
+
+    // Return true if the input time falls in range of the start/end time for this key.
+    bool IsInRange(float sequenceTime) const
+    {
+        return sequenceTime >= (time + m_startTime) && sequenceTime <= (time + GetValidEndTime());
     }
 };
 

@@ -10,15 +10,13 @@
 *
 */
 
-#ifndef __EMSTUDIO_GRAPHNODE_H
-#define __EMSTUDIO_GRAPHNODE_H
+#pragma once
 
-// include required headers
 #include <MCore/Source/StandardHeaders.h>
 #include <MCore/Source/Array.h>
-#include <MCore/Source/UnicodeString.h>
 #include <MCore/Source/Color.h>
-#include <MCore/Source/StringIDGenerator.h>
+#include <MCore/Source/StringIdPool.h>
+#include <EMotionFX/Source/AnimGraphNodeId.h>
 #include "../StandardPluginsConfig.h"
 #include <QPainter>
 #include <QIcon>
@@ -47,8 +45,8 @@ namespace EMStudio
             : mIsHighlighted(false)  { mNode = nullptr; mNameID = MCORE_INVALIDINDEX32; mColor.setRgb(50, 150, 250); }
         ~NodePort() {}
 
-        MCORE_INLINE void SetName(const char* name)         { mNameID = MCore::GetStringIDGenerator().GenerateIDForString(name); OnNameChanged(); }
-        MCORE_INLINE const char* GetName() const            { return MCore::GetStringIDGenerator().GetName(mNameID).AsChar(); }
+        MCORE_INLINE void SetName(const char* name)         { mNameID = MCore::GetStringIdPool().GenerateIdForString(name); OnNameChanged(); }
+        MCORE_INLINE const char* GetName() const            { return MCore::GetStringIdPool().GetName(mNameID).c_str(); }
         MCORE_INLINE void SetNameID(uint32 id)              { mNameID = id; }
         MCORE_INLINE uint32 GetNameID() const               { return mNameID; }
         MCORE_INLINE void SetRect(const QRect& rect)        { mRect = rect; }
@@ -98,10 +96,12 @@ namespace EMStudio
         MCORE_INLINE void SetBaseColor(const QColor& color)                 { mBaseColor = color; }
         MCORE_INLINE QColor GetBaseColor() const                            { return mBaseColor; }
         MCORE_INLINE bool GetIsVisible() const                              { return mIsVisible; }
-        MCORE_INLINE const char* GetName() const                            { return mName.AsChar(); }
-        MCORE_INLINE const MCore::String& GetNameString() const             { return mName; }
-        MCORE_INLINE uint32 GetID() const                                   { return mID; }
-        MCORE_INLINE void SetID(uint32 id)                                  { mID = id; }
+        MCORE_INLINE const char* GetName() const                            { return mName.c_str(); }
+        MCORE_INLINE const AZStd::string& GetNameString() const             { return mName; }
+
+        EMotionFX::AnimGraphNodeId GetId() const                            { return m_id; }
+        void SetId(EMotionFX::AnimGraphNodeId id)                           { m_id = id; }
+
         MCORE_INLINE bool GetCreateConFromOutputOnly() const                { return mConFromOutputOnly; }
         MCORE_INLINE void SetCreateConFromOutputOnly(bool enable)           { mConFromOutputOnly = enable; }
         MCORE_INLINE bool GetIsDeletable() const                            { return mIsDeletable; }
@@ -109,8 +109,8 @@ namespace EMStudio
         void SetIsCollapsed(bool collapsed);
         MCORE_INLINE void SetDeletable(bool deletable)                      { mIsDeletable = deletable; }
         void SetSubTitle(const char* subTitle, bool updatePixmap = true);
-        MCORE_INLINE const char* GetSubTitle() const                        { return mSubTitle.AsChar(); }
-        //MCORE_INLINE const MCore::String& GetSubTitleString() const           { return mSubTitle; }
+        MCORE_INLINE const char* GetSubTitle() const                        { return mSubTitle.c_str(); }
+        //MCORE_INLINE const AZStd::string& GetSubTitleString() const           { return mSubTitle; }
         MCORE_INLINE bool GetIsInsideArrowRect(const QPoint& point) const   { return mArrowRect.contains(point, true); }
 
         MCORE_INLINE void SetVisualizeColor(const QColor& color)            { mVisualizeColor = color; }
@@ -172,8 +172,8 @@ namespace EMStudio
         virtual void SetName(const char* name, bool updatePixmap = true);
 
         void SetNodeInfo(const char* info);
-        MCORE_INLINE const char* GetNodeInfo() const                        { return mNodeInfo.AsChar(); }
-        MCORE_INLINE const MCore::String& GetNodeInfoString() const         { return mNodeInfo; }
+        MCORE_INLINE const char* GetNodeInfo() const                        { return mNodeInfo.c_str(); }
+        MCORE_INLINE const AZStd::string& GetNodeInfoString() const         { return mNodeInfo; }
 
         virtual uint32 GetType() const      { return GraphNode::TYPE_ID; }
 
@@ -219,17 +219,17 @@ namespace EMStudio
 
         void GetNodePortColors(NodePort* nodePort, const QColor& borderColor, const QColor& headerBgColor, QColor* outBrushColor, QColor* outPenColor);
 
-        MCore::String                   mName;
+        AZStd::string                   mName;
         QString                         mElidedName;
 
         QPainter                        mTextPainter;
         //QPixmap                           mTextPixmap;
-        MCore::String                   mSubTitle;
+        AZStd::string                   mSubTitle;
         QString                         mElidedSubTitle;
-        MCore::String                   mNodeInfo;
+        AZStd::string                   mNodeInfo;
         QString                         mElidedNodeInfo;
         QBrush                          mBrush;
-        uint32                          mID;
+        EMotionFX::AnimGraphNodeId      m_id;
         QColor                          mBaseColor;
         QRect                           mRect;
         QRect                           mFinalRect;
@@ -293,5 +293,3 @@ namespace EMStudio
         QPolygonF                       mSubstPoly;
     };
 }   // namespace EMStudio
-
-#endif

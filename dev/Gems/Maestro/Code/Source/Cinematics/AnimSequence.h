@@ -140,6 +140,16 @@ public:
 
     SequenceType GetSequenceType() const override { return m_sequenceType; }
 
+    void SetExpanded(bool expanded) override
+    {
+        m_expanded = expanded;
+    }
+
+    bool GetExpanded() const override
+    {
+        return m_expanded;
+    }
+
     static void Reflect(AZ::SerializeContext* serializeContext);
 
 private:
@@ -186,7 +196,7 @@ private:
     bool m_bPaused;
     bool m_bActive;
 
-    uint32 m_lastGenId;
+    uint32 m_nextGenId;
 
     IAnimLegacySequenceObject* m_legacySequenceObject;   // legacy sequence objects are connected by pointer
 
@@ -200,6 +210,7 @@ private:
     VectorSet<IEntity*> m_precachedEntitiesSet;
     SequenceType m_sequenceType;       // indicates if this sequence is connected to a legacy sequence entity or Sequence Component
 
+    bool m_expanded;
 };
 
 #endif // CRYINCLUDE_CRYMOVIE_ANIMSEQUENCE_H

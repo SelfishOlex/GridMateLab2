@@ -14,11 +14,19 @@
 // Description : Helper macros/methods/classes for boost.
 
 
-#ifndef CRYINCLUDE_CRYCOMMON_BOOSTHELPERS_H
-#define CRYINCLUDE_CRYCOMMON_BOOSTHELPERS_H
 #pragma once
 
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#include AZ_RESTRICTED_FILE(BoostHelpers_h, AZ_RESTRICTED_PLATFORM)
+#endif
+
+#include <AzCore/PlatformDef.h>
+
+// NOTE: Case that uses BOOST_TYPE_INDEX_FUNCTION_SIGNATURE has a syntax error, must use __FUNCSIG__ instead
+#if defined(AZ_PLATFORM_WINDOWS) && defined(AZ_COMPILER_CLANG)
+    #define __FUNCSIG__ AZ_FUNCTION_SIGNATURE
+#endif
 
 #include <AzCore/std/smart_ptr/shared_ptr.h>
 #include <AzCore/std/smart_ptr/make_shared.h>
@@ -99,5 +107,7 @@
 #include <boost/mpl/vector.hpp>
 #include <boost/mpl/find.hpp>
 #pragma warning(pop)
+#if defined(AZ_PLATFORM_WINDOWS) && defined(AZ_COMPILER_CLANG)
+    #undef __FUNCSIG__
+#endif
 
-#endif // CRYINCLUDE_CRYCOMMON_BOOSTHELPERS_H

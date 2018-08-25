@@ -15,8 +15,8 @@
 // include required files
 #include "EMotionFXConfig.h"
 #include "BaseObject.h"
-#include <MCore/Source/UnicodeString.h>
 #include <MCore/Source/SmallArray.h>
+#include <AzCore/std/string/string.h>
 
 
 namespace EMotionFX
@@ -36,9 +36,8 @@ namespace EMotionFX
     class EMFX_API NodeGroup
         : public BaseObject
     {
-        MCORE_MEMORYOBJECTCATEGORY(NodeGroup, EMFX_DEFAULT_ALIGNMENT, EMFX_MEMCATEGORY_NODESMISC);
-
     public:
+        AZ_CLASS_ALLOCATOR_DECL
         /**
          * The default creation method.
          * This does not assign a name and there will be nodes inside this group on default.
@@ -63,12 +62,6 @@ namespace EMotionFX
         static NodeGroup* Create(const char* groupName, uint16 numNodes, bool enabledOnDefault = true);
 
         /**
-         * Clone the controller.
-         * @result A cloned version of this group. This group will contain the same nodes, same default enabled state and the same name.
-         */
-        NodeGroup* Clone();
-
-        /**
          * Set the name of the group. Please keep in mind that group names must be unique inside the Actor objects. So you should not have two or more groups with the same name.
          * @param groupName The name of the group.
          */
@@ -81,10 +74,10 @@ namespace EMotionFX
         const char* GetName() const;
 
         /**
-         * Get the name of the group, in form of a MCore::String object.
-         * @result The name as a reference to a MCore::String object.
+         * Get the name of the group, in form of a AZStd::string object.
+         * @result The name as a reference to a AZStd::string object.
          */
-        const MCore::String& GetNameString() const;
+        const AZStd::string& GetNameString() const;
 
         /**
          * Set the number of nodes that remain inside this group.
@@ -182,38 +175,41 @@ namespace EMotionFX
          & @result Returns true when all nodes inside this group will be in an enabled state when creating a new actor instance using this group. Otherwise false is returned.
          */
         void SetIsEnabledOnDefault(bool enabledOnDefault);
-
-    private:
-        MCore::String               mName;              /**< The name of the group. */
-        MCore::SmallArray<uint16>   mNodes;             /**< The node index numbers that are inside this group. */
-        bool                        mEnabledOnDefault;  /**< Specifies whether this group is enabled on default (true) or disabled (false). With on default we mean after directly after the actor instance using this group has been created. */
-
+        
         /**
-         * The default constructor.
-         * This does not assign a name and there will be nodes inside this group on default.
-         * Also the default enabled state is set to true.
-         */
+        * The default constructor.
+        * This does not assign a name and there will be nodes inside this group on default.
+        * Also the default enabled state is set to true.
+        */
         NodeGroup();
 
         /**
-         * Extended constructor.
-         * @param groupName The name of the group. Please keep in mind that it is not allowed to have two groups with the same name inside an Actor.
-         * @param enabledOnDefault Set to true (default) when the nodes inside this group should be enabled on default.
-         */
+        * Extended constructor.
+        * @param groupName The name of the group. Please keep in mind that it is not allowed to have two groups with the same name inside an Actor.
+        * @param enabledOnDefault Set to true (default) when the nodes inside this group should be enabled on default.
+        */
         NodeGroup(const char* groupName, bool enabledOnDefault = true);
 
         /**
-         * Another extended constructor.
-         * @param groupName The name of the group. Please keep in mind that it is not allowed to have two groups with the same name inside an Actor.
-         * @param numNodes The number of nodes to create inside the group. This will have all uninitialized values for the node indices in the group, so be sure that you
-         *                 set them all to some valid node index using the NodeGroup::SetNode(...) method. This method automatically calls the SetNumNodes(...) method.
-         * @param enabledOnDefault Set to true (default) when the nodes inside this group should be enabled on default.
-         */
+        * Another extended constructor.
+        * @param groupName The name of the group. Please keep in mind that it is not allowed to have two groups with the same name inside an Actor.
+        * @param numNodes The number of nodes to create inside the group. This will have all uninitialized values for the node indices in the group, so be sure that you
+        *                 set them all to some valid node index using the NodeGroup::SetNode(...) method. This method automatically calls the SetNumNodes(...) method.
+        * @param enabledOnDefault Set to true (default) when the nodes inside this group should be enabled on default.
+        */
         NodeGroup(const char* groupName, uint16 numNodes, bool enabledOnDefault = true);
 
         /**
-         * The destructor.
-         */
+        * The destructor.
+        */
         ~NodeGroup();
+
+        NodeGroup(const NodeGroup& aOther);
+        NodeGroup& operator=(const NodeGroup& aOther);
+
+    private:
+        AZStd::string               mName;              /**< The name of the group. */
+        MCore::SmallArray<uint16>   mNodes;             /**< The node index numbers that are inside this group. */
+        bool                        mEnabledOnDefault;  /**< Specifies whether this group is enabled on default (true) or disabled (false). With on default we mean after directly after the actor instance using this group has been created. */
     };
 }   // namespace EMotionFX

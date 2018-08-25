@@ -17,11 +17,11 @@
 
 #include <AzToolsFramework/UI/PropertyEditor/PropertyVectorCtrl.hxx>
 
-#include <Components/NodePropertyDisplay/NodePropertyDisplay.h>
-#include <Components/NodePropertyDisplay/VectorDataInterface.h>
+#include <GraphCanvas/Components/NodePropertyDisplay/NodePropertyDisplay.h>
+#include <GraphCanvas/Components/NodePropertyDisplay/VectorDataInterface.h>
 
-#include <Components/MimeDataHandlerBus.h>
-#include <Styling/StyleHelper.h>
+#include <GraphCanvas/Components/MimeDataHandlerBus.h>
+#include <GraphCanvas/Styling/StyleHelper.h>
 
 class QGraphicsLinearLayout;
 
@@ -86,15 +86,17 @@ namespace GraphCanvas
         void RefreshStyle() override;
         void UpdateDisplay() override;
         
-        QGraphicsLayoutItem* GetDisabledGraphicsLayoutItem() const override;
-        QGraphicsLayoutItem* GetDisplayGraphicsLayoutItem() const override;
-        QGraphicsLayoutItem* GetEditableGraphicsLayoutItem() const override;
+        QGraphicsLayoutItem* GetDisabledGraphicsLayoutItem() override;
+        QGraphicsLayoutItem* GetDisplayGraphicsLayoutItem() override;
+        QGraphicsLayoutItem* GetEditableGraphicsLayoutItem() override;
         ////
     
     private:
 
         void OnFocusIn();
         void OnFocusOut();
+        void SetupProxyWidget();
+        void CleanupProxyWidget();
         
         void SubmitValue(int elementIndex, double newValue);
     

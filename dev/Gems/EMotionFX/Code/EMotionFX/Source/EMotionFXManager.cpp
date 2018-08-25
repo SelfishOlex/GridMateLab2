@@ -23,21 +23,19 @@
 #include "Recorder.h"
 #include "MotionInstancePool.h"
 #include "AnimGraphManager.h"
-#include <MCore/Source/UnicodeString.h>
-#include <MCore/Source/UnicodeStringIterator.h>
-#include <MCore/Source/UnicodeCharacter.h>
 #include <MCore/Source/JobManager.h>
 #include <MCore/Source/MCoreSystem.h>
 #include <MCore/Source/MemoryTracker.h>
 #include <AzCore/std/algorithm.h>
-#include <AzCore/std/string/conversions.h>
 #include <AzCore/IO/FileIO.h>
-#include <AzFramework/StringFunc/StringFunc.h>
 #include <AzFramework/API/ApplicationAPI.h>
+#include <EMotionFX/Source/Allocators.h>
 
 
 namespace EMotionFX
 {
+    AZ_CLASS_ALLOCATOR_IMPL(EMotionFXManager, EMotionFXManagerAllocator, 0)
+
     // the global EMotion FX manager object
     AZ::EnvironmentVariable<EMotionFXManager*> gEMFX;
 
@@ -52,6 +50,9 @@ namespace EMotionFX
             return true;
         }
 
+        // Create EMotion FX allocators
+        Allocators::Create();
+        
         // create the new object
         gEMFX = AZ::Environment::CreateVariable<EMotionFXManager*>(kEMotionFXInstanceVarName);
         gEMFX.Set(EMotionFXManager::Create());
@@ -102,6 +103,8 @@ namespace EMotionFX
         // delete the global object and reset it to nullptr
         gEMFX.Get()->Destroy();
         gEMFX.Reset();
+
+        Allocators::Destroy();
     }
 
     //-----------------------------------------------------------------------------
@@ -112,10 +115,10 @@ namespace EMotionFX
     {
         mThreadDatas.SetMemoryCategory(EMFX_MEMCATEGORY_EMOTIONFXMANAGER);
         // build the low version string
-        MCore::String lowVersionString;
+        AZStd::string lowVersionString;
         BuildLowVersionString(lowVersionString);
 
-        mVersionString.Format("EMotion FX v%d.%s RC4", EMFX_HIGHVERSION, lowVersionString.AsChar());
+        mVersionString = AZStd::string::format("EMotion FX v%d.%s RC4", EMFX_HIGHVERSION, lowVersionString.c_str());
         mCompilationDate        = MCORE_DATE;
         mHighVersion            = EMFX_HIGHVERSION;
         mLowVersion             = EMFX_LOWVERSION;
@@ -166,7 +169,7 @@ namespace EMotionFX
     // create
     EMotionFXManager* EMotionFXManager::Create()
     {
-        return new EMotionFXManager();
+        return aznew EMotionFXManager();
     }
 
 
@@ -203,15 +206,15 @@ namespace EMotionFX
     void EMotionFXManager::LogInfo()
     {
         // turn "0.010" into "01" to for example build the string v3.01 later on
-        MCore::String lowVersionString;
+        AZStd::string lowVersionString;
         BuildLowVersionString(lowVersionString);
 
         MCore::LogInfo("-----------------------------------------------");
         MCore::LogInfo("EMotion FX - Information");
         MCore::LogInfo("-----------------------------------------------");
-        MCore::LogInfo("Version:          v%d.%s", mHighVersion, lowVersionString.AsChar());
-        MCore::LogInfo("Version string:   %s", mVersionString.AsChar());
-        MCore::LogInfo("Compilation date: %s", mCompilationDate.AsChar());
+        MCore::LogInfo("Version:          v%d.%s", mHighVersion, lowVersionString.c_str());
+        MCore::LogInfo("Version string:   %s", mVersionString.c_str());
+        MCore::LogInfo("Compilation date: %s", mCompilationDate.c_str());
 
     #ifdef MCORE_OPENMP_ENABLED
         MCore::LogInfo("OpenMP enabled:   Yes");
@@ -232,14 +235,14 @@ namespace EMotionFX
     // get the version string
     const char* EMotionFXManager::GetVersionString() const
     {
-        return mVersionString.AsChar();
+        return mVersionString.c_str();
     }
 
 
     // get the compilation date string
     const char* EMotionFXManager::GetCompilationDate() const
     {
-        return mCompilationDate.AsChar();
+        return mCompilationDate.c_str();
     }
 
 
@@ -416,28 +419,22 @@ namespace EMotionFX
     }
 
 
-    void EMotionFXManager::GetFilenameRelativeTo(MCore::String* inOutFilename, const char* folderPath)
+    void EMotionFXManager::GetFilenameRelativeTo(AZStd::string* inOutFilename, const char* folderPath)
     {
         AZStd::string baseFolderPath = folderPath;
-        AZStd::string filename = inOutFilename->AsChar();
+        AZStd::string filename = inOutFilename->c_str();
 
         // TODO: Add parameter to not lower case the path once it is in and working.
         EBUS_EVENT(AzFramework::ApplicationRequests::Bus, NormalizePathKeepCase, baseFolderPath);
         EBUS_EVENT(AzFramework::ApplicationRequests::Bus, NormalizePathKeepCase, filename);
 
-        // TODO: Remove the following code as soon as the Systems team has fixed the folder path capitalisation of AZ::IO::FileIOBase::GetInstance()->GetAlias().
-        //       To work around it we'll lower case the media root folder and lower case the same amount of characters for the filename to be actually able to remove the media root from the absolute file path.
-        const size_t baseFolderPathSize = baseFolderPath.size();
-        AZStd::to_lower(baseFolderPath.begin(), baseFolderPath.begin() + baseFolderPathSize);
-        AZStd::to_lower(filename.begin(), filename.begin() + baseFolderPathSize);
-
         // Remove the media root folder from the absolute motion filename so that we get the relative one to the media root folder.
-        *inOutFilename = filename.c_str();
-        inOutFilename->RemoveAllParts(baseFolderPath.c_str());
+        AzFramework::StringFunc::Replace(filename, baseFolderPath.c_str(), "", false /* case sensitive */, true /* replace first */);
+        *inOutFilename = filename;
     }
 
 
-    void EMotionFXManager::GetFilenameRelativeToMediaRoot(MCore::String* inOutFilename) const
+    void EMotionFXManager::GetFilenameRelativeToMediaRoot(AZStd::string* inOutFilename) const
     {
         GetFilenameRelativeTo(inOutFilename, GetMediaRootFolder());
     }
@@ -445,15 +442,13 @@ namespace EMotionFX
 
     // build the low version string
     // this turns 900 into 9, and 50 into 05
-    void EMotionFXManager::BuildLowVersionString(MCore::String& outLowVersionString)
+    void EMotionFXManager::BuildLowVersionString(AZStd::string& outLowVersionString)
     {
-        outLowVersionString.Format("%.2f", EMFX_LOWVERSION / 100.0f);
-        outLowVersionString.TrimLeft(MCore::UnicodeCharacter('0'));
-        outLowVersionString.TrimLeft(MCore::UnicodeCharacter('.'));
-        outLowVersionString.TrimRight(MCore::UnicodeCharacter('0'));
-        outLowVersionString.TrimRight(MCore::UnicodeCharacter('.'));
+        outLowVersionString = AZStd::string::format("%.2f", EMFX_LOWVERSION / 100.0f);
+        AzFramework::StringFunc::Strip(outLowVersionString, '0', true /* case sensitive */, true /* beginning */, true /* ending */);
+        AzFramework::StringFunc::Strip(outLowVersionString, '.', true /* case sensitive */, true /* beginning */, true /* ending */);
 
-        if (outLowVersionString.GetIsEmpty())
+        if (outLowVersionString.empty())
         {
             outLowVersionString = "0";
         }
@@ -544,7 +539,7 @@ namespace EMotionFX
     // shrink internal pools to minimize memory usage
     void EMotionFXManager::ShrinkPools()
     {
-        mAnimGraphManager->GetObjectDataPool().Shrink();
+        Allocators::ShrinkPools();
         mMotionInstancePool->Shrink();
         //MCore::GetAttributePool().Shrink();
     }
@@ -611,7 +606,6 @@ namespace EMotionFX
         memTracker.RegisterCategory(EMFX_MEMCATEGORY_ANIMGRAPH_ATTRIBUTEINFOS,                "EMFX_MEMCATEGORY_ANIMGRAPH_ATTRIBUTEINFOS");
         memTracker.RegisterCategory(EMFX_MEMCATEGORY_ANIMGRAPH_OBJECTUNIQUEDATA,              "EMFX_MEMCATEGORY_ANIMGRAPH_OBJECTUNIQUEDATA");
         memTracker.RegisterCategory(EMFX_MEMCATEGORY_ANIMGRAPH_OBJECTS,                       "EMFX_MEMCATEGORY_ANIMGRAPH_OBJECTS");
-        memTracker.RegisterCategory(EMFX_MEMCATEGORY_ANIMGRAPH_CONDITIONS,                    "EMFX_MEMCATEGORY_ANIMGRAPH_CONDITIONS");
         memTracker.RegisterCategory(EMFX_MEMCATEGORY_ANIMGRAPH_TRANSITIONS,                   "EMFX_MEMCATEGORY_ANIMGRAPH_TRANSITIONS");
         memTracker.RegisterCategory(EMFX_MEMCATEGORY_ANIMGRAPH_SYNCTRACK,                     "EMFX_MEMCATEGORY_ANIMGRAPH_SYNCTRACK");
         memTracker.RegisterCategory(EMFX_MEMCATEGORY_ANIMGRAPH_POSE,                          "EMFX_MEMCATEGORY_ANIMGRAPH_POSE");
@@ -681,7 +675,6 @@ namespace EMotionFX
         idValues.push_back(EMFX_MEMCATEGORY_ANIMGRAPH_ATTRIBUTEINFOS);
         idValues.push_back(EMFX_MEMCATEGORY_ANIMGRAPH_OBJECTUNIQUEDATA);
         idValues.push_back(EMFX_MEMCATEGORY_ANIMGRAPH_OBJECTS);
-        idValues.push_back(EMFX_MEMCATEGORY_ANIMGRAPH_CONDITIONS);
         idValues.push_back(EMFX_MEMCATEGORY_ANIMGRAPH_TRANSITIONS);
         idValues.push_back(EMFX_MEMCATEGORY_ANIMGRAPH_SYNCTRACK);
         idValues.push_back(EMFX_MEMCATEGORY_ANIMGRAPH_POSE);

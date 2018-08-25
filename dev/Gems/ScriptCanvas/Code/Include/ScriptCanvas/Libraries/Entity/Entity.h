@@ -17,4 +17,5 @@
 
 #include "Rotate.h"
 #include "EntityIDNode.h"
+#include "EntityIDNodes.h"
 #include "EntityRef.h"

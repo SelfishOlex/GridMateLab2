@@ -38,11 +38,30 @@ def hash_range(filename, start, size):
         f.close()
     return m.digest()
 
+def fast_hash(fname):
+    """
+    Computes a hash value for a file by using md5 on the file name, modified
+    timestamp and file size
+    """
+    st = os.stat(fname)
+    if stat.S_ISDIR(st[stat.ST_MODE]):
+        raise IOError('not a file')
+    m = Utils.md5()
+    m.update(str(st.st_mtime))
+    m.update(str(st.st_size))
+    m.update(fname)
+    return m.digest()
+
 # pdbs and dlls have a guid embedded in their header which should change
 # every time they are compiled/linked
+# for dylibs and files that don't have an extension (executables on macOS falls
+# into this category as well as wscript files) use the fast_hash as the default
+# hash is too slow for large files
 HASH_OVERRIDES = {
     ".pdb": lambda filename: hash_range(filename, 0, 256),
-    ".dll": lambda filename: hash_range(filename, 0, 512)
+    ".dll": lambda filename: hash_range(filename, 0, 512),
+    ".dylib": fast_hash,
+    "": fast_hash,
 }
 
 h_file_original = Utils.h_file
@@ -74,6 +93,8 @@ def copy_tree2(src, dst, overwrite_existing_file=False, pattern_paths=None, is_p
         Logs.warn('[WARN] Unable to copy {} to destination {} using copy_tree2. {} is not a directory.'.format(src, dst, src))
         return 0
 
+    supports_symlinks = not Utils.unversioned_sys_platform().startswith('win')
+
     src = os.path.normpath(src)
     dst = os.path.normpath(dst)
 
@@ -89,10 +110,13 @@ def copy_tree2(src, dst, overwrite_existing_file=False, pattern_paths=None, is_p
             if any(path in src_path for path in ignore_paths):
                 continue
 
-            if os.path.isdir(src_path):
+            if supports_symlinks and os.path.islink(src_path):
+                non_ignored_paths.append(src_path)
+            elif os.path.isdir(src_path):
                 non_ignored_paths.extend(_get_non_ignored_paths_in_dir_recursively(src_path, ignore_paths))
             else:
                 non_ignored_paths.append(src_path)
+
         return non_ignored_paths
 
     # copy everything if pattern_path is none
@@ -116,12 +140,17 @@ def copy_tree2(src, dst, overwrite_existing_file=False, pattern_paths=None, is_p
 
         paths_to_copy = filtered_paths
 
+    symlinks = []
     # now we copy all files specified from the paths in paths_to_copy
     for path in paths_to_copy:
         srcname = os.path.join(src, path)
         dstname = os.path.join(dst, path)
 
-        if os.path.isdir(srcname):
+        if supports_symlinks and os.path.islink(srcname):
+            linkto = os.readlink(srcname)
+            symlinks.append([linkto, dstname])
+
+        elif os.path.isdir(srcname):
             # if we encounter a srcname that is a folder, we assume that we want the entire folder
             # pattern_paths to None tells this function that we want to copy the entire folder
             copied_files += copy_tree2(srcname, dstname, overwrite_existing_file, None, fail_on_error=fail_on_error)
@@ -162,6 +191,22 @@ def copy_tree2(src, dst, overwrite_existing_file=False, pattern_paths=None, is_p
                         '[WARN] Unable to copy {} to destination {}.  Check the file permissions or any process that may be locking it.'.format(
                             srcname, dstname))
             copied_files += file_copied
+
+    # symlinks will be empty if a platform does not support them so no need to
+    # protect against running this code
+    for symlink in symlinks:
+        if os.path.exists(symlink[1]):
+            if os.path.islink(symlink[1]):
+                os.unlink(symlink[1]) 
+            elif os.path.isdir(symlink[1]):
+                shutil.rmtree(symlink[1])
+            else:
+                os.remove(symlink[1]) 
+        try:
+            os.symlink(symlink[0], symlink[1])
+        except OSError as oops:
+            Logs.warn("Unable to create symbolic link {} because {}".format(symlink[1], oops))
+            copied_files = False
 
     return copied_files
 
@@ -834,9 +879,6 @@ def copy_3rd_party_binaries(self):
             source_node = self.bld.root.make_node(source_file_file_norm_path)
             self.env['COPY_3RD_PARTY_ARTIFACTS'] += [source_node]
 
-    # Get the project root path information in order to convert the paths to nodes
-    project_root_norm_path = os.path.normpath(self.bld.srcnode.abspath())
-
     uselib_keys = []
     uselib_keys += getattr(self, 'uselib', [])
     uselib_keys += getattr(self, 'use', [])
@@ -887,7 +929,6 @@ def copy_3rd_party_extras(self):
     if self.bld.cmd in ('msvs', 'android_studio'):
         return
 
-    project_root_norm_path = os.path.normpath(self.bld.srcnode.abspath())
     current_platform = self.bld.env['PLATFORM']
     current_configuration = self.bld.env['CONFIGURATION']
 
@@ -939,12 +980,6 @@ def copy_3rd_party_extras(self):
             Logs.warn("[WARN] Copy Extra rule is invalid ({})", copy_extra_command)
             return False
 
-        source_norm_path = os.path.normpath(source)
-        if not source_norm_path.startswith(project_root_norm_path):
-            # If the path is not within the root folder, we cannot use the copy task
-            Logs.warn("Cannot copy source '{}' outside of the project root.  Skipping.".format(source_norm_path))
-            return False
-
         skip_pdbs = not self.bld.is_option_true('copy_3rd_party_pdbs')
 
         if os.path.isdir(source):
@@ -972,16 +1007,16 @@ def copy_3rd_party_extras(self):
 
         for target_node in self.bld.get_output_folders(current_platform, current_configuration, self):
             for source_file, target_file in raw_src_and_tgt:
-                source_file_relative_path = source_file[len(project_root_norm_path)+1:]
-                source = self.bld.srcnode.make_node(source_file_relative_path)
+                source = self.bld.root.make_node(source_file)
                 target = target_node.make_node(target_file)
                 self.create_copy_task(source, target)
 
         return True
 
-    # Get the project root path information in order to convert the paths to nodes
-    project_root_norm_path = os.path.normpath(self.bld.srcnode.abspath())
-    uselib_keys = getattr(self, 'uselib', None)
+
+    uselib_keys = []
+    uselib_keys += getattr(self, 'uselib', [])
+    uselib_keys += getattr(self, 'use', [])
     if uselib_keys:
         for uselib_key in uselib_keys:
 

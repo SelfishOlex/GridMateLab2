@@ -13,10 +13,15 @@
 // include required headers
 #include "Skeleton.h"
 #include "Node.h"
+#include <MCore/Source/StringConversions.h>
+#include <EMotionFX/Source/Allocators.h>
 
 
 namespace EMotionFX
 {
+    AZ_CLASS_ALLOCATOR_IMPL(Skeleton, SkeletonAllocator, 0)
+
+
     // constructor
     Skeleton::Skeleton()
     {
@@ -35,7 +40,7 @@ namespace EMotionFX
     // create the skeleton
     Skeleton* Skeleton::Create()
     {
-        return new Skeleton();
+        return aznew Skeleton();
     }
 
 
@@ -110,7 +115,7 @@ namespace EMotionFX
         const uint32 numNodes = mNodes.GetLength();
         for (uint32 i = 0; i < numNodes; ++i)
         {
-            if (mNodes[i]->GetNameString().CheckIfIsEqual(name))
+            if (mNodes[i]->GetNameString() == name)
             {
                 return mNodes[i];
             }
@@ -127,7 +132,7 @@ namespace EMotionFX
         const uint32 numNodes = mNodes.GetLength();
         for (uint32 i = 0; i < numNodes; ++i)
         {
-            if (mNodes[i]->GetNameString().CheckIfIsEqualNoCase(name))
+            if (AzFramework::StringFunc::Equal(mNodes[i]->GetNameString().c_str(), name, false /* no case */))
             {
                 return mNodes[i];
             }

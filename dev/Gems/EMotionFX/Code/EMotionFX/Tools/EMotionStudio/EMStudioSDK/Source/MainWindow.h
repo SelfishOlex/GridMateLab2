@@ -12,61 +12,66 @@
 
 #pragma once
 
-// include the required headers
-#include "EMStudioConfig.h"
+#include <EMotionStudio/EMStudioSDK/Source/EMStudioConfig.h>
+#include <EMotionStudio/EMStudioSDK/Source/GUIOptions.h>
+#include <EMotionStudio/EMStudioSDK/Source/PluginOptionsBus.h>
+#include <MCore/Source/Array.h>
+#include <MCore/Source/Command.h>
 #include <MCore/Source/StandardHeaders.h>
-#include <MCore/Source/UnicodeString.h>
-#include <AzCore/Debug/Timer.h>
-#include <EMotionFX/Source/Importer/Importer.h>
-#include "NodeSelectionWindow.h"
-#include "SaveChangedFilesManager.h"
+#include <MCore/Source/CommandManagerCallback.h>
 #include <MysticQt/Source/RecentFiles.h>
-#include <MysticQt/Source/KeyboardShortcutManager.h>
-#include <MysticQt/Source/PropertyWidget.h>
-#include <MysticQt/Source/ComboBox.h>
-#include "FileManager.h"
+
 #include <QMainWindow>
-#include <QMenu>
-#include <QTimer>
-#include <QDropEvent>
-#include <QUrl>
-#include <QCheckBox>
 #include <QAbstractNativeEventFilter>
 
 // forward declarations
-QT_FORWARD_DECLARE_CLASS(QSignalMapper)
 QT_FORWARD_DECLARE_CLASS(QPushButton)
+QT_FORWARD_DECLARE_CLASS(QMenu)
+QT_FORWARD_DECLARE_CLASS(QTimer)
+QT_FORWARD_DECLARE_CLASS(QDropEvent)
+QT_FORWARD_DECLARE_CLASS(QCheckBox)
+struct SelectionItem;
 
+namespace AZ
+{
+    namespace Data
+    {
+        struct AssetId;
+    }
+}
+
+namespace EMotionFX
+{
+    class AnimGraph;
+    class MotionSet;
+}
+
+namespace MCore
+{
+    class CommandGroup;
+}
+
+namespace MysticQt
+{
+    class ComboBox;
+    class KeyboardShortcutManager;
+}
 
 namespace EMStudio
 {
     // forward declaration
-    class PreferencesWindow;
-    class NodeSelectionWindow;
+    class DirtyFileManager;
     class EMStudioPlugin;
+    class FileManager;
     class MainWindow;
-
-
-    class NativeEventFilter
-        : public QAbstractNativeEventFilter
-    {
-    public:
-        NativeEventFilter(MainWindow* mainWindow)
-            : QAbstractNativeEventFilter(),
-              m_MainWindow(mainWindow)
-        {
-        }
-
-        virtual bool nativeEventFilter(const QByteArray& /*eventType*/, void* message, long* /*result*/) Q_DECL_OVERRIDE;
-
-    private:
-        MainWindow*         m_MainWindow;
-    };
-
+    class NativeEventFilter;
+    class NodeSelectionWindow;
+    class PreferencesWindow;
 
     // the main window
     class EMSTUDIO_API MainWindow
         : public QMainWindow
+        , private PluginOptionsNotificationsBus::Router
     {
         Q_OBJECT
         MCORE_MEMORYOBJECTCATEGORY(MainWindow, MCore::MCORE_DEFAULT_ALIGNMENT, MEMCATEGORY_EMSTUDIOSDK)
@@ -79,19 +84,21 @@ namespace EMStudio
         void UpdateLayoutsMenu();
         void UpdateUndoRedo();
         void DisableUndoRedo();
+        static void Reflect(AZ::ReflectContext* context);
         void Init();
 
         MCORE_INLINE QMenu* GetLayoutsMenu()                                    { return mLayoutsMenu; }
 
         void LoadActor(const char* fileName, bool replaceCurrentScene);
         void LoadCharacter(const AZ::Data::AssetId& actorAssetId, const AZ::Data::AssetId& animgraphId, const AZ::Data::AssetId& motionSetId);
-        void LoadFile(const MCore::String& fileName, int32 contextMenuPosX = 0, int32 contextMenuPosY = 0, bool contextMenuEnabled = true, bool reload = false);
+        void LoadFile(const AZStd::string& fileName, int32 contextMenuPosX = 0, int32 contextMenuPosY = 0, bool contextMenuEnabled = true, bool reload = false);
         void LoadFiles(const AZStd::vector<AZStd::string>& filenames, int32 contextMenuPosX = 0, int32 contextMenuPosY = 0, bool contextMenuEnabled = true, bool reload = false);
 
-        void SetLastUsedApplicationModeString(const QString& lastUsedApplicationMode, bool saveToConfigFile);
-        void SetMaxRecentFiles(uint32 numRecentFiles, bool saveToConfigFile);
-        MCORE_INLINE uint32 GetMaxRecentFiles()                                 { return mMaxNumRecentFiles; }
+        void Activate(const AZ::Data::AssetId& actorAssetId, const EMotionFX::AnimGraph* animGraph, const EMotionFX::MotionSet* motionSet);
+
         MysticQt::RecentFiles* GetRecentWorkspaces()                            { return &mRecentWorkspaces; }
+
+        GUIOptions& GetOptions()                                                { return mOptions; }
 
         void Reset(bool clearActors = true, bool clearMotionSets = true, bool clearMotions = true, bool clearAnimGraphs = true, MCore::CommandGroup* commandGroup = nullptr);
 
@@ -100,17 +107,16 @@ namespace EMStudio
         void LoadPreferences();
 
         void UpdateResetAndSaveAllMenus();
+
+        void UpdateSaveActorsMenu();
         void EnableMergeActorMenu();
         void DisableMergeActorMenu();
         void EnableSaveSelectedActorsMenu();
         void DisableSaveSelectedActorsMenu();
 
         void OnWorkspaceSaved(const char* filename);
-      
-        void RegisterDirtyWorkspaceCallback();
 
         MCORE_INLINE MysticQt::ComboBox* GetApplicationModeComboBox()           { return mApplicationMode; }
-        MCORE_INLINE QString GetLastUsedApplicationModeString()                 { return mLastUsedMode; }
         DirtyFileManager*   GetDirtyFileManager() const                         { return mDirtyFileManager; }
         FileManager*        GetFileManager() const                              { return mFileManager; }
         PreferencesWindow*  GetPreferencesWindow() const                        { return mPreferencesWindow; }
@@ -119,7 +125,7 @@ namespace EMStudio
         void keyReleaseEvent(QKeyEvent* event) override;
 
         uint32 GetNumLayouts() const                                            { return mLayoutNames.GetLength(); }
-        const char* GetLayoutName(uint32 index) const                           { return mLayoutNames[index].AsChar(); }
+        const char* GetLayoutName(uint32 index) const                           { return mLayoutNames[index].c_str(); }
         const char* GetCurrentLayoutName() const;
 
         static const char* GetEMotionFXPaneName();
@@ -127,9 +133,6 @@ namespace EMStudio
 
     public slots:
         void OnAutosaveTimeOut();
-        void OnScaleSelectedActors();
-        void OnScaleSelectedMotions();
-        void OnScaleSelectedAnimGraphs();
         void LoadLayoutAfterShow();
         void RaiseFloatingWidgets();
         void LoadCharacterFiles();
@@ -140,6 +143,10 @@ namespace EMStudio
         void LoadDefaultLayout();
 
     private:
+        void BroadcastSelectionNotifications();
+        EMotionFX::Actor*           m_prevSelectedActor;
+        EMotionFX::ActorInstance*   m_prevSelectedActorInstance;
+
         QMenu*                  mCreateWindowMenu;
         QMenu*                  mLayoutsMenu;
         QAction*                mUndoAction;
@@ -149,7 +156,8 @@ namespace EMStudio
         MysticQt::KeyboardShortcutManager* mShortcutManager;
 
         // layouts (application modes)
-        MCore::Array<MCore::String> mLayoutNames;
+        MCore::Array<AZStd::string> mLayoutNames;
+        bool mLayoutLoaded;
 
         // menu actions
         QAction*                mResetAction;
@@ -162,51 +170,39 @@ namespace EMStudio
 
         // application mode
         MysticQt::ComboBox*     mApplicationMode;
-        QString                 mLastUsedMode;
 
         PreferencesWindow*      mPreferencesWindow;
 
-        // node selection window
-        NodeSelectionWindow*    mNodeSelectionWindow;
-
-        EMStudio::FileManager*  mFileManager;
+        FileManager*  mFileManager;
 
         MysticQt::RecentFiles   mRecentActors;
         MysticQt::RecentFiles   mRecentWorkspaces;
-        uint32                  mMaxNumRecentFiles;
 
         // dirty files
         DirtyFileManager*       mDirtyFileManager;
 
-        void SetWindowTitleFromFileName(const MCore::String& fileName);
+        void SetWindowTitleFromFileName(const AZStd::string& fileName);
 
         // drag & drop support
         void dragEnterEvent(QDragEnterEvent* event) override;
         void dropEvent(QDropEvent* event) override;
-        MCore::String           mDroppedActorFileName;
+        AZStd::string           mDroppedActorFileName;
 
-        // general properties (preferences dialog)
-        MysticQt::PropertyWidget::Property*     mEnableAutosaveProperty;
-        MysticQt::PropertyWidget::Property*     mAutosaveIntervalProperty;
-        MysticQt::PropertyWidget::Property*     mAutosaveNumberOfFilesProperty;
-        MysticQt::PropertyWidget::Property*     mNotificationVisibleTimeProperty;
-        MysticQt::PropertyWidget::Property*     mMaxHistoryItemsProperty;
-        MysticQt::PropertyWidget::Property*     mMaxRecentFilesProperty;
-        MysticQt::PropertyWidget::Property*     mImporterDetailedLogging;
-        MysticQt::PropertyWidget::Property*     mAutoLoadLastWorkspaceProperty;
-        MysticQt::PropertyWidget::Property*     mAspiredRenderingFPSProperty;
-
+        // General options
+        GUIOptions                              mOptions;
+        bool                                    mLoadingOptions;
+        
         QTimer*                                 mAutosaveTimer;
-        int32                                   mNotificationVisibleTime;
-        int32                                   mAutosaveInterval;
-        int32                                   mAutosaveNumberOfFiles;
-        bool                                    mEnableAutosave;
-        bool                                    mLayoutLoaded;
-
+        
         AZStd::vector<AZStd::string>            mCharacterFiles;
+
+        NativeEventFilter*                      mNativeEventFilter;
 
         void closeEvent(QCloseEvent* event) override;
         void showEvent(QShowEvent* event) override;
+
+        void OnOptionChanged(const AZStd::string& optionChanged) override;
+        void OnUnitTypeOptionChanged();
 
         // declare the callbacks
         MCORE_DEFINECOMMANDCALLBACK(CommandImportActorCallback);
@@ -222,6 +218,7 @@ namespace EMStudio
         MCORE_DEFINECOMMANDCALLBACK(CommandLoadAnimGraphCallback);
         MCORE_DEFINECOMMANDCALLBACK(CommandSelectCallback);
         MCORE_DEFINECOMMANDCALLBACK(CommandUnselectCallback);
+        MCORE_DEFINECOMMANDCALLBACK(CommandClearSelectionCallback);
         MCORE_DEFINECOMMANDCALLBACK(CommandSaveWorkspaceCallback);
         CommandImportActorCallback*         mImportActorCallback;
         CommandRemoveActorCallback*         mRemoveActorCallback;
@@ -236,11 +233,25 @@ namespace EMStudio
         CommandLoadAnimGraphCallback*       mLoadAnimGraphCallback;
         CommandSelectCallback*              mSelectCallback;
         CommandUnselectCallback*            mUnselectCallback;
+        CommandClearSelectionCallback*      m_clearSelectionCallback;
         CommandSaveWorkspaceCallback*       mSaveWorkspaceCallback;
 
+        class MainWindowCommandManagerCallback : public MCore::CommandManagerCallback
+        {
+            //////////////////////////////////////////////////////////////////////////////////////
+            /// CommandManagerCallback implementation
+            void OnPreExecuteCommand(MCore::CommandGroup* group, MCore::Command* command, const MCore::CommandLine& commandLine) override;
+            void OnPostExecuteCommand(MCore::CommandGroup* /*group*/, MCore::Command* /*command*/, const MCore::CommandLine& /*commandLine*/, bool /*wasSuccess*/, const AZStd::string& /*outResult*/) override { }
+            void OnPreExecuteCommandGroup(MCore::CommandGroup* /*group*/, bool /*undo*/) override { }
+            void OnPostExecuteCommandGroup(MCore::CommandGroup* /*group*/, bool /*wasSuccess*/) override { }
+            void OnAddCommandToHistory(uint32 /*historyIndex*/, MCore::CommandGroup* /*group*/, MCore::Command* /*command*/, const MCore::CommandLine& /*commandLine*/) override { }
+            void OnRemoveCommand(uint32 /*historyIndex*/) override { }
+            void OnSetCurrentCommand(uint32 /*index*/) override { }
+        };
+
+        MainWindowCommandManagerCallback m_mainWindowCommandManagerCallback;
 
     public slots:
-        void OnValueChanged(MysticQt::PropertyWidget::Property* property);
         void OnFileOpenActor();
         void OnFileSaveSelectedActors();
         void OnReset();
@@ -261,10 +272,6 @@ namespace EMStudio
         void OnOpenAutosaveFolder();
         void OnOpenSettingsFolder();
         void OnPreferences();
-        void OnSelectAllActorInstances();
-        void OnUnselectAllActorInstances();
-        void OnAdjustNodeSelection();
-        void OnNodeSelected(MCore::Array<SelectionItem> selection);
         void OnSaveAll();
         void ApplicationModeChanged(const QString& text);
         void OnUpdateRenderPlugins();
@@ -273,37 +280,4 @@ namespace EMStudio
         void HardwareChangeDetected();
     };
 
-
-    class EMSTUDIO_API ResetSettingsWindow
-        : public QDialog
-    {
-        Q_OBJECT
-        MCORE_MEMORYOBJECTCATEGORY(ResetSettingsWindow, MCore::MCORE_DEFAULT_ALIGNMENT, MEMCATEGORY_EMSTUDIOSDK)
-
-    public:
-        ResetSettingsWindow(QWidget* parent);
-        ~ResetSettingsWindow() {}
-
-    public slots:
-        void OnOKButton()                   { emit accept(); }
-        void OnCancelButton()               { emit reject(); }
-        void OnActorCheckbox(int state)     { MCORE_UNUSED(state); mActors = mActorCheckbox->isChecked(); }
-        void OnMotionCheckbox(int state)    { MCORE_UNUSED(state); mMotions = mMotionCheckbox->isChecked(); }
-        void OnMotionSetCheckbox(int state) { MCORE_UNUSED(state); mMotionSets = mMotionSetCheckbox->isChecked(); }
-        void OnAnimGraphCheckbox(int state){ MCORE_UNUSED(state); mAnimGraphs = mAnimGraphCheckbox->isChecked(); }
-
-    private:
-        QPushButton*        mOK;
-        QPushButton*        mCancel;
-        QCheckBox*          mActorCheckbox;
-        QCheckBox*          mMotionSetCheckbox;
-        QCheckBox*          mMotionCheckbox;
-        QCheckBox*          mAnimGraphCheckbox;
-
-    public:
-        bool                mActors;
-        bool                mMotionSets;
-        bool                mMotions;
-        bool                mAnimGraphs;
-    };
 } // namespace EMStudio

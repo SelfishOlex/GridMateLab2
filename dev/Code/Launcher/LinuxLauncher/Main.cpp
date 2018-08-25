@@ -39,6 +39,7 @@
 #include <ParseEngineConfig.h>
 
 #include <AzGameFramework/Application/GameApplication.h>
+#include <AzCore/Debug/StackTracer.h>
 
 // FIXME: get the correct version string from somewhere, maybe a -D supplied
 // by the build environment?
@@ -96,6 +97,7 @@ bool IncreaseStackSizeToMax()
         return false;
     }
 
+    fprintf(stderr, "Setting minimum stack size from %lu to %lu\n", kLimit.rlim_cur, kLimit.rlim_max);
     if (kLimit.rlim_cur < kLimit.rlim_max)
     {
         kLimit.rlim_cur = kLimit.rlim_max;
@@ -212,67 +214,19 @@ static const char* g_btLibPath = 0;
 
 static void SignalHandler(int sig, siginfo_t* info, void* secret)
 {
-    void* trace[32];
-    int trace_size;
-
-    pid_t pid = getpid();
-
     FILE* ftrace = fopen("backtrace.log", "w");
     if (!ftrace)
     {
         ftrace = stderr;
     }
 
-    // Log symbol dump first
-    fprintf(ftrace, "# Strack Trace with Symbols:\n");
-    fflush(ftrace);
+    AZ::Debug::StackPrinter::Print(ftrace);
 
-    trace_size = backtrace(trace, 32);
-    backtrace_symbols_fd(trace, trace_size, fileno(ftrace));
-
-    // Log demangled Stack trace
-    fprintf(ftrace, "\n# Strack Trace Demangled (note: Some System libraries cannot be demangled correctly:\n");
-
-    // close file since the following ouput is sent there from the shell
     if (ftrace != stderr)
     {
         fclose(ftrace);
     }
 
-    for (int i = 0; i < trace_size; ++i)
-    {
-        char objname[MAX_PATH];
-
-        Dl_info info;
-        if (dladdr(trace[i], &info))
-        {
-            uintptr_t addr = (uintptr_t)trace[i] - (uintptr_t)info.dli_fbase;
-            string base_name = basename((char*)info.dli_fname);
-
-            if (info.dli_fname[0] != '/')
-            {
-                snprintf(objname, MAX_PATH, "%s/%s", g_btLibPath, base_name.c_str());
-            }
-            else
-            {
-                snprintf(objname, MAX_PATH, "%s", info.dli_fname);
-            }
-
-            char cmd[MAX_PATH];
-            // check if it is the launcher or not. If it is the laucnher we need ot use the
-            // absolute address instead of the relative address inside the module
-            size_t pos = base_name.find_first_of("LinuxLauncher", 0);
-            if (pos != 0)
-            {
-                snprintf(cmd, MAX_PATH, "echo [%02d] $(addr2line  -C -f -i -e \"%s\" -p %p) >> 'backtrace.log'", i, objname, (void*) addr);
-            }
-            else
-            {
-                snprintf(cmd, MAX_PATH, "echo [%02d] $(addr2line  -C -f -i -e \"%s\" -p %p) >> 'backtrace.log'", i, objname, trace[i]);
-            }
-            system(cmd);
-        }
-    }
     abort();
 }
 
@@ -400,15 +354,24 @@ int RunGame(const char* commandLine)
         EditorGameRequestBus::BroadcastResult(pGameStartup, &EditorGameRequestBus::Events::CreateGameStartup);
     }
 
-    if (!pGameStartup)
+    // The legacy IGameStartup and IGameFramework are now optional,
+    // if they don't exist we need to create CrySystem here instead.
+    if (!pGameStartup || !pGameStartup->Init(startupParams))
     {
-        fprintf(stderr, "ERROR: Failed to create the GameStartup Interface!\n");
-        RunGame_EXIT(1);
+    #if !defined(AZ_MONOLITHIC_BUILD)
+        HMODULE systemLib = CryLoadLibraryDefName("CrySystem");
+        PFNCREATESYSTEMINTERFACE CreateSystemInterface = systemLib ? (PFNCREATESYSTEMINTERFACE)CryGetProcAddress(systemLib, "CreateSystemInterface") : nullptr;
+        if (CreateSystemInterface)
+        {
+            startupParams.pSystem = CreateSystemInterface(startupParams);
+        }
+    #else
+        startupParams.pSystem = CreateSystemInterface(startupParams);
+    #endif // AZ_MONOLITHIC_BUILD
     }
 
     // run the game
-    IGame* game = pGameStartup->Init(startupParams);
-    if (game)
+    if (startupParams.pSystem)
     {
 #if !defined(SYS_ENV_AS_STRUCT)
         gEnv = startupParams.pSystem->GetGlobalEnvironment();
@@ -418,16 +381,20 @@ int RunGame(const char* commandLine)
         gEnv->pConsole->ExecuteString("exec autoexec.cfg");
 
         // Run the main loop
-        LumberyardLauncher::RunMainLoop(gameApp, *gEnv->pGame->GetIGameFramework());
+        LumberyardLauncher::RunMainLoop(gameApp);
     }
     else
     {
-        fprintf(stderr, "ERROR: Failed to initialize the GameStartup Interface!\n");
+        fprintf(stderr, "ERROR: Failed to initialize the CrySystem Interface!\n");
+        exitCode = 1;
     }
 
     // if initialization failed, we still need to call shutdown
-    pGameStartup->Shutdown();
-    pGameStartup = 0;
+    if (pGameStartup)
+    {
+        pGameStartup->Shutdown();
+        pGameStartup = 0;
+    }
 
     gameApp.Stop();
 

@@ -21,7 +21,6 @@
 #include "RenderWidget.h"
 #include "RenderUpdateCallback.h"
 #include "RenderViewWidget.h"
-#include "../PreferencesWindow.h"
 #include <EMotionFX/Rendering/Common/Camera.h>
 #include <EMotionFX/Rendering/Common/TranslateManipulator.h>
 #include <EMotionFX/Rendering/Common/RotateManipulator.h>
@@ -98,6 +97,7 @@ namespace EMStudio
         RenderPlugin();
         virtual ~RenderPlugin();
 
+        void Reflect(AZ::ReflectContext* context) override;
         bool Init() override;
         void OnAfterLoadProject() override;
         void OnAfterLoadActors() override;
@@ -109,8 +109,8 @@ namespace EMStudio
         EMStudioPlugin::EPluginType GetPluginType() const override              { return EMStudioPlugin::PLUGINTYPE_RENDERING; }
         uint32 GetProcessFramePriority() const override                         { return 100; }
 
-        void AddSettings(PreferencesWindow* preferencesWindow) override;
-
+        PluginOptions* GetOptions() override { return &mRenderOptions; }
+        
         // render actors
         EMStudioRenderActor* FindEMStudioActor(EMotionFX::ActorInstance* actorInstance, bool doubleCheckInstance = true);
         EMStudioRenderActor* FindEMStudioActor(EMotionFX::Actor* actor);
@@ -154,7 +154,7 @@ namespace EMStudio
         MCORE_INLINE void SetActiveViewWidget(RenderViewWidget* viewWidget)         { mActiveViewWidget = viewWidget; }
 
         MCORE_INLINE void AddLayout(Layout* layout)                                 { mLayouts.Add(layout); }
-        Layout* FindLayoutByName(const MCore::String& layoutName);
+        Layout* FindLayoutByName(const AZStd::string& layoutName);
 
         MCORE_INLINE QCursor& GetZoomInCursor()                                     { assert(mZoomInCursor); return *mZoomInCursor; }
         MCORE_INLINE QCursor& GetZoomOutCursor()                                    { assert(mZoomOutCursor); return *mZoomOutCursor; }
@@ -187,8 +187,6 @@ namespace EMStudio
         void CleanEMStudioActors();
 
         void VisibilityChanged(bool visible);
-
-        void OnValueChanged(MysticQt::PropertyWidget::Property* property);
 
         void LayoutButtonPressed(const QString& text);
 
@@ -243,63 +241,8 @@ namespace EMStudio
         QWidget*                            mRenderLayoutWidget;
         QSignalMapper*                      mSignalMapper;
         QWidget*                            mInnerWidget;
-        CommandSystem::SelectionList*           mCurrentSelection;
+        CommandSystem::SelectionList*       mCurrentSelection;
         bool                                mFirstFrameAfterReInit;
-
-        MysticQt::PropertyWidget::Property*     mGridUnitSizeProperty;
-        MysticQt::PropertyWidget::Property*     mVertexNormalScaleProperty;
-        MysticQt::PropertyWidget::Property*     mFaceNormalProperty;
-        MysticQt::PropertyWidget::Property*     mTangentScaleProperty;
-        MysticQt::PropertyWidget::Property*     mNodeOrientScaleProperty;
-        MysticQt::PropertyWidget::Property*     mScaleBonesOnLengthProperty;
-        MysticQt::PropertyWidget::Property*     mRenderBonesOnlyProperty;
-        MysticQt::PropertyWidget::Property*     mNearClipPlaneDistProperty;
-        MysticQt::PropertyWidget::Property*     mFarClipPlaneDistProperty;
-        MysticQt::PropertyWidget::Property*     mFOVProperty;
-        MysticQt::PropertyWidget::Property*     mTexturePathProperty;
-        MysticQt::PropertyWidget::Property*     mAutoMipMapProperty;
-        MysticQt::PropertyWidget::Property*     mSkipLoadTexturesProperty;
-        MysticQt::PropertyWidget::Property*     mMainLightIntensityProperty;
-        MysticQt::PropertyWidget::Property*     mMainLightAngleAProperty;
-        MysticQt::PropertyWidget::Property*     mMainLightAngleBProperty;
-        MysticQt::PropertyWidget::Property*     mSpecularIntensityProperty;
-        MysticQt::PropertyWidget::Property*     mRimIntensityProperty;
-        MysticQt::PropertyWidget::Property*     mRimWidthProperty;
-        MysticQt::PropertyWidget::Property*     mRimAngleProperty;
-        MysticQt::PropertyWidget::Property*     mShowFPSProperty;
-
-        MysticQt::PropertyWidget::Property*     mGroundLightColorProperty;
-        MysticQt::PropertyWidget::Property*     mSkyLightColorProperty;
-        MysticQt::PropertyWidget::Property*     mRimLightColorProperty;
-        MysticQt::PropertyWidget::Property*     mBGColorProperty;
-        MysticQt::PropertyWidget::Property*     mGradientBGTopColorProperty;
-        MysticQt::PropertyWidget::Property*     mGradientBGBottomColorProperty;
-        MysticQt::PropertyWidget::Property*     mWireframeColorProperty;
-        MysticQt::PropertyWidget::Property*     mColMeshColorProperty;
-        MysticQt::PropertyWidget::Property*     mVertexNormalColorProperty;
-        MysticQt::PropertyWidget::Property*     mFaceNormalColorProperty;
-        MysticQt::PropertyWidget::Property*     mTangentColorProperty;
-        MysticQt::PropertyWidget::Property*     mMirrorBinormalColorProperty;
-        MysticQt::PropertyWidget::Property*     mBinormalColorProperty;
-        MysticQt::PropertyWidget::Property*     mNodeAABBColorProperty;
-        MysticQt::PropertyWidget::Property*     mStaticAABBColorProperty;
-        MysticQt::PropertyWidget::Property*     mMeshAABBColorProperty;
-        MysticQt::PropertyWidget::Property*     mColMeshAABBColorProperty;
-        MysticQt::PropertyWidget::Property*     mNodeOOBColorProperty;
-        MysticQt::PropertyWidget::Property*     mLineSkeletonColorProperty;
-        MysticQt::PropertyWidget::Property*     mSkeletonColorProperty;
-        MysticQt::PropertyWidget::Property*     mGizmoColorProperty;
-        MysticQt::PropertyWidget::Property*     mNodeNameColorProperty;
-        MysticQt::PropertyWidget::Property*     mGridColorProperty;
-        MysticQt::PropertyWidget::Property*     mGridMainAxisColorProperty;
-        MysticQt::PropertyWidget::Property*     mGridSubstepColorProperty;
-        MysticQt::PropertyWidget::Property*     mTrajectoryPathColorProperty;
-
-        MysticQt::PropertyWidget::Property*     mEnableAdvRenderingProperty;
-        MysticQt::PropertyWidget::Property*     mBloomingEnabledProperty;
-        MysticQt::PropertyWidget::Property*     mBloomThresholdProperty;
-        MysticQt::PropertyWidget::Property*     mBloomIntensity;
-        MysticQt::PropertyWidget::Property*     mBloomRadius;
 
         // command callbacks
         MCORE_DEFINECOMMANDCALLBACK(UpdateRenderActorsCallback);

@@ -12,7 +12,6 @@
 
 #include "FileManager.h"
 #include <MCore/Source/LogManager.h>
-#include <MCore/Source/UnicodeString.h>
 #include <MCore/Source/FileSystem.h>
 #include <QFileDialog>
 #include <QString>
@@ -33,7 +32,6 @@
 #include <AzCore/IO/FileIO.h>
 #include <AzCore/IO/SystemFile.h>
 
-#include <AzFramework/StringFunc/StringFunc.h>
 #include <AzFramework/API/ApplicationAPI.h>
 
 #include <Source/Integration/Assets/ActorAsset.h>
@@ -90,7 +88,7 @@ namespace EMStudio
     bool FileManager::IsAssetLoaded(const char* filename)
     {
         AZStd::string extension;
-        AzFramework::StringFunc::Path::GetExtension(filename, extension, false);
+        AzFramework::StringFunc::Path::GetExtension(filename, extension, false /* include dot */);
 
         if (AzFramework::StringFunc::Equal(extension.c_str(), "motion"))
         {
@@ -99,26 +97,6 @@ namespace EMStudio
             {
                 EMotionFX::Motion* motion = EMotionFX::GetMotionManager().GetMotion(i);
                 if (motion->GetIsOwnedByRuntime())
-                {
-                    continue;
-                }
-
-                // Special case handling for motions that are part of a motion set.
-                // Note: The command system is unable to remove motions that are part of a motion set before all motion entries are removed that refer to the given motion
-                // Until this problem is solved, we'll need to keep this special case. We will not reload the motion in case it is part of a motion set.
-                bool usedByMotionSet = false;
-                const uint32 numMotionSets = EMotionFX::GetMotionManager().GetNumMotionSets();
-                for (uint32 i = 0; i < numMotionSets; ++i)
-                {
-                    EMotionFX::MotionSet*               motionSet   = EMotionFX::GetMotionManager().GetMotionSet(i);
-                    EMotionFX::MotionSet::MotionEntry*  motionEntry = motionSet->FindMotionEntry(motion);
-                    if (motionEntry)
-                    {
-                        usedByMotionSet = true;
-                        break;
-                    }
-                }
-                if (usedByMotionSet)
                 {
                     continue;
                 }
@@ -207,7 +185,7 @@ namespace EMStudio
     bool FileManager::IsSourceAssetLoaded(const char* filename)
     {
         AZStd::string extension;
-        AzFramework::StringFunc::Path::GetExtension(filename, extension, false);
+        AzFramework::StringFunc::Path::GetExtension(filename, extension, false /* include dot */);
 
         if (AzFramework::StringFunc::Equal(extension.c_str(), "motionset"))
         {
@@ -249,7 +227,7 @@ namespace EMStudio
     }
 
 
-    void FileManager::SourceFileChanged(AZStd::string relativePath, AZStd::string scanFolder, AZ::Uuid sourceUuid)
+    void FileManager::SourceFileChanged(AZStd::string relativePath, AZStd::string scanFolder, AZ::TypeId sourceTypeId)
     {
         AZStd::string filename;
         AZStd::string assetSourcePath = AZ::IO::FileIOBase::GetInstance()->GetAlias("@devassets@");
@@ -280,11 +258,11 @@ namespace EMStudio
             const AZStd::string& assetCacheFolder = EMotionFX::GetEMotionFX().GetAssetCacheFolder();
 
             // Get the relative to asset cache filename.
-            MCore::String relativeFilename = filename.c_str();
+            AZStd::string relativeFilename = filename.c_str();
             EMotionFX::GetEMotionFX().GetFilenameRelativeTo(&relativeFilename, assetCacheFolder.c_str());
 
             bool found;
-            EBUS_EVENT_RESULT(found, AzToolsFramework::AssetSystemRequestBus, GetFullSourcePathFromRelativeProductPath, relativeFilename.AsChar(), filename);
+            EBUS_EVENT_RESULT(found, AzToolsFramework::AssetSystemRequestBus, GetFullSourcePathFromRelativeProductPath, relativeFilename.c_str(), filename);
             return found;
         }
         return true;
@@ -299,11 +277,11 @@ namespace EMStudio
             const AZStd::string& assetCacheFolder = EMotionFX::GetEMotionFX().GetAssetCacheFolder();
 
             // Get the relative to asset cache filename.
-            MCore::String relativeFilename = filename.c_str();
+            AZStd::string relativeFilename = filename.c_str();
             EMotionFX::GetEMotionFX().GetFilenameRelativeTo(&relativeFilename, assetSourceFolder.c_str());
 
             // Auto-relocate to the asset source folder.
-            filename = assetCacheFolder + relativeFilename.AsChar();
+            filename = assetCacheFolder + relativeFilename.c_str();
         }
     }
 
@@ -414,7 +392,7 @@ namespace EMStudio
     AZStd::string FileManager::LoadActorFileDialog(QWidget* parent)
     {
         GetManager()->SetAvoidRendering(true);
-        AZStd::vector<AZStd::string> filenames = SelectProductsOfType(AZ::AzTypeInfo<EMotionFX::Integration::ActorAsset>::Uuid(), false);
+        AZStd::vector<AZStd::string> filenames = SelectProductsOfType(azrtti_typeid<EMotionFX::Integration::ActorAsset>(), false);
         GetManager()->SetAvoidRendering(false);
         if (filenames.empty())
         {
@@ -428,7 +406,7 @@ namespace EMStudio
     AZStd::vector<AZStd::string> FileManager::LoadActorsFileDialog(QWidget* parent)
     {
         GetManager()->SetAvoidRendering(true);
-        auto result = SelectProductsOfType(AZ::AzTypeInfo<EMotionFX::Integration::ActorAsset>::Uuid(), true);
+        auto result = SelectProductsOfType(azrtti_typeid<EMotionFX::Integration::ActorAsset>(), true);
         GetManager()->SetAvoidRendering(false);
         return result;
     }
@@ -457,16 +435,18 @@ namespace EMStudio
 
     void FileManager::SaveActor(EMotionFX::Actor* actor)
     {
-        AZStd::string command = AZStd::string::format("SaveActorAssetInfo -actorID %i", actor->GetID());
+        const AZStd::string command = AZStd::string::format("SaveActorAssetInfo -actorID %i", actor->GetID());
 
         AZStd::string result;
         if (EMStudio::GetCommandManager()->ExecuteCommand(command, result))
         {
-            GetNotificationWindowManager()->CreateNotificationWindow(NotificationWindow::TYPE_SUCCESS, "Actor <font color=green>successfully</font> saved");
+            GetNotificationWindowManager()->CreateNotificationWindow(NotificationWindow::TYPE_SUCCESS, 
+                "Actor <font color=green>successfully</font> saved");
         }
         else
         {
-            GetNotificationWindowManager()->CreateNotificationWindow(NotificationWindow::TYPE_ERROR, "Actor <font color=red>failed</font> to save");
+            GetNotificationWindowManager()->CreateNotificationWindow(NotificationWindow::TYPE_ERROR, 
+                AZStd::string::format("Actor <font color=red>failed</font> to save<br/><br/>%s", result.c_str()).c_str());
         }
     }
 
@@ -520,16 +500,18 @@ namespace EMStudio
 
     void FileManager::SaveMotion(EMotionFX::Motion* motion)
     {
-        AZStd::string command = AZStd::string::format("SaveMotionAssetInfo -motionID %i", motion->GetID());
+        const AZStd::string command = AZStd::string::format("SaveMotionAssetInfo -motionID %i", motion->GetID());
 
         AZStd::string result;
         if (EMStudio::GetCommandManager()->ExecuteCommand(command, result))
         {
-            GetNotificationWindowManager()->CreateNotificationWindow(NotificationWindow::TYPE_SUCCESS, "Motion <font color=green>successfully</font> saved");
+            GetNotificationWindowManager()->CreateNotificationWindow(NotificationWindow::TYPE_SUCCESS, 
+                "Motion <font color=green>successfully</font> saved");
         }
         else
         {
-            GetNotificationWindowManager()->CreateNotificationWindow(NotificationWindow::TYPE_ERROR, "Motion <font color=red>failed</font> to save");
+            GetNotificationWindowManager()->CreateNotificationWindow(NotificationWindow::TYPE_ERROR, 
+                AZStd::string::format("Motion <font color=red>failed</font> to save<br/><br/>%s", result.c_str()).c_str());
         }
     }
 
@@ -537,7 +519,7 @@ namespace EMStudio
     AZStd::string FileManager::LoadMotionFileDialog(QWidget* parent)
     {
         GetManager()->SetAvoidRendering(true);
-        AZStd::vector<AZStd::string> filenames = SelectProductsOfType(AZ::AzTypeInfo<EMotionFX::Integration::MotionAsset>::Uuid(), false);
+        AZStd::vector<AZStd::string> filenames = SelectProductsOfType(azrtti_typeid<EMotionFX::Integration::MotionAsset>(), false);
         GetManager()->SetAvoidRendering(false);
         if (filenames.empty())
         {
@@ -551,7 +533,7 @@ namespace EMStudio
     AZStd::vector<AZStd::string> FileManager::LoadMotionsFileDialog(QWidget* parent)
     {
         GetManager()->SetAvoidRendering(true);
-        auto result = SelectProductsOfType(AZ::AzTypeInfo<EMotionFX::Integration::MotionAsset>::Uuid(), true);
+        auto result = SelectProductsOfType(azrtti_typeid<EMotionFX::Integration::MotionAsset>(), true);
         GetManager()->SetAvoidRendering(false);
         return result;
     }
@@ -561,7 +543,7 @@ namespace EMStudio
     AZStd::string FileManager::LoadMotionSetFileDialog(QWidget* parent)
     {
         GetManager()->SetAvoidRendering(true);
-        AZStd::vector<AZStd::string> filenames = SelectProductsOfType(AZ::AzTypeInfo<EMotionFX::Integration::MotionSetAsset>::Uuid(), false);
+        AZStd::vector<AZStd::string> filenames = SelectProductsOfType(azrtti_typeid<EMotionFX::Integration::MotionSetAsset>(), false);
         GetManager()->SetAvoidRendering(false);
         if (filenames.empty())
         {
@@ -595,18 +577,20 @@ namespace EMStudio
 
     void FileManager::SaveMotionSet(const char* filename, EMotionFX::MotionSet* motionSet, MCore::CommandGroup* commandGroup)
     {
-        AZStd::string command = AZStd::string::format("SaveMotionSet -motionSetID %i -filename \"%s\"", motionSet->GetID(), filename);
+        const AZStd::string command = AZStd::string::format("SaveMotionSet -motionSetID %i -filename \"%s\"", motionSet->GetID(), filename);
 
         if (commandGroup == nullptr)
         {
             AZStd::string result;
             if (GetCommandManager()->ExecuteCommand(command, result) == false)
             {
-                GetNotificationWindowManager()->CreateNotificationWindow(NotificationWindow::TYPE_ERROR, "MotionSet <font color=red>failed</font> to save");
+                GetNotificationWindowManager()->CreateNotificationWindow(NotificationWindow::TYPE_ERROR, 
+                    AZStd::string::format("MotionSet <font color=red>failed</font> to save<br/><br/>%s", result.c_str()).c_str());
             }
             else
             {
-                GetNotificationWindowManager()->CreateNotificationWindow(NotificationWindow::TYPE_SUCCESS, "MotionSet <font color=green>successfully</font> saved");
+                GetNotificationWindowManager()->CreateNotificationWindow(NotificationWindow::TYPE_SUCCESS, 
+                    "MotionSet <font color=green>successfully</font> saved");
             }
         }
         else
@@ -638,7 +622,7 @@ namespace EMStudio
     AZStd::string FileManager::LoadAnimGraphFileDialog(QWidget* parent)
     {
         GetManager()->SetAvoidRendering(true);
-        AZStd::vector<AZStd::string> filenames = SelectProductsOfType(AZ::AzTypeInfo<EMotionFX::Integration::AnimGraphAsset>::Uuid(), false);
+        AZStd::vector<AZStd::string> filenames = SelectProductsOfType(azrtti_typeid<EMotionFX::Integration::AnimGraphAsset>(), false);
         GetManager()->SetAvoidRendering(false);
         if (filenames.empty())
         {
@@ -712,9 +696,9 @@ namespace EMStudio
     }
 
 
-    MCore::String FileManager::LoadControllerPresetFileDialog(QWidget* parent, const char* defaultFolder)
+    AZStd::string FileManager::LoadControllerPresetFileDialog(QWidget* parent, const char* defaultFolder)
     {
-        MCore::String dir;
+        AZStd::string dir;
         if (defaultFolder)
         {
             dir = defaultFolder;
@@ -730,23 +714,23 @@ namespace EMStudio
         QString selectedFilter;
         QString filenameString = QFileDialog::getOpenFileName(parent,                                           // parent
                                                               "Load",                                           // caption
-                                                              dir.AsChar(),                                     // directory
+                                                              dir.c_str(),                                     // directory
                                                               "EMotion FX Config Files (*.cfg);;All Files (*)",
                                                               &selectedFilter,
                                                               options);
 
         GetManager()->SetAvoidRendering(false);
 
-        MCore::String filename;
+        AZStd::string filename;
         FromQtString(filenameString, &filename);
 
         return filename;
     }
 
 
-    MCore::String FileManager::SaveControllerPresetFileDialog(QWidget* parent, const char* defaultFolder)
+    AZStd::string FileManager::SaveControllerPresetFileDialog(QWidget* parent, const char* defaultFolder)
     {
-        MCore::String dir;
+        AZStd::string dir;
         if (defaultFolder)
         {
             dir = defaultFolder;
@@ -762,7 +746,7 @@ namespace EMStudio
         QString selectedFilter;
         QString filename = QFileDialog::getSaveFileName(parent,                                                 // parent
                                                         "Save",                                                 // caption
-                                                        dir.AsChar(),                                           // directory
+                                                        dir.c_str(),                                           // directory
                                                         "EMotion FX Blend Config Files (*.cfg);;All Files (*)",
                                                         &selectedFilter,
                                                         options);

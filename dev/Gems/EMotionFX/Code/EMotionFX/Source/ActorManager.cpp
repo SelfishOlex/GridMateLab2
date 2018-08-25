@@ -15,10 +15,13 @@
 #include "ActorManager.h"
 #include "ActorInstance.h"
 #include "MultiThreadScheduler.h"
-
+#include <MCore/Source/StringConversions.h>
+#include <EMotionFX/Source/Allocators.h>
 
 namespace EMotionFX
 {
+    AZ_CLASS_ALLOCATOR_IMPL(ActorManager, ActorManagerAllocator, 0)
+
     // constructor
     ActorManager::ActorManager()
         : BaseObject()
@@ -70,7 +73,7 @@ namespace EMotionFX
     // create
     ActorManager* ActorManager::Create()
     {
-        return new ActorManager();
+        return aznew ActorManager();
     }
 
 
@@ -178,7 +181,7 @@ namespace EMotionFX
         for (uint32 i = 0; i < numActors; ++i)
         {
             // compare the actor names
-            if (mActors[i]->GetNameString().CheckIfIsEqual(actorName))
+            if (mActors[i]->GetNameString() == actorName)
             {
                 return mActors[i];
             }
@@ -196,7 +199,7 @@ namespace EMotionFX
         for (uint32 i = 0; i < numActors; ++i)
         {
             // compare the motion names
-            if (mActors[i]->GetFileNameString().CheckIfIsEqualNoCase(fileName))
+            if (AzFramework::StringFunc::Equal(mActors[i]->GetFileNameString().c_str(), fileName, false /* no case */))
             {
                 return mActors[i];
             }
@@ -233,7 +236,7 @@ namespace EMotionFX
         const uint32 numActors = mActors.GetLength();
         for (uint32 i = 0; i < numActors; ++i)
         {
-            if (mActors[i]->GetNameString().CheckIfIsEqual(actorName))
+            if (mActors[i]->GetNameString() == actorName)
             {
                 return i;
             }
@@ -250,7 +253,7 @@ namespace EMotionFX
         const uint32 numActors = mActors.GetLength();
         for (uint32 i = 0; i < numActors; ++i)
         {
-            if (mActors[i]->GetFileNameString().CheckIfIsEqual(filename))
+            if (mActors[i]->GetFileNameString() == filename)
             {
                 return i;
             }

@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "StdAfx.h"
 
 #include "ReflectedPropertyItem.h"
 #include "ReflectedVarWrapper.h"
@@ -24,7 +24,7 @@ static ColorF StringToColor(const QString &value)
 {
     ColorF color;
     float r, g, b, a;
-    int res = sscanf(value.toUtf8().data(), "%f,%f,%f,%f", &r, &g, &b, &a);
+    int res = azsscanf(value.toUtf8().data(), "%f,%f,%f,%f", &r, &g, &b, &a);
     if (res == 4)
     {
         color.Set(r, g, b, a);
@@ -36,7 +36,7 @@ static ColorF StringToColor(const QString &value)
     else
     {
         unsigned abgr;
-        sscanf(value.toUtf8().data(), "%u", &abgr);
+        azsscanf(value.toUtf8().data(), "%u", &abgr);
         color = ColorF(abgr);
     }
     return color;
@@ -307,6 +307,9 @@ void ReflectedPropertyItem::SetVariable(IVariable *var)
     case ePropertyFloatCurve:
     case ePropertyColorCurve:
         m_reflectedVarAdapter = new ReflectedVarSplineAdapter(this, m_type);
+        break;
+    case ePropertyMotion:
+        m_reflectedVarAdapter = new ReflectedVarMotionAdapter;
         break;
     default:
         break;

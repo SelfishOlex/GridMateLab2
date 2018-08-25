@@ -10,7 +10,8 @@
 *
 */
 
-#include "TestTypes.h"
+#include <Tests/TestTypes.h>
+
 
 #include <AzFramework/StringFunc/StringFunc.h>
 
@@ -31,10 +32,12 @@ namespace AzFramework
 
         void SetUp() override
         {
+            AllocatorsFixture::SetUp();
         }
 
         void TearDown() override
         {
+            AllocatorsFixture::TearDown();
         }
     };
 
@@ -51,6 +54,68 @@ namespace AzFramework
         AzFramework::StringFunc::Strip(samplePath, stripCharacters, false, false, true);
 
         ASSERT_TRUE(samplePath == expectedResult);
+    }
+    
+    TEST_F(StringFuncTest, Strip_AllEmptyResult1_Success)
+    {
+        AZStd::string input = "aa";
+        const char stripToken = 'a';
+
+        AzFramework::StringFunc::Strip(input, stripToken);
+
+        ASSERT_TRUE(input.empty());
+    }
+
+    TEST_F(StringFuncTest, Strip_AllEmptyResult2_Success)
+    {
+        AZStd::string input = "aaaa";
+        const char stripToken = 'a';
+
+        AzFramework::StringFunc::Strip(input, stripToken);
+
+        ASSERT_TRUE(input.empty());
+    }
+
+    TEST_F(StringFuncTest, Strip_BeginEndCaseSensitiveEmptyResult1_Success)
+    {
+        AZStd::string input = "aa";
+        const char stripToken = 'a';
+
+        AzFramework::StringFunc::Strip(input, stripToken, true, true, true);
+
+        ASSERT_TRUE(input.empty());
+    }
+
+    TEST_F(StringFuncTest, Strip_BeginEndCaseSensitiveEmptyResult2_Success)
+    {
+        AZStd::string input = "aaaa";
+        AZStd::string expectedResult = "aa";
+        const char stripToken = 'a';
+
+        AzFramework::StringFunc::Strip(input, stripToken, true, true, true);
+
+        ASSERT_EQ(input, expectedResult);
+    }
+
+    TEST_F(StringFuncTest, Strip_BeginEndCaseInsensitiveEmptyResult1_Success)
+    {
+        AZStd::string input = "aa";
+        const char stripToken = 'a';
+
+        AzFramework::StringFunc::Strip(input, stripToken, false, true, true);
+
+        ASSERT_TRUE(input.empty());
+    }
+
+    TEST_F(StringFuncTest, Strip_BeginEndCaseInsensitiveEmptyResult2_Success)
+    {
+        AZStd::string input = "aaaa";
+        AZStd::string expectedResult = "aa";
+        const char stripToken = 'a';
+
+        AzFramework::StringFunc::Strip(input, stripToken, false, true, true);
+
+        ASSERT_EQ(input, expectedResult);
     }
 
     TEST_F(StringFuncTest, CalculateBranchToken_ValidInput_Success)

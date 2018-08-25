@@ -46,7 +46,7 @@ public:
     }
     ~TAnimSplineTrack()
     {
-        delete m_spline;
+        m_spline.reset();
     }
     
     //////////////////////////////////////////////////////////////////////////
@@ -71,7 +71,7 @@ public:
     virtual void GetKeyValueRange(float& fMin, float& fMax) const { fMin = m_fMinKeyValue; fMax = m_fMaxKeyValue; };
     virtual void SetKeyValueRange(float fMin, float fMax){ m_fMinKeyValue = fMin; m_fMaxKeyValue = fMax; };
 
-    ISplineInterpolator* GetSpline() const { return m_spline; };
+    ISplineInterpolator* GetSpline() const { return m_spline.get(); };
 
     virtual bool IsKeySelected(int key) const
     {
@@ -182,12 +182,14 @@ public:
     virtual void GetValue(float time, Vec4& value, bool applyMultiplier = false) { assert(0); }
     virtual void GetValue(float time, Quat& value) { assert(0); }
     virtual void GetValue(float time, bool& value) { assert(0); }
+    virtual void GetValue(float time, AZ::Data::AssetBlends<AZ::Data::AssetData>& value) { assert(0); }
 
     virtual void SetValue(float time, const float& value, bool bDefault = false, bool applyMultiplier = false) { assert(0); }
     virtual void SetValue(float time, const Vec3& value, bool bDefault = false, bool applyMultiplier = false) { assert(0); }
     virtual void SetValue(float time, const Vec4& value, bool bDefault = false, bool applyMultiplier = false) { assert(0); }
     virtual void SetValue(float time, const Quat& value, bool bDefault = false) { assert(0); }
     virtual void SetValue(float time, const bool& value, bool bDefault = false) { assert(0); }
+    virtual void SetValue(float time, const AZ::Data::AssetBlends<AZ::Data::AssetData>& value, bool bDefault = false) { assert(0); }
 
     virtual void OffsetKeyPosition(const Vec3& value) { assert(0); };
     virtual void UpdateKeyDataAfterParentChanged(const AZ::Transform& oldParentWorldTM, const AZ::Transform& newParentWorldTM) { assert(0); };
@@ -348,6 +350,16 @@ public:
         m_trackMultiplier = trackMultiplier;
     }
 
+    void SetExpanded(bool expanded)
+    {
+        AZ_Assert(false, "Not expected to be used.");
+    }
+
+    bool GetExpanded() const
+    {
+        return false;
+    }
+
     static void Reflect(AZ::SerializeContext* serializeContext) {}
 
 protected:
@@ -372,7 +384,7 @@ private:
 
     int m_refCount;
     typedef spline::TrackSplineInterpolator<ValueType> Spline;
-    Spline* m_spline;
+    AZStd::intrusive_ptr<Spline> m_spline;
     ValueType m_defaultValue;
 
     //! Keys of float track.
@@ -388,6 +400,8 @@ private:
     IAnimNode* m_node;
 
     float m_trackMultiplier;
+
+    static bool VersionConverter(AZ::SerializeContext& context, AZ::SerializeContext::DataElementNode& classElement) {};
 };
 
 //////////////////////////////////////////////////////////////////////////

@@ -23,7 +23,6 @@
 #include "CREParticleGPU.h"
 #include <ParticleParams.h>
 // Confetti END:
-#include <IJobManager_JobDelegator.h>
 #include "../RenderView.h"
 #include "../Textures/TextureManager.h"
 
@@ -500,7 +499,14 @@ bool CRenderer::EF_GetParticleListAndBatchFlags(uint32& nBatchFlags, int& nList,
      */
     if (!(pRO->m_ObjFlags & FOB_ALLOW_TESSELLATION))
     {
+#if defined(AZ_RESTRICTED_PLATFORM)
+#include AZ_RESTRICTED_FILE(CREParticle_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#else
         if (!CV_r_ParticlesInstanceVertices)
+#endif
         {
             pRO->m_ObjFlags &= ~FOB_POINT_SPRITE;
         }

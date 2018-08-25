@@ -17,7 +17,7 @@
 #include <MCore/Source/StandardHeaders.h>
 #include <MCore/Source/Array.h>
 #include <AzCore/Debug/Timer.h>
-#include <MCore/Source/UnicodeString.h>
+#include <AzCore/std/string/string.h>
 #include "../StandardPluginsConfig.h"
 #include <QOpenGLWidget>
 #include <QPoint>
@@ -74,6 +74,8 @@ namespace EMStudio
         virtual bool PreparePainting() { return true; }
 
         virtual bool CheckIfIsCreateConnectionValid(uint32 portNr, GraphNode* portNode, NodePort* port, bool isInputPort);
+        virtual bool CheckIfIsValidTransition(GraphNode* sourceState, GraphNode* targetState);
+        virtual bool CheckIfIsValidTransitionSource(GraphNode* sourceState);
         virtual bool CreateConnectionMustBeCurved() { return true; }
         virtual bool CreateConnectionShowsHelpers() { return true; }
 
@@ -93,20 +95,20 @@ namespace EMStudio
 
     protected:
         //virtual void paintEvent(QPaintEvent* event);
-        virtual void mouseMoveEvent(QMouseEvent* event);
-        virtual void mousePressEvent(QMouseEvent* event);
-        virtual void mouseDoubleClickEvent(QMouseEvent* event);
-        virtual void mouseReleaseEvent(QMouseEvent* event);
-        virtual void wheelEvent(QWheelEvent* event);
-        virtual void resizeEvent(QResizeEvent* event);
-        virtual void keyPressEvent(QKeyEvent* event); // TODO: check if it is really needed to have them virutal as the events get propagated
-        virtual void keyReleaseEvent(QKeyEvent* event);
-        virtual void focusInEvent(QFocusEvent* event);
-        virtual void focusOutEvent(QFocusEvent* event);
+        void mouseMoveEvent(QMouseEvent* event) override;
+        void mousePressEvent(QMouseEvent* event) override;
+        void mouseDoubleClickEvent(QMouseEvent* event) override;
+        void mouseReleaseEvent(QMouseEvent* event) override;
+        void wheelEvent(QWheelEvent* event) override;
+        void resizeEvent(QResizeEvent* event) override;
+        void keyPressEvent(QKeyEvent* event) override; // TODO: check if it is really needed to have them virutal as the events get propagated
+        void keyReleaseEvent(QKeyEvent* event) override;
+        void focusInEvent(QFocusEvent* event) override;
+        void focusOutEvent(QFocusEvent* event) override;
 
-        virtual void initializeGL() override;
-        virtual void paintGL() override;
-        virtual void resizeGL(int w, int h) override;
+        void initializeGL() override;
+        void paintGL() override;
+        void resizeGL(int w, int h) override;
 
         GraphNode* UpdateMouseCursor(const QPoint& localMousePos, const QPoint& globalMousePos);
 
@@ -128,9 +130,9 @@ namespace EMStudio
         QFont                       mFont;
         QFontMetrics*               mFontMetrics;
         AZ::Debug::Timer            mRenderTimer;
-        MCore::String               mTempString;
-        MCore::String               mFullActorName;
-        MCore::String               mActorName;
+        AZStd::string               mTempString;
+        AZStd::string               mFullActorName;
+        AZStd::string               mActorName;
         bool                        mAllowContextMenu;
         bool                        mLeftMousePressed;
         bool                        mMiddleMousePressed;

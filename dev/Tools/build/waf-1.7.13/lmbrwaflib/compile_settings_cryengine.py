@@ -13,6 +13,7 @@
     
 from waflib.Configure import conf
 from cry_utils import append_kw_entry, prepend_kw_entry, append_to_unique_list
+from waf_branch_spec import LUMBERYARD_COPYRIGHT_YEAR
 
 import os
 
@@ -101,15 +102,15 @@ def set_editor_flags(self, kw):
                                     self.CreateRootRelativePath('Code/Sandbox/Editor/Include'),
                                     self.CreateRootRelativePath('Code/Sandbox/Plugins/EditorCommon'),
                                     self.CreateRootRelativePath('Code/CryEngine/CryCommon') ,
-                                    self.CreateRootRelativePath('Code/SDKs/boost')])
+                                    self.ThirdPartyPath('boost')])
 
     if 'priority_includes' in kw:
         prepend_kw_entry(kw,'includes',kw['priority_includes'])
 
     append_kw_entry(kw,'defines',['CRY_ENABLE_RC_HELPER',
-                                  '_AFXDLL',
                                   '_CRT_SECURE_NO_DEPRECATE=1',
                                   '_CRT_NONSTDC_NO_DEPRECATE=1',
+                                  'LUMBERYARD_COPYRIGHT_YEAR="{}"'.format(LUMBERYARD_COPYRIGHT_YEAR),
         ])
 
     append_kw_entry(kw,'win_defines',['WIN32'])
@@ -120,7 +121,7 @@ def set_rc_flags(self, kw, ctx):
 
     prepend_kw_entry(kw,'includes',['.',
                                     self.CreateRootRelativePath('Code/CryEngine/CryCommon'),
-                                    self.CreateRootRelativePath('Code/SDKs/boost'),
+                                    self.ThirdPartyPath('boost'),
                                     self.CreateRootRelativePath('Code/Sandbox/Plugins/EditorCommon')])
     compileDefines =  ['RESOURCE_COMPILER',
                    'FORCE_STANDARD_ASSERT',

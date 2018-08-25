@@ -9,12 +9,14 @@
 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 *
 */
-#ifndef PLATFORMOS_BASE_H
-#define PLATFORMOS_BASE_H
+#pragma once
 
 #include "IPlatformOS.h"
 #include <CryListenerSet.h>
 #include <IGameFramework.h>
+#if defined(AZ_RESTRICTED_PLATFORM)
+#include AZ_RESTRICTED_FILE(PlatformOS_Base_h, AZ_RESTRICTED_PLATFORM)
+#endif
 
 class PlatformOS_Base
     : public IPlatformOS
@@ -35,10 +37,6 @@ public:
     bool UserGetOnlineName(unsigned int userIndex, IPlatformOS::TUserName& outName) const override;
     bool GetUserProfilePreference(unsigned int user, EUserProfilePreference ePreference, SUserProfileVariant& outResult) const override;
     bool UserSelectStorageDevice(unsigned int userIndex, bool bForceUI = false) override;
-    bool AZ_DEPRECATED(KeyboardStart(unsigned int inUserIndex, unsigned int flags, const char* title, const char* initialInput, int maxInputLength, IVirtualKeyboardEvents* pInCallback),
-        "IPlatformOS::KeyboardStart has been deprecated, use InputTextEntryRequestBus::TextEntryStart instead") override;
-    bool AZ_DEPRECATED(KeyboardIsRunning(), "IPlatformOS::KeyboardIsRunning has been deprecated, use InputTextEntryRequestBus::HasTextEntryStarted instead") override;
-    bool AZ_DEPRECATED(KeyboardCancel(), "IPlatformOS::KeyboardCancel has been deprecated, use InputTextEntryRequestBus::TextEntryStop instead") override;
 
 protected:
     virtual void TrySignIn(unsigned int userId);
@@ -48,5 +46,3 @@ protected:
 
     unsigned int m_pendingUserSignIn;
 };
-
-#endif // PLATFORMOS_BASE_H

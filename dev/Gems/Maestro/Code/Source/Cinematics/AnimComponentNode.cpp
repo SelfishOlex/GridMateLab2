@@ -363,7 +363,7 @@ void CAnimComponentNode::ConvertBetweenWorldAndLocalPosition(Vec3& position, ETr
     GetParentWorldTransform(parentTransform);
     if (conversionDirection == eTransformConverstionDirection_toLocalSpace)
     {
-        parentTransform.InvertFast();
+        parentTransform.InvertFull();
     }
     pos = parentTransform * pos;
 
@@ -379,6 +379,7 @@ void CAnimComponentNode::ConvertBetweenWorldAndLocalRotation(Quat& rotation, ETr
 
     AZ::Transform parentTransform = AZ::Transform::Identity();
     GetParentWorldTransform(parentTransform);
+    parentTransform.ExtractScale();
     if (conversionDirection == eTransformConverstionDirection_toLocalSpace)
     {
         parentTransform.InvertFast();
@@ -399,7 +400,7 @@ void CAnimComponentNode::ConvertBetweenWorldAndLocalScale(Vec3& scale, ETransfor
     GetParentWorldTransform(parentTransform);
     if (conversionDirection == eTransformConverstionDirection_toLocalSpace)
     {
-        parentTransform.InvertFast();
+        parentTransform.InvertFull();
     }
     scaleTransform = parentTransform * scaleTransform;
 
@@ -480,6 +481,9 @@ Quat CAnimComponentNode::GetRotate(float time)
     if (rotTrack != nullptr && rotTrack->GetNumKeys() > 0)
     {
         rotTrack->GetValue(time, worldRot);
+
+        // Track values are always stored as relative to the parent (local), so convert to world.        
+        ConvertBetweenWorldAndLocalRotation(worldRot, eTransformConverstionDirection_toWorldSpace);
     }
     else
     {
@@ -687,6 +691,10 @@ void CAnimComponentNode::AddPropertyToParamInfoMap(const CAnimParamType& paramTy
         {
             propertyInfo.m_animNodeParamInfo.valueType = AnimValueType::Bool;
         }
+        else if (propertyTypeId == AZ::AzTypeInfo<AZ::Data::AssetBlends<AZ::Data::AssetData>>::Uuid())
+        {
+            propertyInfo.m_animNodeParamInfo.valueType = AnimValueType::AssetBlend;
+        }
         // the fall-through default type is propertyInfo.m_animNodeParamInfo.valueType = AnimValueType::Float
     }
 
@@ -825,6 +833,14 @@ void CAnimComponentNode::InitializeTrackDefaultValue(IAnimTrack* pTrack, const C
                     Maestro::SequenceComponentRequestBus::Event(m_pSequence->GetSequenceEntityId(), &Maestro::SequenceComponentRequestBus::Events::GetAnimatedPropertyValue, defaultValue, GetParentAzEntityId(), address);
 
                     pTrack->SetValue(0, defaultValue.GetBoolValue(), true);
+                    break;
+                }
+                case AnimValueType::AssetBlend:
+                {
+                    AZ::Data::AssetBlends<AZ::Data::AssetData> assetData;
+                    Maestro::SequenceComponentRequests::AnimatedAssetBlendValue defaultValue(assetData);
+                    Maestro::SequenceComponentRequestBus::Event(m_pSequence->GetSequenceEntityId(), &Maestro::SequenceComponentRequestBus::Events::GetAnimatedPropertyValue, defaultValue, GetParentAzEntityId(), address);
+                    pTrack->SetValue(0, defaultValue.GetAssetBlendValue(), true);
                     break;
                 }
                 default:
@@ -993,6 +1009,24 @@ void CAnimComponentNode::Animate(SAnimContext& ac)
                                 Maestro::SequenceComponentRequests::AnimatedBoolValue value(boolValue);
 
                                 Maestro::SequenceComponentRequests::AnimatedBoolValue prevValue(boolValue);
+                                Maestro::SequenceComponentRequestBus::Event(m_pSequence->GetSequenceEntityId(), &Maestro::SequenceComponentRequestBus::Events::GetAnimatedPropertyValue, prevValue, GetParentAzEntityId(), animatableAddress);
+                                if (!value.IsClose(prevValue))
+                                {
+                                    // only set the value if it's changed
+                                    Maestro::SequenceComponentRequestBus::Event(m_pSequence->GetSequenceEntityId(), &Maestro::SequenceComponentRequestBus::Events::SetAnimatedPropertyValue, GetParentAzEntityId(), animatableAddress, value);
+                                }
+                            }
+                            break;
+                        }
+                        case AnimValueType::AssetBlend:
+                        {
+                            if (pTrack->HasKeys())
+                            {
+                                AZ::Data::AssetBlends<AZ::Data::AssetData> assetBlendValue;
+                                pTrack->GetValue(ac.time, assetBlendValue);
+                                Maestro::SequenceComponentRequests::AnimatedAssetBlendValue value(assetBlendValue);
+
+                                Maestro::SequenceComponentRequests::AnimatedAssetBlendValue prevValue(assetBlendValue);
                                 Maestro::SequenceComponentRequestBus::Event(m_pSequence->GetSequenceEntityId(), &Maestro::SequenceComponentRequestBus::Events::GetAnimatedPropertyValue, prevValue, GetParentAzEntityId(), animatableAddress);
                                 if (!value.IsClose(prevValue))
                                 {

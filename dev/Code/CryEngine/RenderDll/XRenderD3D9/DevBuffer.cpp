@@ -24,6 +24,14 @@
 #include "DeviceManager/PartitionTable.h"
 #include "AzCore/std/parallel/mutex.h"
 
+
+#if defined(AZ_RESTRICTED_PLATFORM)
+#undef AZ_RESTRICTED_SECTION
+#define DEVBUFFER_CPP_SECTION_1 1
+#define DEVBUFFER_CPP_SECTION_2 2
+#define DEVBUFFER_CPP_SECTION_3 3
+#endif
+
 #if defined(min)
 # undef min
 #endif
@@ -101,7 +109,15 @@ namespace
             POOL_STAGING_COUNT = 1,
             POOL_ALIGNMENT = 128,
             POOL_FRAME_QUERY_COUNT = 4,
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION DEVBUFFER_CPP_SECTION_1
+#include AZ_RESTRICTED_FILE(DevBuffer_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#else
             POOL_MAX_ALLOCATION_SIZE = 64 << 20,
+#endif
             POOL_FRAME_QUERY_MASK = POOL_FRAME_QUERY_COUNT - 1
         };
 
@@ -1530,7 +1546,13 @@ namespace
             #pragma warning( push )
             #pragma warning( disable : 4244)
 #endif
-#if   defined(APPLE)
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION DEVBUFFER_CPP_SECTION_2
+#include AZ_RESTRICTED_FILE(DevBuffer_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#elif defined(APPLE)
 	    // using a C-cast here breaks
             item_handle_t handle = reinterpret_cast<TRUNCATE_PTR>(pContext);
 #elif defined(LINUX)
@@ -3425,16 +3447,19 @@ namespace AzRHI
             hr = gcpRendD3D->m_DevMan.CreateD3D11Buffer(&bd, NULL, &m_buffer, "ConstantBuffer");
             CHECK_HRESULT(hr);
 
-            m_used = 1;
+            m_used = (hr == S_OK);
         }
         if (m_dynamic)
         {
-            AZ_Assert(m_base_ptr == nullptr, "Already mapped when mapping");
-            D3D11_MAPPED_SUBRESOURCE mappedResource;
-            HRESULT hr = gcpRendD3D->GetDeviceContext().Map(m_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-            AZ_Assert(hr == S_OK, "Map buffer failed");
-            m_base_ptr = mappedResource.pData;
-            return mappedResource.pData;
+            if (m_used && m_buffer)
+            {
+                AZ_Assert(m_base_ptr == nullptr, "Already mapped when mapping");
+                D3D11_MAPPED_SUBRESOURCE mappedResource;
+                HRESULT hr = gcpRendD3D->GetDeviceContext().Map(m_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+                AZ_Assert(hr == S_OK, "Map buffer failed");
+                m_base_ptr = mappedResource.pData;
+                return mappedResource.pData;
+            }
         }
         else
         {
@@ -3629,6 +3654,10 @@ void WrappedDX11Buffer::Create(uint32 numElements, uint32 elementSize, DXGI_FORM
     Data.SysMemPitch = Desc.ByteWidth;
     Data.SysMemSlicePitch = Desc.ByteWidth;
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION DEVBUFFER_CPP_SECTION_3
+#include AZ_RESTRICTED_FILE(DevBuffer_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
 
     gcpRendD3D->m_DevMan.CreateD3D11Buffer(&Desc, (pData != NULL) ? &Data : NULL, &m_pBuffer, "WrappedDX11Buffer");
 

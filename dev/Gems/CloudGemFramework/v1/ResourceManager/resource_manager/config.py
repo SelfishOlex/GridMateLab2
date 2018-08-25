@@ -21,6 +21,7 @@ import copy
 import file_util
 import collections
 import time
+import sys
 
 from StringIO import StringIO
 from errors import HandledError
@@ -48,7 +49,7 @@ class ConfigContext(object):
         self.__configuration_bucket_name = None
         self.__project_resources = None
         self.__framework_version = None
-
+        self.__aggregate_settings = None
 
     @property
     def context(self):
@@ -79,7 +80,8 @@ class ConfigContext(object):
         if args.user_directory:
             self.user_directory_path = args.user_directory
         else:
-            self.user_directory_path = os.path.join(self.root_directory_path, constant.PROJECT_CACHE_DIRECTORY_NAME, self.game_directory_name, 'pc', constant.PROJECT_USER_DIRECTORY_NAME, constant.PROJECT_AWS_DIRECTORY_NAME)
+            platform_mapping = {"win32": "pc", "darwin": "osx_gl"}
+            self.user_directory_path = os.path.join(self.root_directory_path, constant.PROJECT_CACHE_DIRECTORY_NAME, self.game_directory_name, platform_mapping[sys.platform], constant.PROJECT_USER_DIRECTORY_NAME, constant.PROJECT_AWS_DIRECTORY_NAME)
 
         if args.tools_directory:
             self.tools_directory_path = args.tools_directory
@@ -188,7 +190,15 @@ class ConfigContext(object):
     @property
     def no_prompt(self):
         return self.__no_prompt
-      
+
+    @property
+    def aggregate_settings(self):
+        return self.__aggregate_settings
+
+    @aggregate_settings.setter
+    def aggregate_settings(self, value):
+        self.__aggregate_settings = value
+
     @property
     def project_stack_id(self):
         id = self.local_project_settings.get(constant.PROJECT_STACK_ID, None)         
@@ -273,6 +283,9 @@ class ConfigContext(object):
     def user_default_deployment(self, deployment):
         self.user_settings['DefaultDeployment'] = deployment
 
+    @property
+    def project_region(self):
+        return util.get_region_from_arn(self.project_stack_id)
 
     @property
     def default_deployment(self):
@@ -437,6 +450,8 @@ class ConfigContext(object):
     def clear_project_stack_id(self):
         if constant.PROJECT_STACK_ID in self.local_project_settings:
             del self.local_project_settings[constant.PROJECT_STACK_ID]                      
+        if constant.PENDING_PROJECT_STACK_ID in self.local_project_settings:
+            del self.local_project_settings[constant.PENDING_PROJECT_STACK_ID] 
         self.local_project_settings.save()
 
     def save_project_settings(self):
@@ -737,8 +752,11 @@ class LocalProjectSettings():
             self.create_default_section()
             self.__framework_version = self.__context.gem.framework_gem.version
         elif self.default_set() is not None:
-            self.default(self.default_set()[constant.SET])            
+            self.default(self.default_set()[constant.SET])
         
+        if self.default_set() and self.default_set().get(constant.DISABLED_RESOURCE_GROUPS_KEY, []) and self[constant.DISABLED_RESOURCE_GROUPS_KEY] is None:
+            self[constant.DISABLED_RESOURCE_GROUPS_KEY] = self.default_set()[constant.DISABLED_RESOURCE_GROUPS_KEY]
+
         self.__context.view.loading_file(region)
         if region is not None and constant.DEFAULT.lower() in self.__dict:            
             is_lazy_migration = self.__dict[self.default_set()[constant.SET]].get(constant.LAZY_MIGRATION, False) if self.default_set() is not None and self.default_set()[constant.SET] in self.__dict else False            
@@ -809,8 +827,6 @@ class LocalProjectSettings():
         return self.__dict[constant.DEFAULT] != self.__default
 
     def set(self, key, value):
-        if self.__dict[constant.DEFAULT] == self.__default:
-            raise HandledError("You are attempting to post '{}' with value '{}' to the default local project setting schema.  It should be posted to the region section of the local project settings.".format(key,value))
         self.__default[key] = value
 
     def pop(self, key, default=None):
@@ -949,7 +965,7 @@ class TemplateAggregator(object):
     }
 
 
-    def __init__(self, context, base_file_name, extension_file_name, gem_file_name=None):
+    def __init__(self, context, base_file_name, extension_file_name, gem_file_name=None, base_file_path=None, extension_file_path=None):
         '''Initializes the object with the specified file names but does not load any content from those files.
 
         Arguments:
@@ -973,14 +989,18 @@ class TemplateAggregator(object):
         self.__base_template = None
         self.__extension_template = None
         self.__effective_template = None
+        self.__base_file_path = base_file_path or os.path.join(RESOURCE_MANAGER_PATH, 'templates')
+        self.__extension_file_path = extension_file_path or context.config.aws_directory_path
+
 
     @property
     def context(self):
         return self.__context
 
+
     @property
     def base_file_path(self):
-        return os.path.join(RESOURCE_MANAGER_PATH, 'templates', self.__base_file_name)
+        return os.path.join(self.__base_file_path, self.__base_file_name)
 
 
     @property
@@ -995,7 +1015,7 @@ class TemplateAggregator(object):
 
     @property
     def extension_file_path(self):
-        return os.path.join(self.__context.config.aws_directory_path, self.__extension_file_name)
+        return os.path.join(self.__extension_file_path, self.__extension_file_name)
 
 
     @property
@@ -1341,6 +1361,7 @@ class DeploymentTemplateAggregator(TemplateAggregator):
         enabled_resource_group_names = [r.name for r in self.context.resource_groups.values() if r.is_enabled]
         inter_gem_deps_map = {}
         resolver_dependencies = set()
+        number_of_resources = len(self.context.resource_groups.values())
         for resource_group in self.context.resource_groups.values():
 
             if not resource_group.is_enabled:
@@ -1374,7 +1395,8 @@ class DeploymentTemplateAggregator(TemplateAggregator):
                         "DeploymentStackArn": { "Ref": "AWS::StackId" },
                         "DeploymentName": { "Ref": "DeploymentName" },
                         "ResourceGroupName": resource_group.name
-                    }
+                    },
+                    "TimeoutInMinutes": 10+(5*number_of_resources)
                 }
             }
 
@@ -1388,7 +1410,7 @@ class DeploymentTemplateAggregator(TemplateAggregator):
             resources["CrossGemCommunicationInterfaceResolver"] = {
                 "Type": "Custom::InterfaceDependencyResolver",
                 "Properties": {
-                    "UpdateTime": time.gmtime() * 1000, # We need this to force an update
+                    "UpdateTime": int(round(time.time())), # We need this to force an update
                     "ServiceToken": { "Ref": "ProjectResourceHandler" },
                     "InterfaceDependencies": inter_gem_deps_map
                 },
@@ -1409,3 +1431,8 @@ class DeploymentAccessTemplateAggregator(TemplateAggregator):
     def __init__(self, context):
         super(DeploymentAccessTemplateAggregator, self).__init__(context, constant.DEPLOYMENT_ACCESS_TEMPLATE_FILENAME, constant.DEPLOYMENT_ACCESS_TEMPLATE_EXTENSIONS_FILENAME)
 
+
+class ResourceTemplateAggregator(TemplateAggregator):
+    def __init__(self, context, base_file_path, extension_file_path):
+        super(ResourceTemplateAggregator, self).__init__(context, constant.RESOURCE_GROUP_TEMPLATE_FILENAME,
+                                                                 constant.RESOURCE_GROUP_TEMPLATE_EXTENSIONS_FILENAME, None, base_file_path, extension_file_path)

@@ -22,12 +22,13 @@
 #include <AzCore/Serialization/SerializeContext.h>
 
 #include <AzFramework/Components/TransformComponent.h>
-#include <AzFramework/Math/MathUtils.h>
 
 #include <AzToolsFramework/API/ToolsApplicationAPI.h>
 #include <AzToolsFramework/Entity/EditorEntityContextBus.h>
 #include <AzToolsFramework/Metrics/LyEditorMetricsBus.h>
 #include <AzToolsFramework/ToolsComponents/TransformComponentBus.h>
+
+#include <QMessageBox>
 
 namespace AzToolsFramework
 {
@@ -41,7 +42,7 @@ namespace AzToolsFramework
                 AZ::Transform tx = transform;
                 scale = tx.ExtractScaleExact();
                 translation = tx.GetTranslation();
-                rotation = AzFramework::ConvertTransformToEulerDegrees(tx);
+                rotation = tx.GetEulerDegrees();
             }
 
             bool TransformComponentDataConverter(AZ::SerializeContext& context, AZ::SerializeContext::DataElementNode& classElement)
@@ -165,6 +166,9 @@ namespace AzToolsFramework
             {
                 m_parentEntityId = AZ::EntityId();
             }
+            
+            //Ensure that when we init that our previous/parent match
+            m_previousParentEntityId = m_parentEntityId;
         }
 
         void TransformComponent::Activate()
@@ -269,7 +273,7 @@ namespace AzToolsFramework
 
         AZ::Transform TransformComponent::GetLocalRotationTM() const
         {
-            return AzFramework::ConvertEulerDegreesToTransformPrecise(m_editorTransform.m_rotate);
+            return AZ::ConvertEulerDegreesToTransformPrecise(m_editorTransform.m_rotate);
         }
 
         AZ::Transform TransformComponent::GetLocalScaleTM() const
@@ -427,7 +431,7 @@ namespace AzToolsFramework
             AZ_Warning("AzToolsFramework::TransformComponent", false, "SetRotation is deprecated, please use SetLocalRotation");
 
             AZ::Transform newWorldTransform = GetWorldTM();
-            newWorldTransform.SetRotationPartFromQuaternion(AzFramework::ConvertEulerRadiansToQuaternion(eulerAnglesRadians));
+            newWorldTransform.SetRotationPartFromQuaternion(AZ::ConvertEulerRadiansToQuaternion(eulerAnglesRadians));
             SetWorldTM(newWorldTransform);
         }
 
@@ -492,7 +496,7 @@ namespace AzToolsFramework
         {
             AZ_Warning("AzToolsFramework::TransformComponent", false, "GetRotationEulerRadians is deprecated, please use GetWorldRotation");
 
-            return AzFramework::ConvertTransformToEulerRadians(GetWorldTM());
+            return GetWorldTM().GetEulerRadians();
         }
 
         AZ::Quaternion TransformComponent::GetRotationQuaternion()
@@ -521,7 +525,7 @@ namespace AzToolsFramework
         {
             AZ::Transform rotate = GetWorldTM();
             rotate.ExtractScaleExact();
-            AZ::Vector3 angles = AzFramework::ConvertTransformToEulerRadians(rotate);
+            AZ::Vector3 angles = rotate.GetEulerRadians();
             return angles;
         }
 
@@ -535,64 +539,63 @@ namespace AzToolsFramework
 
         void TransformComponent::SetLocalRotation(const AZ::Vector3& eulerAnglesRadian)
         {
-            m_editorTransform.m_rotate = AzFramework::RadToDeg(eulerAnglesRadian);
+            m_editorTransform.m_rotate = AZ::Vector3RadToDeg(eulerAnglesRadian);
             TransformChanged();
         }
 
         void TransformComponent::SetLocalRotationQuaternion(const AZ::Quaternion& quaternion)
         {
-            m_editorTransform.m_rotate = AzFramework::ConvertQuaternionToEulerDegrees(quaternion);
+            m_editorTransform.m_rotate = quaternion.GetEulerDegrees();
             TransformChanged();
         }
 
         void TransformComponent::RotateAroundLocalX(float eulerAngleRadian)
         {
-            AZ::Transform localRotate = AzFramework::ConvertEulerDegreesToTransformPrecise(m_editorTransform.m_rotate);
+            AZ::Transform localRotate = AZ::ConvertEulerDegreesToTransformPrecise(m_editorTransform.m_rotate);
             AZ::Vector3 xAxis = localRotate.GetBasisX();
             AZ::Quaternion xRotate = AZ::Quaternion::CreateFromAxisAngle(xAxis, eulerAngleRadian);
-            AZ::Quaternion currentRotate = AzFramework::ConvertEulerDegreesToQuaternion(m_editorTransform.m_rotate);
+            AZ::Quaternion currentRotate = AZ::ConvertEulerDegreesToQuaternion(m_editorTransform.m_rotate);
             AZ::Quaternion newRotate = xRotate * currentRotate;
             newRotate.NormalizeExact();
-            m_editorTransform.m_rotate = AzFramework::ConvertQuaternionToEulerDegrees(newRotate);
-
+            m_editorTransform.m_rotate = newRotate.GetEulerDegrees();
             TransformChanged();
         }
 
         void TransformComponent::RotateAroundLocalY(float eulerAngleRadian)
         {
-            AZ::Transform localRotate = AzFramework::ConvertEulerDegreesToTransformPrecise(m_editorTransform.m_rotate);
+            AZ::Transform localRotate = AZ::ConvertEulerDegreesToTransformPrecise(m_editorTransform.m_rotate);
             AZ::Vector3 yAxis = localRotate.GetBasisY();
             AZ::Quaternion yRotate = AZ::Quaternion::CreateFromAxisAngle(yAxis, eulerAngleRadian);
-            AZ::Quaternion currentRotate = AzFramework::ConvertEulerDegreesToQuaternion(m_editorTransform.m_rotate);
+            AZ::Quaternion currentRotate = AZ::ConvertEulerDegreesToQuaternion(m_editorTransform.m_rotate);
             AZ::Quaternion newRotate = yRotate * currentRotate;
             newRotate.NormalizeExact();
-            m_editorTransform.m_rotate = AzFramework::ConvertQuaternionToEulerDegrees(newRotate);
+            m_editorTransform.m_rotate = newRotate.GetEulerDegrees();
 
             TransformChanged();
         }
 
         void TransformComponent::RotateAroundLocalZ(float eulerAngleRadian)
         {
-            AZ::Transform localRotate = AzFramework::ConvertEulerDegreesToTransformPrecise(m_editorTransform.m_rotate);
+            AZ::Transform localRotate = AZ::ConvertEulerDegreesToTransformPrecise(m_editorTransform.m_rotate);
             AZ::Vector3 zAxis = localRotate.GetBasisZ();
             AZ::Quaternion zRotate = AZ::Quaternion::CreateFromAxisAngle(zAxis, eulerAngleRadian);
-            AZ::Quaternion currentRotate = AzFramework::ConvertEulerDegreesToQuaternion(m_editorTransform.m_rotate);
+            AZ::Quaternion currentRotate = AZ::ConvertEulerDegreesToQuaternion(m_editorTransform.m_rotate);
             AZ::Quaternion newRotate = zRotate * currentRotate;
             newRotate.NormalizeExact();
-            m_editorTransform.m_rotate = AzFramework::ConvertQuaternionToEulerDegrees(newRotate);
+            m_editorTransform.m_rotate = newRotate.GetEulerDegrees();
 
             TransformChanged();
         }
 
         AZ::Vector3 TransformComponent::GetLocalRotation()
         {
-            AZ::Vector3 result = AzFramework::DegToRad(m_editorTransform.m_rotate);
+            AZ::Vector3 result = AZ::Vector3DegToRad(m_editorTransform.m_rotate);
             return result;
         }
 
         AZ::Quaternion TransformComponent::GetLocalRotationQuaternion()
         {
-            AZ::Quaternion result = AzFramework::ConvertEulerDegreesToQuaternion(m_editorTransform.m_rotate);
+            AZ::Quaternion result = AZ::ConvertEulerDegreesToQuaternion(m_editorTransform.m_rotate);
             return result;
         }
 
@@ -938,33 +941,51 @@ namespace AzToolsFramework
             }
             /// End 1.7 Release hack
 
-            AZ::EntityId parentId = GetParentId();
-            if (parentId == entityId)
+            auto parentTComp = this;
+            while (parentTComp)
             {
-                return true;
+                if (parentTComp->GetEntityId() == entityId)
+                {
+                    return true;
+                }
+
+                parentTComp = parentTComp->GetParentTransformComponent();
             }
-            if (!parentId.IsValid())
+
+            return false;
+        }
+
+        bool TransformComponent::ValidatePotentialParent(void* newValue, const AZ::Uuid& valueType)
+        {
+            if (azrtti_typeid<AZ::EntityId>() != valueType)
             {
-                return false;
-            }
-            auto parentTComp = GetParentTransformComponent();
-            if (!parentTComp)
-            {
+                AZ_Assert(false, "Unexpected value type");
                 return false;
             }
 
-            return parentTComp->IsEntityInHierarchy(entityId);
+            AZ::EntityId actualValue = static_cast<AZ::EntityId>(*((AZ::EntityId*)newValue));
+
+            // Prevent setting the parent to the entity itself.
+            if (actualValue == GetEntityId())
+            {
+                return false;
+            }
+            else
+            {
+                // Don't allow the change if it will result in a cycle hierarchy			    
+                auto potentialParentTransformComponent = GetTransformComponent(actualValue);
+                if (potentialParentTransformComponent && potentialParentTransformComponent->IsEntityInHierarchy(GetEntityId()))
+                {
+                    QMessageBox::warning(QApplication::activeWindow(), "Invalid Parent Assignment", "You cannot set an entity to be a child of one of its own children!", QMessageBox::Ok);
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         AZ::u32 TransformComponent::ParentChanged()
         {
-            // Prevent setting the parent to the entity itself.
-            // When this happens, make sure to refresh the interface, so it goes back where it was.
-            if (m_parentEntityId == GetEntityId())
-            {
-                m_parentEntityId = m_previousParentEntityId;
-                return AZ::Edit::PropertyRefreshLevels::ValuesOnly;
-            }
             auto parentId = m_parentEntityId;
             m_parentEntityId = m_previousParentEntityId;
             SetParent(parentId);
@@ -1109,6 +1130,7 @@ namespace AzToolsFramework
                             Attribute(AZ::Edit::Attributes::ViewportIcon, "Editor/Icons/Components/Viewport/Transform.png")->
                             Attribute(AZ::Edit::Attributes::AutoExpand, true)->
                         DataElement(0, &TransformComponent::m_parentEntityId, "Parent entity", "")->
+                            Attribute(AZ::Edit::Attributes::ChangeValidate, &TransformComponent::ValidatePotentialParent)->
                             Attribute(AZ::Edit::Attributes::ChangeNotify, &TransformComponent::ParentChanged)->
                             Attribute(AZ::Edit::Attributes::SliceFlags, AZ::Edit::SliceFlags::DontGatherReference | AZ::Edit::SliceFlags::NotPushableOnSliceRoot)->
                         DataElement(0, &TransformComponent::m_editorTransform, "Values", "")->

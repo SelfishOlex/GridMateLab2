@@ -17,6 +17,7 @@
 #include <AzCore/Memory/Memory.h>
 #include <AzCore/Memory/SystemAllocator.h> // used as allocator for most components
 #include <AzCore/std/parallel/mutex.h>
+#include <AzCore/std/parallel/thread.h>
 #include <AzCore/std/string/string.h>
 #include <AzCore/std/containers/unordered_map.h>
 #include <AzCore/std/containers/intrusive_list.h>
@@ -35,6 +36,7 @@ namespace AZ
     namespace Data
     {
         class AssetHandler;
+        class LegacyAssetHandler;
         class AssetCatalog;
         class AssetDatabaseJob;
 
@@ -85,6 +87,11 @@ namespace AZ
             AssetHandler*       m_assetHandler;
         };
 
+        namespace AssetInternal
+        {
+            class LegacyBlockingAssetTypeManager;
+        }
+
         /**
          * AssetDatabase handles the creation, refcounting and automatic
          * destruction of assets.
@@ -101,6 +108,8 @@ namespace AZ
         {
             friend class AssetData;
             friend class AssetDatabaseJob;
+            friend class ReloadAssetJob;
+            friend class LoadAssetJob;
             friend Asset<AssetData> AssetInternal::GetAssetData(const AssetId& id);
 
         public:
@@ -128,6 +137,11 @@ namespace AZ
             /// Register handler with the system for a particular asset type.
             /// A handler should be registered for each asset type it handles.
             void RegisterHandler(AssetHandler* handler, const AssetType& assetType);
+            /// Register handler with the system for a particular asset type, with the id of thread that can cause race conditions if
+            /// a blocking asset of that type is requested on. If there are outstanding requests of that asset type and a blocking request
+            /// is made, then the handler's ProcessQueuedAssetRequests will be called while waiting for the asset request job to finish.
+            /// A handler should be registered for each asset type it handles.
+            void RegisterLegacyHandler(LegacyAssetHandler* handler, const AssetType& assetType, AZStd::thread::id threadThatLoadsAssets);
             /// Unregister handler from the asset system.
             void UnregisterHandler(AssetHandler* handler);
             // @}
@@ -250,9 +264,6 @@ namespace AZ
             AssetMap                m_assets;
             AZStd::recursive_mutex  m_assetMutex;       // lock when accessing the asset map
 
-            // special-case lock for GetAsset, to be locked around m_handlerMutex and m_assetMutex (which can't be held at the same time, to avoid deadlocking)
-            // This is required to prevent a race condition where two threads call GetAsset for the same unloaded asset and both attempt to create and load it.
-            AZStd::recursive_mutex m_getAssetMutex;
             AZStd::recursive_mutex  m_assetReadyMutex;  // special-case lock so marking an asset ready and firing the notifications is an atomic operation
 
             typedef AZStd::unordered_map<AssetId, Asset<AssetData> > ReloadMap;
@@ -267,8 +278,17 @@ namespace AZ
             ActiveJobList           m_activeJobs;
 
             bool m_assetInfoUpgradingEnabled = true;
+            AssetInternal::LegacyBlockingAssetTypeManager* m_blockingAssetTypeManager = nullptr; // NOTE: not using unique_ptr because on some platforms, it won't compile unless LegacyBlockingAssetTypeManager is defined.
 
             static EnvironmentVariable<AssetManager*>  s_assetDB;
+
+
+            // used internally by the cycle checking on the job system.
+            void RegisterAssetLoading(const Asset<AssetData>& asset);
+            void UnregisterAssetLoading(const Asset<AssetData>& asset);
+            // to avoid recursive thread deadlocks, we keep track of which thread is loading which asset, and don't allow
+            // a thread to wait for its own asset blocking.
+            AZStd::unordered_map<AssetId, AZStd::thread::id> m_assetsLoadingByThread;
         };
 
         /**
@@ -282,6 +302,44 @@ namespace AZ
          * handlers need to be thread-safe.
          * It is ok for the handler to block the calling thread during the actual
          * asset load.
+         *
+         * If the AssetHandler blocks on a specific thread to do its loading
+         * (i.e. rendering resources that must load on the rendering thread),
+         * use AssetManager::RegisterLegacyHandler to register and derive from LegacyAssetHandler instead.
+         * This will allow the AssetManager to avoid deadlocks
+         * when assets are requested in a blocking fashion.
+         *
+         * NOTE! Because it doesn't go without saying:
+         * It is NOT OK for an AssetHandler to queue work for another thread and block
+         * on that work being finished, in the case that that thread is the same one doing
+         * the blocking. That will result in a single thread deadlock.
+         *
+         * If you need to queue work, the logic needs to be similar to this:
+         * 
+         bool MyAssetHandler::LoadAssetData(const Asset<AssetData>& asset, const char* assetPath, const AZ::Data::AssetFilterCB& assetLoadFilterCB)
+         {
+            .
+            .
+            .
+
+            if (AZStd::this_thread::get_id() == m_loadingThreadId)
+            {
+                // load asset immediately
+            }
+            else
+            {
+                // queue job to load asset in thread identified by m_loadingThreadId 
+                auto* queuedJob = QueueLoadingOnOtherThread(...);
+
+                // block waiting for queued job to complete
+                queuedJob->BlockUntilComplete();
+            }
+            
+            .
+            .
+            .
+         }
+
          */
         class AssetHandler
         {

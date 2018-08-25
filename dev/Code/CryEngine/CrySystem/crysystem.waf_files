@@ -96,6 +96,7 @@
             "DebugCallStack.h",
             "GeneralMemoryHeap.h",
             "IDebugCallStack.h",
+            "IThreadConfigManager.h",
             "Log.h",
             "NotificationNetwork.h",
             "PakVars.h",
@@ -108,6 +109,7 @@
             "SystemEventDispatcher.h",
             "Timer.h",
             "Validator.h",
+            "WindowsConsole.h",
             "XConsole.h",
             "XConsoleVariable.h",
             "BootProfiler.h",
@@ -208,6 +210,7 @@
             "LocalizedStringManager.h"
         ],
         "Threading": [
+            "CryThreadUtil_win32_thread.h",
             "ThreadInfo.cpp",
             "ThreadProfiler.cpp",
             "ThreadSampler.cpp",
@@ -293,19 +296,6 @@
             "Cryptography/StreamCipher.h",
             "Cryptography/Whirlpool.h"
         ],
-        "JobManager": [
-            "JobManager/JobManager.cpp",
-            "JobManager/JobManager.h",
-            "JobManager/JobStructs.h"
-        ],
-        "JobManager/FallbackBackend": [
-            "JobManager/FallbackBackend/FallbackBackend.cpp",
-            "JobManager/FallbackBackend/FallBackBackend.h"
-        ],
-        "JobManager/ThreadBackEnd": [
-            "JobManager/PCBackEnd/ThreadBackEnd.cpp",
-            "JobManager/PCBackEnd/ThreadBackEnd.h"
-        ],
         "SoftCode": [
             "SoftCode/SoftCodeMgr.cpp",
             "SoftCode/SoftCodeMgr.h"
@@ -332,10 +322,6 @@
             "RemoteCommandServer.cpp",
             "RemoteCommandClient.cpp"
         ],
-        "Stroboscope": [
-            "Stroboscope/Stroboscope.cpp",
-            "Stroboscope/Stroboscope.h"
-        ],
         "ZLibDecompressor": [
             "ZLibDecompressor.h",
             "ZLibDecompressor.cpp"
@@ -343,6 +329,20 @@
         "LZ4Decompressor": [
             "LZ4Decompressor.h",
             "LZ4Decompressor.cpp"
+        ],
+        "LevelSystem":
+        [
+            "LevelSystem/LevelSystem.cpp",
+            "LevelSystem/LevelSystem.h"
+        ],
+        "View System":
+        [
+            "ViewSystem/DebugCamera.cpp",
+            "ViewSystem/DebugCamera.h",
+            "ViewSystem/View.cpp",
+            "ViewSystem/View.h",
+            "ViewSystem/ViewSystem.cpp",
+            "ViewSystem/ViewSystem.h"
         ],
         "Serialization": [
             "Serialization/ArchiveHost.cpp",
@@ -411,11 +411,6 @@
             "MemReplay.h",
             "CrySizerImpl.cpp",
             "CrySizerImpl.h"
-        ],
-        "JobManager/BlockingBackend":
-        [
-            "JobManager/BlockingBackend/BlockingBackEnd.cpp",
-            "JobManager/BlockingBackend/BlockingBackEnd.h"
         ],
         "HTTPDownloader":
         [

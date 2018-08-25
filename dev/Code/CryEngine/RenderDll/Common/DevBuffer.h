@@ -11,12 +11,10 @@
 */
 // Original file Copyright Crytek GMBH or its affiliates, used under license.
 
-#ifndef _DevBuffer_H_
-#define _DevBuffer_H_
+#pragma once
 
 #include <XRenderD3D9/DeviceManager/Base.h>
 #include <XRenderD3D9/DeviceManager/Enums.h>
-#include <CryEngineAPI.h>
 
 ////////////////////////////////////////////////////////////////////////////////////////
 // Usage hints
@@ -112,7 +110,14 @@ namespace AzRHI
 
         inline AZ::u64 GetCode() const
         {
+#if defined(AZ_RESTRICTED_PLATFORM)
+#include AZ_RESTRICTED_FILE(DevBuffer_h, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#else
             return reinterpret_cast<AZ::u64>(m_buffer) | ((AZ::u64)m_offset << 40);
+#endif
         }
 
         void AddRef();
@@ -176,18 +181,37 @@ struct SDeviceBufferPoolStats
 class CVertexBuffer;
 class CIndexBuffer;
 
-class ENGINE_API CDeviceBufferManager
+class IDeviceBufferManager
 {
     friend class CGuardedDeviceBufferManager;
     friend class CDeviceManager;
+public:
 
-    buffer_handle_t Create_Locked(BUFFER_BIND_TYPE, BUFFER_USAGE, size_t);
-    void Destroy_Locked(buffer_handle_t);
-    void* BeginRead_Locked(buffer_handle_t handle);
-    void* BeginWrite_Locked(buffer_handle_t handle);
-    void  EndReadWrite_Locked(buffer_handle_t handle);
-    bool  UpdateBuffer_Locked(buffer_handle_t handle, const void*, size_t);
-    size_t Size_Locked(buffer_handle_t);
+# ifndef NULL_RENDERER
+    virtual D3DBuffer* GetD3D(buffer_handle_t handle, size_t* outOffset) = 0;
+#endif
+    virtual void LockDevMan() = 0;
+    virtual void UnlockDevMan() = 0;
+
+private:
+    virtual buffer_handle_t Create_Locked(BUFFER_BIND_TYPE, BUFFER_USAGE, size_t) = 0;
+    virtual void Destroy_Locked(buffer_handle_t) = 0;
+    virtual void* BeginRead_Locked(buffer_handle_t handle) = 0;
+    virtual void* BeginWrite_Locked(buffer_handle_t handle) = 0;
+    virtual void  EndReadWrite_Locked(buffer_handle_t handle) = 0;
+    virtual bool  UpdateBuffer_Locked(buffer_handle_t handle, const void*, size_t) = 0;
+    virtual size_t Size_Locked(buffer_handle_t) = 0;
+};
+
+class CDeviceBufferManager : public IDeviceBufferManager
+{
+    buffer_handle_t Create_Locked(BUFFER_BIND_TYPE, BUFFER_USAGE, size_t) override;
+    void Destroy_Locked(buffer_handle_t) override;
+    void* BeginRead_Locked(buffer_handle_t handle) override;
+    void* BeginWrite_Locked(buffer_handle_t handle) override;
+    void  EndReadWrite_Locked(buffer_handle_t handle) override;
+    bool  UpdateBuffer_Locked(buffer_handle_t handle, const void*, size_t) override;
+    size_t Size_Locked(buffer_handle_t) override;
 
 public:
     CDeviceBufferManager();
@@ -214,8 +238,8 @@ public:
 
     ////////////////////////////////////////////////////////////////////////////////////////
     // Locks the global devicebuffer lock
-    void LockDevMan();
-    void UnlockDevMan();
+    void LockDevMan() override;
+    void UnlockDevMan() override;
 
     // Returns the size in bytes of the allocation
     size_t Size(buffer_handle_t);
@@ -266,10 +290,10 @@ class CGuardedDeviceBufferManager
     : public NoCopy
 {
 private:
-    CDeviceBufferManager* m_pDevMan;
+    IDeviceBufferManager* m_pDevMan;
 
 public:
-    explicit CGuardedDeviceBufferManager(CDeviceBufferManager* pDevMan)
+    explicit CGuardedDeviceBufferManager(IDeviceBufferManager* pDevMan)
         : m_pDevMan(pDevMan)
     {
         m_pDevMan->LockDevMan();
@@ -495,5 +519,3 @@ struct WrappedDX11Buffer
     uint32_t m_currentBuffer;
 };
 #endif
-
-#endif // _D3DBuffer_H

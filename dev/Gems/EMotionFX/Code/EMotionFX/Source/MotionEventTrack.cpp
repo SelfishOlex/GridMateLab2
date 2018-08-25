@@ -16,11 +16,14 @@
 #include "EventManager.h"
 #include "EventHandler.h"
 #include "AnimGraphEventBuffer.h"
-#include <MCore/Source/StringIDGenerator.h>
-
+#include <MCore/Source/StringIdPool.h>
+#include <EMotionFX/Source/Allocators.h>
 
 namespace EMotionFX
 {
+    AZ_CLASS_ALLOCATOR_IMPL(MotionEventTrack, MotionEventAllocator, 0)
+
+
     // constructor
     MotionEventTrack::MotionEventTrack(Motion* motion)
         : BaseObject()
@@ -57,21 +60,21 @@ namespace EMotionFX
     // creation
     MotionEventTrack* MotionEventTrack::Create(Motion* motion)
     {
-        return new MotionEventTrack(motion);
+        return aznew MotionEventTrack(motion);
     }
 
 
     // creation
     MotionEventTrack* MotionEventTrack::Create(const char* name, Motion* motion)
     {
-        return new MotionEventTrack(name, motion);
+        return aznew MotionEventTrack(name, motion);
     }
 
 
     // set the name of the motion event track
     void MotionEventTrack::SetName(const char* name)
     {
-        mNameID = MCore::GetStringIDGenerator().GenerateIDForString(name);
+        mNameID = MCore::GetStringIdPool().GenerateIdForString(name);
     }
 
 
@@ -265,7 +268,7 @@ namespace EMotionFX
                 {
                     eventInfo.mTimeValue        = eventStartTime;
                     eventInfo.mTypeID           = mEvents[i].GetEventTypeID();
-                    eventInfo.mTypeString       = const_cast<MCore::String*>(&GetEventManager().GetEventTypeStringAsString(mEvents[i].GetEventTypeID()));
+                    eventInfo.mTypeString       = const_cast<AZStd::string*>(&GetEventManager().GetEventTypeStringAsString(mEvents[i].GetEventTypeID()));
                     eventInfo.mParameters       = &mParameters[mEvents[i].GetParameterIndex()];
                     eventInfo.mActorInstance    = actorInstance;
                     eventInfo.mMotionInstance   = motionInstance;
@@ -279,7 +282,7 @@ namespace EMotionFX
                 {
                     eventInfo.mTimeValue        = eventStartTime;
                     eventInfo.mTypeID           = mEvents[i].GetEventTypeID();
-                    eventInfo.mTypeString       = const_cast<MCore::String*>(&GetEventManager().GetEventTypeStringAsString(mEvents[i].GetEventTypeID()));
+                    eventInfo.mTypeString       = const_cast<AZStd::string*>(&GetEventManager().GetEventTypeStringAsString(mEvents[i].GetEventTypeID()));
                     eventInfo.mParameters       = &mParameters[mEvents[i].GetParameterIndex()];
                     eventInfo.mActorInstance    = actorInstance;
                     eventInfo.mMotionInstance   = motionInstance;
@@ -309,7 +312,7 @@ namespace EMotionFX
                 {
                     eventInfo.mTimeValue        = eventStartTime;
                     eventInfo.mTypeID           = mEvents[i].GetEventTypeID();
-                    eventInfo.mTypeString       = const_cast<MCore::String*>(&GetEventManager().GetEventTypeStringAsString(mEvents[i].GetEventTypeID()));
+                    eventInfo.mTypeString       = const_cast<AZStd::string*>(&GetEventManager().GetEventTypeStringAsString(mEvents[i].GetEventTypeID()));
                     eventInfo.mParameters       = &mParameters[mEvents[i].GetParameterIndex()];
                     eventInfo.mActorInstance    = motionInstance->GetActorInstance();
                     eventInfo.mMotionInstance   = motionInstance;
@@ -323,7 +326,7 @@ namespace EMotionFX
                 {
                     eventInfo.mTimeValue        = eventStartTime;
                     eventInfo.mTypeID           = mEvents[i].GetEventTypeID();
-                    eventInfo.mTypeString       = const_cast<MCore::String*>(&GetEventManager().GetEventTypeStringAsString(mEvents[i].GetEventTypeID()));
+                    eventInfo.mTypeString       = const_cast<AZStd::string*>(&GetEventManager().GetEventTypeStringAsString(mEvents[i].GetEventTypeID()));
                     eventInfo.mParameters       = &mParameters[mEvents[i].GetParameterIndex()];
                     eventInfo.mActorInstance    = motionInstance->GetActorInstance();
                     eventInfo.mMotionInstance   = motionInstance;
@@ -364,7 +367,7 @@ namespace EMotionFX
                 {
                     eventInfo.mTimeValue        = eventStartTime;
                     eventInfo.mTypeID           = mEvents[i].GetEventTypeID();
-                    eventInfo.mTypeString       = const_cast<MCore::String*>(&GetEventManager().GetEventTypeStringAsString(mEvents[i].GetEventTypeID()));
+                    eventInfo.mTypeString       = const_cast<AZStd::string*>(&GetEventManager().GetEventTypeStringAsString(mEvents[i].GetEventTypeID()));
                     eventInfo.mParameters       = &mParameters[mEvents[i].GetParameterIndex()];
                     eventInfo.mActorInstance    = motionInstance->GetActorInstance();
                     eventInfo.mMotionInstance   = motionInstance;
@@ -378,7 +381,7 @@ namespace EMotionFX
                 {
                     eventInfo.mTimeValue        = eventStartTime;
                     eventInfo.mTypeID           = mEvents[i].GetEventTypeID();
-                    eventInfo.mTypeString       = const_cast<MCore::String*>(&GetEventManager().GetEventTypeStringAsString(mEvents[i].GetEventTypeID()));
+                    eventInfo.mTypeString       = const_cast<AZStd::string*>(&GetEventManager().GetEventTypeStringAsString(mEvents[i].GetEventTypeID()));
                     eventInfo.mParameters       = &mParameters[mEvents[i].GetParameterIndex()];
                     eventInfo.mActorInstance    = motionInstance->GetActorInstance();
                     eventInfo.mMotionInstance   = motionInstance;
@@ -408,7 +411,7 @@ namespace EMotionFX
                 {
                     eventInfo.mTimeValue        = eventStartTime;
                     eventInfo.mTypeID           = mEvents[i].GetEventTypeID();
-                    eventInfo.mTypeString       = const_cast<MCore::String*>(&GetEventManager().GetEventTypeStringAsString(mEvents[i].GetEventTypeID()));
+                    eventInfo.mTypeString       = const_cast<AZStd::string*>(&GetEventManager().GetEventTypeStringAsString(mEvents[i].GetEventTypeID()));
                     eventInfo.mParameters       = &mParameters[mEvents[i].GetParameterIndex()];
                     eventInfo.mActorInstance    = motionInstance->GetActorInstance();
                     eventInfo.mMotionInstance   = motionInstance;
@@ -422,7 +425,7 @@ namespace EMotionFX
                 {
                     eventInfo.mTimeValue        = eventStartTime;
                     eventInfo.mTypeID           = mEvents[i].GetEventTypeID();
-                    eventInfo.mTypeString       = const_cast<MCore::String*>(&GetEventManager().GetEventTypeStringAsString(mEvents[i].GetEventTypeID()));
+                    eventInfo.mTypeString       = const_cast<AZStd::string*>(&GetEventManager().GetEventTypeStringAsString(mEvents[i].GetEventTypeID()));
                     eventInfo.mParameters       = &mParameters[mEvents[i].GetParameterIndex()];
                     eventInfo.mActorInstance    = motionInstance->GetActorInstance();
                     eventInfo.mMotionInstance   = motionInstance;
@@ -439,12 +442,12 @@ namespace EMotionFX
     // get a given parameter string
     const char* MotionEventTrack::GetParameter(uint32 nr) const
     {
-        return mParameters[nr].AsChar();
+        return mParameters[nr].c_str();
     }
 
 
     // get a given parameter string
-    const MCore::String& MotionEventTrack::GetParameterString(uint32 nr) const
+    const AZStd::string& MotionEventTrack::GetParameterString(uint32 nr) const
     {
         return mParameters[nr];
     }
@@ -494,19 +497,19 @@ namespace EMotionFX
             return "";
         }
 
-        return MCore::GetStringIDGenerator().GetName(mNameID).AsChar();
+        return MCore::GetStringIdPool().GetName(mNameID).c_str();
     }
 
 
     // get the name as string object
-    const MCore::String& MotionEventTrack::GetNameString() const
+    const AZStd::string& MotionEventTrack::GetNameString() const
     {
         if (mNameID == MCORE_INVALIDINDEX32)
         {
-            return MCore::GetStringIDGenerator().GetName(0);
+            return MCore::GetStringIdPool().GetName(0);
         }
 
-        return MCore::GetStringIDGenerator().GetName(mNameID);
+        return MCore::GetStringIdPool().GetName(mNameID);
     }
 
 
@@ -545,7 +548,7 @@ namespace EMotionFX
     // remove unused parameters
     void MotionEventTrack::RemoveUnusedParameters()
     {
-        MCore::Array<MCore::String> usedParameters;
+        MCore::Array<AZStd::string> usedParameters;
 
         // build the new parameters table
         const uint32 numEvents = mEvents.GetLength();

@@ -28,6 +28,7 @@
 #include <native/AssetManager/AssetRequestHandler.h>
 #include <native/utilities/CommunicatorTracePrinter.h>
 #include <AzFramework/Asset/AssetProcessorMessages.h>
+#include <AzToolsFramework/API/ToolsApplicationAPI.h>
 #include <AzToolsFramework/Asset/AssetProcessorMessages.h>
 #include <AzToolsFramework/API/EditorAssetSystemAPI.h>
 #include <AzToolsFramework/UI/Logging/LogLine.h>
@@ -66,6 +67,9 @@ static const int s_MaximumProcessJobsTimeSeconds = 60 * 60;
 
 //! Reserve extra disk space when doing disk space checks to leave a little room for logging, database operations, etc
 static const qint64 s_ReservedDiskSpaceInBytes = 256 * 1024;
+
+//! Maximum number of temp folders allowed
+static const int s_MaximumTempFolders = 10000;
 
 #if defined(AZ_PLATFORM_WINDOWS) && defined(BATCH_MODE)
 namespace BatchApplicationManagerPrivate
@@ -286,8 +290,6 @@ void BatchApplicationManager::InitFileMonitor()
         m_folderWatches.push_back(AZStd::unique_ptr<FolderWatchCallbackEx>(newFolderWatch));
         m_watchHandles.push_back(m_fileWatcher.AddFolderWatch(newFolderWatch));
     }
-
-    m_fileWatcher.StartWatching();
 }
 
 void BatchApplicationManager::DestroyFileMonitor()
@@ -316,7 +318,6 @@ void BatchApplicationManager::DestroyApplicationServer()
 
 void BatchApplicationManager::InitConnectionManager()
 {
-    using namespace std::placeholders;
     using namespace AzFramework::AssetSystem;
     using namespace AzToolsFramework::AssetSystem;
 
@@ -325,7 +326,7 @@ void BatchApplicationManager::InitConnectionManager()
     QObject* connectionAndChangeMessagesThreadContext = this;
 
     // AssetProcessor Manager related stuff
-    auto forwardMessageFunction = [this](QString platform, AzFramework::AssetSystem::AssetNotificationMessage message)
+    auto forwardMessageFunction = [](QString platform, AzFramework::AssetSystem::AssetNotificationMessage message)
         {
             EBUS_EVENT(AssetProcessor::ConnectionBus, SendPerPlatform, 0, message, platform);
         };
@@ -344,8 +345,8 @@ void BatchApplicationManager::InitConnectionManager()
     result = QObject::connect(GetRCController(), &AssetProcessor::RCController::JobStatusChanged, GetAssetProcessorManager(), &AssetProcessor::AssetProcessorManager::OnJobStatusChanged);
     AZ_Assert(result, "Failed to connect to RCController signal");
 
-    result = QObject::connect(GetRCController(), &AssetProcessor::RCController::JobStarted,
-            [this](QString inputFile, QString platform)
+    result = QObject::connect(GetRCController(), &AssetProcessor::RCController::JobStarted, this,
+            [](QString inputFile, QString platform)
             {
                 QString msg = QCoreApplication::translate("Asset Processor", "Processing %1 (%2)...\n", "%1 is the name of the file, and %2 is the platform to process it for").arg(inputFile, platform);
                 AZ_Printf(AssetProcessor::ConsoleChannel, "%s", msg.toUtf8().constData());
@@ -355,26 +356,26 @@ void BatchApplicationManager::InitConnectionManager()
             );
     AZ_Assert(result, "Failed to connect to RCController signal");
 
-    result = QObject::connect(GetRCController(), &AssetProcessor::RCController::FileCompiled,
-            [this](AssetProcessor::JobEntry entry, AssetBuilderSDK::ProcessJobResponse /*response*/)
+    result = QObject::connect(GetRCController(), &AssetProcessor::RCController::FileCompiled, this,
+            [](AssetProcessor::JobEntry entry, AssetBuilderSDK::ProcessJobResponse /*response*/)
             {
-                AssetNotificationMessage message(entry.m_relativePathToFile.toUtf8().constData(), AssetNotificationMessage::JobCompleted, AZ::Data::s_invalidAssetType);
+                AssetNotificationMessage message(entry.m_pathRelativeToWatchFolder.toUtf8().constData(), AssetNotificationMessage::JobCompleted, AZ::Data::s_invalidAssetType);
                 EBUS_EVENT(AssetProcessor::ConnectionBus, SendPerPlatform, 0, message, QString::fromUtf8(entry.m_platformInfo.m_identifier.c_str()));
             }
             );
     AZ_Assert(result, "Failed to connect to RCController signal");
 
-    result = QObject::connect(GetRCController(), &AssetProcessor::RCController::FileFailed,
-            [this](AssetProcessor::JobEntry entry)
+    result = QObject::connect(GetRCController(), &AssetProcessor::RCController::FileFailed, this,
+            [](AssetProcessor::JobEntry entry)
             {
-                AssetNotificationMessage message(entry.m_relativePathToFile.toUtf8().constData(), AssetNotificationMessage::JobFailed, AZ::Data::s_invalidAssetType);
+                AssetNotificationMessage message(entry.m_pathRelativeToWatchFolder.toUtf8().constData(), AssetNotificationMessage::JobFailed, AZ::Data::s_invalidAssetType);
                 EBUS_EVENT(AssetProcessor::ConnectionBus, SendPerPlatform, 0, message, QString::fromUtf8(entry.m_platformInfo.m_identifier.c_str()));
             }
             );
     AZ_Assert(result, "Failed to connect to RCController signal");
 
-    result = QObject::connect(GetRCController(), &AssetProcessor::RCController::JobsInQueuePerPlatform,
-            [this](QString platform, int count)
+    result = QObject::connect(GetRCController(), &AssetProcessor::RCController::JobsInQueuePerPlatform, this,
+            [](QString platform, int count)
             {
                 AssetNotificationMessage message(QByteArray::number(count).constData(), AssetNotificationMessage::JobCount, AZ::Data::s_invalidAssetType);
                 EBUS_EVENT(AssetProcessor::ConnectionBus, SendPerPlatform, 0, message, platform);
@@ -383,11 +384,11 @@ void BatchApplicationManager::InitConnectionManager()
     AZ_Assert(result, "Failed to connect to RCController signal");
 
     m_connectionManager->RegisterService(RequestPing::MessageType(),
-        std::bind([this](unsigned int connId, unsigned int /*type*/, unsigned int serial, QByteArray /*payload*/)
+        AZStd::bind([](unsigned int connId, unsigned int /*type*/, unsigned int serial, QByteArray /*payload*/)
             {
                 ResponsePing responsePing;
                 EBUS_EVENT_ID(connId, AssetProcessor::ConnectionBus, SendResponse, serial, responsePing);
-            }, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4)
+            }, AZStd::placeholders::_1, AZStd::placeholders::_2, AZStd::placeholders::_3, AZStd::placeholders::_4)
         );
 
     //You can get Asset Processor Current State
@@ -434,7 +435,6 @@ void BatchApplicationManager::DestroyConnectionManager()
 
 void BatchApplicationManager::InitAssetRequestHandler()
 {
-    using namespace std::placeholders;
     using namespace AzFramework::AssetSystem;
     using namespace AzToolsFramework::AssetSystem;
     using namespace AzFramework::AssetSystem;
@@ -456,6 +456,7 @@ void BatchApplicationManager::InitAssetRequestHandler()
     m_connectionManager->RegisterService(AssetJobsInfoRequest::MessageType(), serviceRedirectHandler);
     m_connectionManager->RegisterService(AssetJobLogRequest::MessageType(), serviceRedirectHandler);
     m_connectionManager->RegisterService(SourceAssetInfoRequest::MessageType(), serviceRedirectHandler);
+    m_connectionManager->RegisterService(GetScanFoldersRequest::MessageType(), serviceRedirectHandler);
     m_connectionManager->RegisterService(RegisterSourceAssetRequest::MessageType(), serviceRedirectHandler);
     m_connectionManager->RegisterService(UnregisterSourceAssetRequest::MessageType(), serviceRedirectHandler);
     m_connectionManager->RegisterService(SaveAssetCatalogRequest::MessageType(), serviceRedirectHandler);
@@ -466,11 +467,11 @@ void BatchApplicationManager::InitAssetRequestHandler()
 
     // connect the network messages to the Request handler:
     m_connectionManager->RegisterService(RequestAssetStatus::MessageType(),
-        std::bind([&](unsigned int connId, unsigned int serial, QByteArray payload, QString platform)
+        AZStd::bind([&](unsigned int connId, unsigned int serial, QByteArray payload, QString platform)
             {
                 QMetaObject::invokeMethod(m_assetRequestHandler, "OnNewIncomingRequest", Qt::QueuedConnection, Q_ARG(unsigned int, connId), Q_ARG(unsigned int, serial), Q_ARG(QByteArray, payload), Q_ARG(QString, platform));
             },
-            std::placeholders::_1, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5)
+            AZStd::placeholders::_1, AZStd::placeholders::_3, AZStd::placeholders::_4, AZStd::placeholders::_5)
         );
 
     QObject::connect(GetAssetProcessorManager(), &AssetProcessorManager::FenceFileDetected, m_assetRequestHandler, &AssetRequestHandler::OnFenceFileDetected);
@@ -628,13 +629,20 @@ bool BatchApplicationManager::Run()
     }
 
     AZ_Printf(AssetProcessor::ConsoleChannel, "Asset Processor Batch Processing Started.\n");
+    AZ_Printf(AssetProcessor::ConsoleChannel, "-----------------------------------------\n");
+    QElapsedTimer allAssetsProcessingTimer;
+    allAssetsProcessingTimer.start();
     m_duringStartup = false;
     qApp->exec();
 
+    AZ_Printf(AssetProcessor::ConsoleChannel, "-----------------------------------------\n");
+    AZ_Printf(AssetProcessor::ConsoleChannel, "Asset Processor Batch Processing complete\n");
     AZ_Printf(AssetProcessor::ConsoleChannel, "Number of Assets Successfully Processed: %d.\n", ProcessedAssetCount());
     AZ_Printf(AssetProcessor::ConsoleChannel, "Number of Assets Failed to Process: %d.\n", FailedAssetsCount());
+    AZ_Printf(AssetProcessor::ConsoleChannel, "Total Assets Processing Time: %fs\n", allAssetsProcessingTimer.elapsed() / 1000.0f);
     AZ_Printf(AssetProcessor::ConsoleChannel, "Asset Processor Batch Processing Completed.\n");
 
+    RemoveOldTempFolders();
     Destroy();
 
     return (startedSuccessfully && FailedAssetsCount() == 0);
@@ -642,10 +650,32 @@ bool BatchApplicationManager::Run()
 
 void BatchApplicationManager::CheckForIdle()
 {
+    if (InitiatedShutdown())
+    {
+        return;
+    }
+
+#if defined(BATCH_MODE)
+    if (m_connectionsToRemoveOnShutdown.empty())
+    {
+        // we've already entered this state once.  Ignore repeats.  this can happen if another sender of events
+        // rapidly flicks between idle/not idle and sends many "I'm done!" messages which are all queued up.
+        return;
+    }
+#endif
+
     if ((m_rcController->IsIdle() && m_AssetProcessorManagerIdleState))
     {
-        // if we are here it implies that both the APM and RCController are idle.
 #if defined(BATCH_MODE)
+        // in batch mode, when we become idle, we save the registry and then we quit.
+        AZ_Printf(AssetProcessor::ConsoleChannel, "No assets remain in the build queue.  Saving the catalog, and then shutting down.\n");
+        // stop accepting any further idle messages, as we will shut down - don't want this function to repeat!
+        for (const QMetaObject::Connection& connection : m_connectionsToRemoveOnShutdown)
+        {
+            QObject::disconnect(connection);
+        }
+        m_connectionsToRemoveOnShutdown.clear();
+
         // Checking the status of the asset catalog here using qt's signal slot mechanism
         // to ensure that we do not have any pending events in the event loop that can make the catalog dirty again
         QObject::connect(m_assetCatalog, &AssetProcessor::AssetCatalog::AsyncAssetCatalogStatusResponse, this, [&](AssetProcessor::AssetCatalogStatus status)
@@ -660,6 +690,7 @@ void BatchApplicationManager::CheckForIdle()
 
         QMetaObject::invokeMethod(m_assetCatalog, "AsyncAssetCatalogStatusRequest", Qt::QueuedConnection);
 #else
+        // in GUI Mode, we save the registry when we become idle, but we stay running.
         AssetProcessor::AssetRegistryRequestBus::Broadcast(&AssetProcessor::AssetRegistryRequests::SaveRegistry);
 #endif
     }
@@ -677,7 +708,7 @@ bool BatchApplicationManager::RunUnitTests()
     RegisterObjectForQuit(&connectionManager);
     UnitTestWorker unitTestWorker;
     int testResult = 1;
-    QObject::connect(&unitTestWorker, &UnitTestWorker::UnitTestCompleted, [&](int result)
+    QObject::connect(&unitTestWorker, &UnitTestWorker::UnitTestCompleted, this, [&](int result)
         {
             testResult = result;
             QuitRequested();
@@ -768,6 +799,8 @@ bool BatchApplicationManager::Activate()
         return false;
     }
 
+    AZ_TracePrintf(AssetProcessor::ConsoleChannel, "AssetProcessor will process assets from gameproject %s.\n", AssetUtilities::ComputeGameName().toUtf8().data());
+
     // Shutdown if the disk has less than 128MB of free space
     if (!CheckSufficientDiskSpace(projectCache.absolutePath(), 128 * 1024 * 1024, true))
     {
@@ -830,8 +863,9 @@ bool BatchApplicationManager::Activate()
     RegisterObjectForQuit(m_assetProcessorManager);
     RegisterObjectForQuit(m_rcController);
 
-    connect(m_assetProcessorManager, &AssetProcessor::AssetProcessorManager::AssetProcessorManagerIdleState, this,
-        [this](bool state)
+    m_connectionsToRemoveOnShutdown << QObject::connect(
+        m_assetProcessorManager, &AssetProcessor::AssetProcessorManager::AssetProcessorManagerIdleState, 
+        this, [this](bool state)
         {
             if (state)
             {
@@ -839,16 +873,20 @@ bool BatchApplicationManager::Activate()
             }
         });
 
-    connect(m_assetProcessorManager, &AssetProcessor::AssetProcessorManager::AssetProcessorManagerIdleState,
+    m_connectionsToRemoveOnShutdown << QObject::connect(
+        m_assetProcessorManager, &AssetProcessor::AssetProcessorManager::AssetProcessorManagerIdleState,
         this, &BatchApplicationManager::OnAssetProcessorManagerIdleState);
 
-    connect(m_rcController, &AssetProcessor::RCController::BecameIdle,
-        [this]()
+    m_connectionsToRemoveOnShutdown << QObject::connect(
+        m_rcController, &AssetProcessor::RCController::BecameIdle,
+        this, [this]()
         {
             Q_EMIT CheckAssetProcessorManagerIdleState();
         });
 
-    connect(this, &BatchApplicationManager::CheckAssetProcessorManagerIdleState, m_assetProcessorManager, &AssetProcessor::AssetProcessorManager::CheckAssetProcessorIdleState);
+    m_connectionsToRemoveOnShutdown << QObject::connect(
+        this, &BatchApplicationManager::CheckAssetProcessorManagerIdleState, 
+        m_assetProcessorManager, &AssetProcessor::AssetProcessorManager::CheckAssetProcessorIdleState);
 
 
 #if defined(BATCH_MODE)
@@ -892,21 +930,15 @@ bool BatchApplicationManager::Activate()
             }
         });
 
-    AZ_Printf(AssetProcessor::ConsoleChannel, QCoreApplication::translate("Batch Mode", "Starting to scan for changes...\n").toUtf8().constData());
-
-
-    QObject::connect(m_assetScanner, &AssetProcessor::AssetScanner::AssetScanningStatusChanged,
+    m_connectionsToRemoveOnShutdown << QObject::connect(m_assetScanner, &AssetProcessor::AssetScanner::AssetScanningStatusChanged, this, 
         [this](AssetProcessor::AssetScanningStatus status)
         {
             if ((status == AssetProcessor::AssetScanningStatus::Completed) || (status == AssetProcessor::AssetScanningStatus::Stopped))
             {
-                AZ_Printf(AssetProcessor::ConsoleChannel, QCoreApplication::translate("Batch Mode", "Checking changes\n").toUtf8().constData());
+                AZ_Printf(AssetProcessor::ConsoleChannel, QCoreApplication::translate("Batch Mode", "Analyzing scanned files for changes...\n").toUtf8().constData());
                 CheckForIdle();
             }
         });
-
-    m_assetScanner->StartScan();
-
 
 #endif // BATCH_MODE
 
@@ -938,6 +970,15 @@ bool BatchApplicationManager::PostActivate()
             AZ::SystemTickBus::Broadcast(&AZ::SystemTickEvents::OnSystemTick);
         });
 
+    // now that everything is up and running, we start scanning and watching.  Before this, we don't want file events to start percolating through the 
+    // asset system.
+
+#if !defined(BATCH_MODE)
+    // in batch mode, we don't watch for changes, since its just supposed to do with whatever files are present.
+    m_fileWatcher.StartWatching();
+#endif
+    GetAssetScanner()->StartScan();
+
     return true;
 }
 
@@ -960,15 +1001,11 @@ bool BatchApplicationManager::InitializeExternalBuilders()
 
 
     // Get the list of external build modules (full paths)
-
-
     QStringList fileList;
     GetExternalBuilderFileList(fileList);
 
     for (const QString& filePath : fileList)
     {
-        AZStd::string filePathStr = filePath.toStdString().c_str();
-        bool externalBuilderLoaded = false;
         if (QLibrary::isLibrary(filePath))
         {
             AssetProcessor::ExternalModuleAssetBuilderInfo* externalAssetBuilderInfo = new AssetProcessor::ExternalModuleAssetBuilderInfo(filePath);
@@ -979,17 +1016,22 @@ bool BatchApplicationManager::InitializeExternalBuilders()
                 return false;
             }
 
-            AZ_TracePrintf(AssetProcessor::DebugChannel, "Initializing and registering builder %s\n", externalAssetBuilderInfo->GetName().toUtf8().data());
+            AZ_TracePrintf(AssetProcessor::ConsoleChannel, "Initializing and registering builder %s\n", externalAssetBuilderInfo->GetName().toUtf8().data());
 
-            this->m_currentExternalAssetBuilder = { externalAssetBuilderInfo, filePath.toStdString().c_str() };
+            m_currentExternalAssetBuilder = externalAssetBuilderInfo;
 
             externalAssetBuilderInfo->Initialize();
 
-            this->m_currentExternalAssetBuilder = {};
+            m_currentExternalAssetBuilder = nullptr;
 
-            this->m_externalAssetBuilders.push_back(externalAssetBuilderInfo);
+            m_externalAssetBuilders.push_back(externalAssetBuilderInfo);
         }
     }
+
+    // Also init external builders which may be inside of Gems
+    AzToolsFramework::ToolsApplicationRequestBus::Broadcast(
+        &AzToolsFramework::ToolsApplicationRequests::CreateAndAddEntityFromComponentTags,
+        AZStd::vector<AZ::Crc32>({ AssetBuilderSDK::ComponentTags::AssetBuilder }), "AssetBuilders Entity");
 
     return true;
 }
@@ -1065,18 +1107,22 @@ void BatchApplicationManager::RegisterBuilderInformation(const AssetBuilderSDK::
     AZ_Error(AssetProcessor::ConsoleChannel,
         !builderDesc.m_busId.IsNull(),
         "Bus ID for %s builder is empty.\n",
-        builderDesc.m_name.c_str()); 
+        builderDesc.m_name.c_str());
 
-    auto modifiedBuilderDesc = builderDesc;
 
     // This is an external builder registering, we will want to track its builder desc since it can register multiple ones
-    if (m_currentExternalAssetBuilder.m_builderInfo)
+    AZStd::string builderFilePath;
+    if (m_currentExternalAssetBuilder)
     {
-        m_currentExternalAssetBuilder.m_builderInfo->RegisterBuilderDesc(builderDesc.m_busId);
-        AZStd::string builderFilePath = m_currentExternalAssetBuilder.m_builderFilePath;
+        m_currentExternalAssetBuilder->RegisterBuilderDesc(builderDesc.m_busId);
+        builderFilePath = m_currentExternalAssetBuilder->GetModuleFullPath().toUtf8().data();
+    }
 
+    AssetBuilderSDK::AssetBuilderDesc modifiedBuilderDesc = builderDesc;
+    if (builderDesc.IsExternalBuilder())
+    {
         // We're going to override the createJob function so we can run it externally in AssetBuilder, rather than having it run inside the AP
-        modifiedBuilderDesc.m_createJobFunction = [this, builderFilePath](const AssetBuilderSDK::CreateJobsRequest& request, AssetBuilderSDK::CreateJobsResponse& response)
+        modifiedBuilderDesc.m_createJobFunction = [builderFilePath](const AssetBuilderSDK::CreateJobsRequest& request, AssetBuilderSDK::CreateJobsResponse& response)
             {
                 AssetProcessor::BuilderRef builderRef;
                 AssetProcessor::BuilderManagerBus::BroadcastResult(builderRef, &AssetProcessor::BuilderManagerBusTraits::GetBuilder);
@@ -1092,7 +1138,7 @@ void BatchApplicationManager::RegisterBuilderInformation(const AssetBuilderSDK::
             };
 
         // Also override the processJob function to run externally
-        modifiedBuilderDesc.m_processJobFunction = [this, builderFilePath](const AssetBuilderSDK::ProcessJobRequest& request, AssetBuilderSDK::ProcessJobResponse& response)
+        modifiedBuilderDesc.m_processJobFunction = [builderFilePath](const AssetBuilderSDK::ProcessJobRequest& request, AssetBuilderSDK::ProcessJobResponse& response)
             {
                 AssetBuilderSDK::JobCancelListener jobCancelListener(request.m_jobId);
 
@@ -1101,7 +1147,7 @@ void BatchApplicationManager::RegisterBuilderInformation(const AssetBuilderSDK::
 
                 if (builderRef)
                 {
-                    builderRef->RunJob<AssetBuilderSDK::ProcessJobNetRequest, AssetBuilderSDK::ProcessJobNetResponse>(request, response, s_MaximumProcessJobsTimeSeconds, "process", builderFilePath, &jobCancelListener);
+                    builderRef->RunJob<AssetBuilderSDK::ProcessJobNetRequest, AssetBuilderSDK::ProcessJobNetResponse>(request, response, s_MaximumProcessJobsTimeSeconds, "process", builderFilePath, &jobCancelListener, request.m_tempDirPath);
                 }
                 else
                 {
@@ -1134,9 +1180,9 @@ void BatchApplicationManager::RegisterBuilderInformation(const AssetBuilderSDK::
 void BatchApplicationManager::RegisterComponentDescriptor(AZ::ComponentDescriptor* descriptor)
 {
     ApplicationManager::RegisterComponentDescriptor(descriptor);
-    if (m_currentExternalAssetBuilder.m_builderInfo)
+    if (m_currentExternalAssetBuilder)
     {
-        m_currentExternalAssetBuilder.m_builderInfo->RegisterComponentDesc(descriptor);
+        m_currentExternalAssetBuilder->RegisterComponentDesc(descriptor);
     }
     else
     {
@@ -1252,8 +1298,55 @@ bool BatchApplicationManager::CheckSufficientDiskSpace(const QString& savePath, 
     return true;
 }
 
+void BatchApplicationManager::RemoveOldTempFolders()
+{
+    QDir rootDir;
+    if (!AssetUtilities::ComputeAssetRoot(rootDir))
+    {
+        return;
+    }
+
+    QString startFolder = rootDir.absolutePath();
+    QDir root;
+    if (!AssetUtilities::CreateTempRootFolder(startFolder, root))
+    {
+        return;
+    }
+
+    // We will remove old temp folders if either their modified time is older than the cutoff time or 
+    // if the total number of temp folders have exceeded the maximum number of temp folders.   
+    QFileInfoList entries = root.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Time); // sorting by modification time
+    int folderCount = 0;
+    bool removeFolder = false;
+    QDateTime cutoffTime = QDateTime::currentDateTime().addDays(-7);
+    for (const QFileInfo& entry : entries)
+    {
+        if (!entry.fileName().startsWith("JobTemp-"))
+        {
+            continue;
+        }
+
+        // Since we are sorting the folders list from latest to oldest, we will either be in a state where we have to delete all the remaining folders or not
+        // because either we have reached the folder limit or reached the cutoff date limit.
+        removeFolder = removeFolder || (folderCount++ >= s_MaximumTempFolders) || 
+            (entry.lastModified() < cutoffTime);
+        
+        if (removeFolder)
+        {
+            QDir dir(entry.absoluteFilePath());
+            dir.removeRecursively();
+        }
+    }
+}
+
 void BatchApplicationManager::OnAssetProcessorManagerIdleState(bool isIdle)
 {
+    // these can come in during shutdown.
+    if (InitiatedShutdown())
+    {
+        return;
+    }
+
     if (isIdle)
     {
         if (!m_AssetProcessorManagerIdleState)

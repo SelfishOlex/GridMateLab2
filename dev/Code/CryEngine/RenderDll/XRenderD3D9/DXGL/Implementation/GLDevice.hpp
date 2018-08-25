@@ -65,6 +65,7 @@ namespace NCryOpenGL
         GLint m_iMaxVertexAttribs;
         GLint m_maxRenderTargets;
         GLint m_plsSizeInBytes; // 0 when PLS is not supported
+        RenderCapabilities::FrameBufferFetchMask m_frameBufferFetchSupport;
 
         SResourceUnitCapabilities m_akResourceUnits[eRUT_NUM];
 
@@ -85,20 +86,20 @@ namespace NCryOpenGL
 #if DXGL_SUPPORT_COPY_IMAGE
         // Some drivers implementation of glCopyImageSubData does not work on cube map faces as specified by the standard
         bool m_bCopyImageWorksOnCubeMapFaces;
-#endif
+#endif        
     };
 
     struct SVersion
     {
-        uint32 m_uMajorVersion;
-        uint32 m_uMinorVersion;
+        int32 m_uMajorVersion;
+        int32 m_uMinorVersion;
 
         SVersion()
             : m_uMajorVersion(0)
             , m_uMinorVersion(0)
         {}
 
-        SVersion(uint32 version)
+        SVersion(int32 version)
         {
             m_uMajorVersion = version / 100;
             m_uMinorVersion = (version / 10) % 10;
@@ -301,6 +302,7 @@ namespace NCryOpenGL
         static bool MakeCurrent(const TWindowContext&kWindowContext, TRenderingContext kRenderingContext);
 
         void OnApplicationWindowCreated() override;
+        void OnApplicationWindowRedrawNeeded() override;
 
         static uint32 ms_uNumContextsPerDevice;
         static CDevice* ms_pCurrentDevice;

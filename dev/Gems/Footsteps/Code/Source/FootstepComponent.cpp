@@ -26,7 +26,7 @@ namespace Footsteps
         {
             serialize->Class<FootstepComponent, AZ::Component>()
                 ->Version(0)
-                ->SerializerForEmptyClass();
+                ;
 
             if (AZ::EditContext* ec = serialize->GetEditContext())
             {
@@ -146,7 +146,7 @@ namespace Footsteps
                 effectId = pMaterialEffects->GetEffectId(fxLibName.c_str(), livingStatus.groundSurfaceIdx);
                 if (effectId == InvalidEffectId)
                 {
-                    AZ_Warning("FootstepComponent", "Failed to find material for footstep sounds in FXLib %s, SurfaceIdx: %d", fxLibName.c_str(), livingStatus.groundSurfaceIdx);
+                    AZ_Warning("FootstepComponent", false, "Failed to find material for footstep sounds in FXLib %s, SurfaceIdx: %d", fxLibName.c_str(), livingStatus.groundSurfaceIdx);
                 }
             }
 

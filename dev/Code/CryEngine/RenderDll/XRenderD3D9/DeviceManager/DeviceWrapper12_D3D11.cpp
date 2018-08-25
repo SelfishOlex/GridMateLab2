@@ -17,7 +17,14 @@
 #include "../../Common/ReverseDepth.h"
 #include "CryUtils.h"
 
-#if !defined(CRY_USE_DX12_NATIVE) && !defined(CRY_USE_GNM_DEVICE)
+#include <AzCore/std/smart_ptr/make_shared.h>
+
+#if !defined(CRY_USE_DX12_NATIVE)
+#define DEVICEWRAPPER12_D3D11_CPP_WRAP_DX11
+#if defined(AZ_RESTRICTED_PLATFORM)
+#include AZ_RESTRICTED_FILE(DeviceWrapper12_D3D11_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(DEVICEWRAPPER12_D3D11_CPP_WRAP_DX11)
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #define DX11_COMMANDLIST_REDUNDANT_STATE_FILTERING
 
@@ -336,6 +343,7 @@ class CDeviceResourceLayout_DX11
     : public CDeviceResourceLayout
 {
 public:
+    ~CDeviceResourceLayout_DX11() override = default;
     virtual bool Build() final
     {
         return IsValid();
@@ -969,7 +977,7 @@ void CDeviceCopyCommandList::Build()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 CDeviceObjectFactory::CDeviceObjectFactory()
 {
-    m_pCoreCommandList = std::make_shared<CDeviceGraphicsCommandList_DX11>();
+    m_pCoreCommandList = AZStd::make_shared<CDeviceGraphicsCommandList_DX11>();
 }
 
 CDeviceGraphicsPSOUPtr CDeviceObjectFactory::CreateGraphicsPSOImpl(const CDeviceGraphicsPSODesc& psoDesc) const
@@ -977,7 +985,7 @@ CDeviceGraphicsPSOUPtr CDeviceObjectFactory::CreateGraphicsPSOImpl(const CDevice
     auto pResult = CryMakeUnique<CDeviceGraphicsPSO_DX11>();
     if (pResult->Init(psoDesc))
     {
-        return std::move(pResult);
+        return AZStd::move(pResult);
     }
 
     return nullptr;
@@ -985,17 +993,17 @@ CDeviceGraphicsPSOUPtr CDeviceObjectFactory::CreateGraphicsPSOImpl(const CDevice
 
 CDeviceComputePSOPtr CDeviceObjectFactory::CreateComputePSO(CDeviceResourceLayoutPtr pResourceLayout) const
 {
-    return std::make_shared<CDeviceComputePSO_DX11>();
+    return AZStd::make_shared<CDeviceComputePSO_DX11>();
 }
 
 CDeviceResourceSetPtr CDeviceObjectFactory::CreateResourceSet(CDeviceResourceSet::EFlags flags) const
 {
-    return std::make_shared<CDeviceResourceSet_DX11>(flags);
+    return AZStd::make_shared<CDeviceResourceSet_DX11>(flags);
 }
 
 CDeviceResourceLayoutPtr CDeviceObjectFactory::CreateResourceLayout() const
 {
-    return std::make_shared<CDeviceResourceLayout_DX11>();
+    return AZStd::make_shared<CDeviceResourceLayout_DX11>();
 }
 
 CDeviceGraphicsCommandListPtr CDeviceObjectFactory::GetCoreGraphicsCommandList() const
@@ -1038,4 +1046,6 @@ void CDeviceObjectFactory::ForfeitGraphicsCommandLists(std::vector<CDeviceGraphi
     // pContext->ExecuteCommandList(ID3D11CommandList)
 }
 
+#undef DEVICEWRAPPER12_D3D11_CPP_WRAP_DX11
+#endif
 #endif

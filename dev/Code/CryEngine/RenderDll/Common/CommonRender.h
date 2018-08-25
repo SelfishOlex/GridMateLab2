@@ -11,10 +11,9 @@
 */
 // Original file Copyright Crytek GMBH or its affiliates, used under license.
 
-#ifndef _COMMONRENDER_H_
-#define _COMMONRENDER_H_
+#pragma once
 
-#include <CryEngineAPI.h>
+
 #include "Cry_Math.h"
 
 #include "Defs.h"
@@ -42,7 +41,7 @@
 
 //////////////////////////////////////////////////////////////////////
 class CRenderer;
-extern ENGINE_API CRenderer* gRenDev;
+extern CRenderer* gRenDev;
 
 class CBaseResource;
 
@@ -199,11 +198,16 @@ public:
 
 //=================================================================
 
-#if CAPTURE_REPLAY_LOG && (defined(WIN32) || defined (WIN64)) && !defined(NULL_RENDERER)
+#if CAPTURE_REPLAY_LOG
+#if (defined(WIN32) || defined (WIN64)) && !defined(NULL_RENDERER)
 # define MEMREPLAY_WRAP_D3D11
 # define MEMREPLAY_WRAP_D3D11_CONTEX
 #endif
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#include AZ_RESTRICTED_FILE(CommonRender_h, AZ_RESTRICTED_PLATFORM)
+#endif
+#endif
 
 #ifdef MEMREPLAY_WRAP_D3D11
 
@@ -215,7 +219,7 @@ public:
 
 public:
     MemReplayD3DAnnotation(ID3D11DeviceChild* pRes, size_t sz);
-    ~MemReplayD3DAnnotation();
+    virtual ~MemReplayD3DAnnotation();
 
     void AddMap(UINT nSubRes, void* pData, size_t sz);
     void RemoveMap(UINT nSubRes);
@@ -268,7 +272,5 @@ inline MemReplayD3DAnnotation* MemReplayGetD3DAnnotation(ID3D11DeviceChild* pRes
     }
     return NULL;
 }
-
-#endif
 
 #endif

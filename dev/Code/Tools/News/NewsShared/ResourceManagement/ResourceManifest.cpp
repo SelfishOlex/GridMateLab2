@@ -37,7 +37,13 @@ ResourceManifest::ResourceManifest(
 {
 }
 
-ResourceManifest::~ResourceManifest() {}
+ResourceManifest::~ResourceManifest()
+{
+    // clean everything up
+    DeleteResources();
+
+    delete m_downloader;
+}
 
 Resource* ResourceManifest::FindById(const QString& id) const
 {
@@ -116,17 +122,7 @@ void ResourceManifest::Reset()
     m_failed = false;
     m_version = -1;
 
-    for (auto pResource : m_toDownload)
-    {
-        delete pResource;
-    }
-    m_toDownload.clear();
-
-    for (auto pResource : m_resources)
-    {
-        delete pResource;
-    }
-    m_resources.clear();
+    DeleteResources();
 
     m_order.clear();
 }
@@ -288,10 +284,24 @@ void ResourceManifest::ReadConfig()
         {
             QTextStream in(&file);
             m_url = in.readAll().trimmed();
-            m_downloader->SetUseCertPinning(false);
             file.close();
         }
     }
+}
+
+void ResourceManifest::DeleteResources()
+{
+    for (auto pResource : m_toDownload)
+    {
+        delete pResource;
+    }
+    m_toDownload.clear();
+
+    for (auto pResource : m_resources)
+    {
+        delete pResource;
+    }
+    m_resources.clear();
 }
 
 void ResourceManifest::UpdateSync()

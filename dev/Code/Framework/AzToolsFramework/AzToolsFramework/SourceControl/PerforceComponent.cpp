@@ -10,7 +10,7 @@
 *
 */
 
-#include "stdafx.h"
+#include "StdAfx.h"
 
 #include <AzToolsFramework/SourceControl/PerforceComponent.h>
 
@@ -109,8 +109,7 @@ namespace AzToolsFramework
         if (AZ::SerializeContext* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
         {
             serializeContext->Class<PerforceComponent, AZ::Component>()
-                ->SerializerForEmptyClass()
-            ;
+                ;
 
             if (AZ::EditContext* editContext = serializeContext->GetEditContext())
             {
@@ -290,7 +289,7 @@ namespace AzToolsFramework
 
         if (s_perforceConn->m_command.IsOpenByCurrentUser())
         {
-            newInfo.m_flags |= SCF_OpenByUser;
+            newInfo.m_flags |= SCF_Tracked | SCF_OpenByUser;
             if (s_perforceConn->m_command.CurrentActionIsAdd())
             {
                 newInfo.m_flags |= SCF_PendingAdd;
@@ -750,13 +749,8 @@ namespace AzToolsFramework
 
     bool PerforceComponent::ExecuteAndParseFstat(const char* filePath, bool& sourceAwareFile)
     {
-        sourceAwareFile = false;
         s_perforceConn->m_command.ExecuteFstat(filePath);
-        if (CommandSucceeded())
-        {
-            sourceAwareFile = true;
-        }
-
+        sourceAwareFile = CommandSucceeded();
         return ParseOutput(s_perforceConn->m_command.m_commandOutputMap, s_perforceConn->m_command.m_rawOutput.outputResult);
     }
 
@@ -782,6 +776,14 @@ namespace AzToolsFramework
 
     bool PerforceComponent::CommandSucceeded()
     {
+        // This is misleading - FileExists only returns false if the phrase 'no such file(s)'
+        // is present in output.  Therefore, this is safe to call even on perforce commands
+        // that are not directly related to files (p4 set / p4 change / p4 describe / etc)
+        if (!s_perforceConn->m_command.FileExists())
+        {
+            return false;
+        }
+
         if (s_perforceConn->CommandHasFailed())
         {
             m_testTrust = true;
@@ -850,7 +852,7 @@ namespace AzToolsFramework
                     if (AZ::TickBus::IsFunctionQueuing())
                     {
                         // Push to the main thread for convenience.
-                        AZStd::function<void()> trustNotify = [this, fingerprint]()
+                        AZStd::function<void()> trustNotify = [fingerprint]()
                         {
                             SourceControlNotificationBus::Broadcast(&SourceControlNotificationBus::Events::RequestTrust, fingerprint.c_str());
                         };
@@ -961,6 +963,7 @@ namespace AzToolsFramework
         AZ_Assert(m_ProcessThreadID != AZStd::thread::id(), "The perforce worker thread has not started.");
         AZ_Assert(AZStd::this_thread::get_id() == m_ProcessThreadID, "You may only call this function from the perforce worker thread.");
 
+        SourceControlState prevState = m_connectionState;
         if (m_testConnection)
         {
             TestConnectionValid();
@@ -974,27 +977,30 @@ namespace AzToolsFramework
 
         m_connectionState = currentState;
 
-        switch (m_connectionState)
+        if (m_connectionState != prevState)
         {
-        case SourceControlState::Disabled:
-            AZ_TracePrintf(SCC_WINDOW, "Perforce disabled");
-            break;
-        case SourceControlState::ConfigurationInvalid:
-            AZ_TracePrintf(SCC_WINDOW, "Perforce configuration invalid");
-            break;
-        case SourceControlState::Active:
-            AZ_TracePrintf(SCC_WINDOW, "Perforce connected");
-            break;
-        }
-
-        if (AZ::TickBus::IsFunctionQueuing())
-        {
-            // Push to the main thread for convenience.
-            AZStd::function<void()> connectivityNotify = [currentState]()
+            switch (m_connectionState)
             {
-                SourceControlNotificationBus::Broadcast(&SourceControlNotificationBus::Events::ConnectivityStateChanged, currentState);
-            };
-            AZ::TickBus::QueueFunction(connectivityNotify);
+            case SourceControlState::Disabled:
+                AZ_TracePrintf(SCC_WINDOW, "Perforce disabled");
+                break;
+            case SourceControlState::ConfigurationInvalid:
+                AZ_TracePrintf(SCC_WINDOW, "Perforce configuration invalid");
+                break;
+            case SourceControlState::Active:
+                AZ_TracePrintf(SCC_WINDOW, "Perforce connected");
+                break;
+            }
+
+            if (AZ::TickBus::IsFunctionQueuing())
+            {
+                // Push to the main thread for convenience.
+                AZStd::function<void()> connectivityNotify = [currentState]()
+                {
+                    SourceControlNotificationBus::Broadcast(&SourceControlNotificationBus::Events::ConnectivityStateChanged, currentState);
+                };
+                AZ::TickBus::QueueFunction(connectivityNotify);
+            }
         }
 
         return true;

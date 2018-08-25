@@ -80,7 +80,8 @@ def create_stack(context, args):
             bootstrap_template, 
             args.region,
             created_callback=lambda id: context.config.set_pending_project_stack_id(id),
-            capabilities = capabilities
+            capabilities = capabilities,
+            timeoutinminutes = 30
         )
 
     # Create initial project settings.
@@ -356,7 +357,7 @@ def delete_stack(context, args):
 
     if context.stack.id_exists(context.config.project_stack_id):
 
-        retained_bucket_names = ["Config", "Logs"]
+        retained_bucket_names = ["Configuration", "Logs"]
         retained_bucket_ids = [context.stack.get_physical_resource_id(context.config.project_stack_id, name, optional=True, expected_type='AWS::S3::Bucket') for name in retained_bucket_names]
 
         pending_resource_status = __get_pending_resource_status(context, deleting=True)

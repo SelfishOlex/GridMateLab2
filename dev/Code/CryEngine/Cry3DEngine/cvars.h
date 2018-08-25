@@ -11,8 +11,6 @@
 */
 // Original file Copyright Crytek GMBH or its affiliates, used under license.
 
-#ifndef CRYINCLUDE_CRY3DENGINE_CVARS_H
-#define CRYINCLUDE_CRY3DENGINE_CVARS_H
 #pragma once
 
 #if defined(CONSOLE_CONST_CVAR_MODE)
@@ -29,10 +27,6 @@ struct CVars
     { Init(); }
 
     void Init();
-
-#if defined(FEATURE_SVO_GI)
-    void RegisterTICVars();
-#endif
 
     void GetMemoryUsage(ICrySizer* pSizer) const
     {
@@ -66,6 +60,12 @@ struct CVars
     };
 #endif
 #define e_PhysOceanCellDefault (0.f)
+#if defined(AZ_RESTRICTED_PLATFORM)
+#include AZ_RESTRICTED_FILE(cvars_h, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#else
     enum
     {
         e_DeformableObjectsDefault = 1
@@ -86,6 +86,7 @@ struct CVars
     {
         e_LightVolumesDefault = 1
     };
+#endif
 
 #define e_DecalsDefferedDynamicMinSizeDefault (0.35f)
 #define e_DecalsPlacementTestAreaSizeDefault (0.08f)
@@ -291,6 +292,7 @@ struct CVars
     DeclareConstFloatCVar(e_StreamCgfFastUpdateMaxDistance);
     DeclareConstIntCVar(e_DecalsClip, 1);
     ICVar* e_ScreenShotFileFormat;
+    ICVar* e_ScreenShotFileName;
     int e_CharLodMin;
     float e_PhysOceanCell;
     DeclareConstIntCVar(e_WindAreas, 1);
@@ -486,7 +488,7 @@ struct CVars
     float e_ShadowsBlendCascadesVal;
     float e_ParticlesMaxScreenFill;
     DeclareConstIntCVar(e_DebugDrawShowOnlyLod, -1);
-    DeclareConstIntCVar(e_ScreenShot, 0);
+    int e_ScreenShot;
     DeclareConstIntCVar(e_PrecacheLevel, 0);
     float e_ScreenShotMapCenterX;
     DeclareConstIntCVar(e_TerrainOcclusionCullingVersion, 1);
@@ -562,10 +564,4 @@ struct CVars
     int e_PermanentRenderObjects;
     int e_StaticInstancing;
     int e_StaticInstancingMinInstNum;
-
-#if defined(FEATURE_SVO_GI)
-    #include "SVO/SceneTreeCVars.inl" // include SVO related variables
-#endif
 };
-
-#endif // CRYINCLUDE_CRY3DENGINE_CVARS_H

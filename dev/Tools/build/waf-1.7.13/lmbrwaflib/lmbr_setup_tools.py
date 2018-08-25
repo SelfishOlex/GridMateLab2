@@ -23,6 +23,7 @@ LMBR_SETUP_QT_FILTERS = {
             "Qt5Widgets",
             "Qt5Concurrent",
             "Qt5WinExtras",
+            "Qt5Xml"
         ],
 
         "qtlibs": {
@@ -98,7 +99,8 @@ LMBR_SETUP_QT_FILTERS = {
                     "QtQuick.framework",
                     "QtSvg.framework",
                     "QtWidgets.framework",
-                    "QtXml.framework"
+                    "QtXml.framework",
+					"QtMacExtras.framework"
                 ],
                 "plugins": [
                     "imageformats/libqdds.dylib",
@@ -137,7 +139,8 @@ LMBR_SETUP_QT_FILTERS = {
                     "QtQuick.framework",
                     "QtSvg.framework",
                     "QtWidgets.framework",
-                    "QtXml.framework"
+                    "QtXml.framework",
+					"QtMacExtras.framework"
                 ],
                 "plugins": [
                     "imageformats/libqdds_debug.dylib",
@@ -212,6 +215,8 @@ def get_lmbr_setup_tools_output_folder(ctx, platform_override=None, configuratio
             output_folder_compiler = "vc120"
         elif "vs2015" in curr_platform:
             output_folder_compiler = "vc140"
+        elif "vs2017" in curr_platform:
+            output_folder_compiler = "vc141"
 
     elif curr_platform.startswith("darwin_"):
         output_folder_platform  = "Mac"

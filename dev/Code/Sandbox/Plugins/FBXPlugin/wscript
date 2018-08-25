@@ -22,7 +22,7 @@ def build(bld):
         vs_filter               = 'Sandbox/Plugins',
         copyright_org           = 'Amazon-CryTek',
         file_list               = 'fbxplugin.waf_files',
-        platforms               = ['win'],
+        platforms               = ['win', 'darwin'],
         configurations          = ['debug', 'debug_test', 'profile', 'profile_test'],
         pch                     = 'StdAfx.cpp',
         use                     = ['EditorCommon'],
@@ -35,6 +35,8 @@ def build(bld):
         win_lib                 = ['Wininet'],
 
         darwin_enable_rtti = True,
+
+        win_x64_clang_cxxflags  = ['-Wno-null-dereference'],
 
         # Testing
         test_all_file_list      = ['fbxplugin_test.waf_files'],

@@ -22,8 +22,8 @@
 
 #include "DetailWidget/ResourceGroupStatusWidget.moc"
 
-ResourceGroupStatusWidget::ResourceGroupStatusWidget(ResourceManagementView* view, QSharedPointer<IResourceGroupStatusModel> resourceGroupStatusModel)
-    : StackEventsSplitter{resourceGroupStatusModel->GetStackEventsModel()}
+ResourceGroupStatusWidget::ResourceGroupStatusWidget(ResourceManagementView* view, QSharedPointer<IResourceGroupStatusModel> resourceGroupStatusModel, QWidget* parent)
+    : StackEventsSplitter{resourceGroupStatusModel->GetStackEventsModel(), parent}
     , m_view{view}
     , m_resourceGroupStatusModel{resourceGroupStatusModel}
 {
@@ -35,7 +35,7 @@ ResourceGroupStatusWidget::ResourceGroupStatusWidget(ResourceManagementView* vie
 void ResourceGroupStatusWidget::CreateUI()
 {
     auto stackWidget = new StackWidget {
-        m_view, m_resourceGroupStatusModel
+        m_view, m_resourceGroupStatusModel, this
     };
     SetTopWidget(stackWidget);
 
@@ -66,6 +66,14 @@ void ResourceGroupStatusWidget::CreateUI()
 
     stackWidget->AddUpdateButton();
     stackWidget->AddDeleteButton();
+
+    m_enableResourceGroupButton = new QPushButton{
+        m_resourceGroupStatusModel->GetEnableButtonText()
+    };
+    m_enableResourceGroupButton->setToolTip(m_resourceGroupStatusModel->GetEnableButtonToolTip());
+    m_enableResourceGroupButton->setDisabled(m_resourceGroupStatusModel->IsPendingDelete());
+    connect(m_enableResourceGroupButton, &QPushButton::clicked, this, &ResourceGroupStatusWidget::EnableResourceGroup);
+    stackWidget->AddButton(m_enableResourceGroupButton);
 
     UpdateUI();
 }
@@ -99,4 +107,9 @@ void ResourceGroupStatusWidget::OnImportResource()
 void ResourceGroupStatusWidget::OnUploadLambdaCode()
 {
     m_view->UploadLambdaCode(m_resourceGroupStatusModel, "");
+}
+
+void ResourceGroupStatusWidget::EnableResourceGroup()
+{
+    m_resourceGroupStatusModel->EnableResourceGroup();
 }

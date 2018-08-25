@@ -335,7 +335,7 @@ namespace
             pos = s.indexOf('=', pos + 1);
             if (pos >= 0)
             {
-                sscanf(s.toUtf8().data() + pos + 1, "%f", &fValue);
+                azsscanf(s.toUtf8().data() + pos + 1, "%f", &fValue);
             }
         }
         return fValue;
@@ -1013,7 +1013,7 @@ CFlowNode* CFlowGraphManager::CreatePrefabInstanceNode(CFlowGraph* pFlowGraph, C
             bool bResult = pPrefabEvents->AddPrefabInstanceNodeFromSelection(pNode, pPrefabObj);
             if (!bResult)
             {
-                Warning("FlowGraphManager: Failed to add prefab instance node for prefab instance: %s", pPrefabObj->GetName());
+                Warning("FlowGraphManager: Failed to add prefab instance node for prefab instance: %s", pPrefabObj->GetName().toUtf8().constData());
             }
         }
     }

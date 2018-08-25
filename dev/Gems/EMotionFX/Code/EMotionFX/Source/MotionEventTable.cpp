@@ -16,10 +16,13 @@
 #include "MotionEventTrack.h"
 #include "EventManager.h"
 #include "EventHandler.h"
-
+#include <EMotionFX/Source/Allocators.h>
 
 namespace EMotionFX
 {
+    AZ_CLASS_ALLOCATOR_IMPL(MotionEventTable, MotionEventAllocator, 0)
+
+
     // constructor
     MotionEventTable::MotionEventTable()
         : BaseObject()
@@ -39,7 +42,7 @@ namespace EMotionFX
     // creation
     MotionEventTable* MotionEventTable::Create()
     {
-        return new MotionEventTable();
+        return aznew MotionEventTable();
     }
 
 
@@ -136,7 +139,7 @@ namespace EMotionFX
         const uint32 numTracks = mTracks.GetLength();
         for (uint32 i = 0; i < numTracks; ++i)
         {
-            if (mTracks[i]->GetNameString().CheckIfIsEqual(trackName))
+            if (mTracks[i]->GetNameString() == trackName)
             {
                 return i;
             }

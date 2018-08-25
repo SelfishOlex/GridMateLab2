@@ -10,7 +10,7 @@
 *
 */
 #include "native/utilities/GUIApplicationManager.h"
-#include "native/utilities/AssetUtils.h"
+#include "native/utilities/assetUtils.h"
 #include "native/AssetManager/assetProcessorManager.h"
 #include "native/connection/connectionManager.h"
 #include "native/utilities/IniConfiguration.h"
@@ -36,7 +36,7 @@
 #include <AzQtComponents/Utilities/QtPluginPaths.h>
 #include <AzQtComponents/Components/StylesheetPreprocessor.h>
 #include <AzCore/base.h>
-#include <AzCore/debug/trace.h>
+#include <AzCore/Debug/Trace.h>
 #include <AzToolsFramework/Asset/AssetProcessorMessages.h>
 #include <AzCore/Component/ComponentApplicationBus.h>
 #include <AzCore/Serialization/SerializeContext.h>
@@ -48,7 +48,10 @@
 #if defined(AZ_PLATFORM_APPLE_OSX)
 #include <AppKit/NSRunningApplication.h>
 #include <CoreServices/CoreServices.h>
+
+#include "MacDockIconHandler.h"
 #endif
+#include <AzCore/std/chrono/clocks.h>
 
 #define STYLE_SHEET_VARIABLES_PATH_DARK "Editor/Styles/AssetProcessorGlobalStyleSheetVariables.json"
 #define GLOBAL_STYLE_SHEET_PATH "Editor/Styles/AssetProcessorGlobalStyleSheet.qss"
@@ -58,6 +61,8 @@ using namespace AssetProcessor;
 
 namespace
 {
+    static const int s_errorMessageBoxDelay = 5000;
+
     void RemoveTemporaries()
     {
         // get currently running app
@@ -223,6 +228,7 @@ bool GUIApplicationManager::Run()
     }
     else
     {
+#ifdef AZ_PLATFORM_WINDOWS
         // Qt / Windows has issues if the main window isn't shown once
         // so we show it then hide it
         m_mainWindow->show();
@@ -230,7 +236,12 @@ bool GUIApplicationManager::Run()
         // Have a delay on the hide, to make sure that the show is entirely processed
         // first
         QTimer::singleShot(0, m_mainWindow, &QWidget::hide);
+#endif
     }
+
+#ifdef AZ_PLATFORM_APPLE_OSX
+    connect(new MacDockIconHandler(this), &MacDockIconHandler::dockIconClicked, m_mainWindow, &MainWindow::ShowWindow);
+#endif
 
     QAction* quitAction = new QAction(QObject::tr("Quit"), m_mainWindow);
     quitAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_Q));
@@ -241,7 +252,7 @@ bool GUIApplicationManager::Run()
     QAction* refreshAction = new QAction(QObject::tr("Refresh Stylesheet"), m_mainWindow);
     refreshAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_R));
     m_mainWindow->addAction(refreshAction);
-    m_mainWindow->connect(refreshAction, &QAction::triggered, refreshStyleSheets);
+    m_mainWindow->connect(refreshAction, &QAction::triggered, this, refreshStyleSheets);
 
     QObject::connect(this, &GUIApplicationManager::ShowWindow, m_mainWindow, &MainWindow::ShowWindow);
 
@@ -286,6 +297,8 @@ bool GUIApplicationManager::Run()
                     }
                 }
             });
+
+        QObject::connect(m_trayIcon, &QSystemTrayIcon::messageClicked, m_mainWindow, &MainWindow::showNormal);
 
         if (startHidden)
         {
@@ -375,6 +388,12 @@ void GUIApplicationManager::NegotiationFailed()
 {
     QString message = QCoreApplication::translate("error", "An attempt to connect to the game or editor has failed. The game or editor appears to be running from a different folder. Please restart the asset processor from the correct branch.");
     QMetaObject::invokeMethod(this, "ShowMessageBox", Qt::QueuedConnection, Q_ARG(QString, QString("Negotiation Failed")), Q_ARG(QString, message), Q_ARG(bool, false));
+}
+
+void GUIApplicationManager::OnAssetFailed(const AZStd::string& sourceFileName)
+{
+    QString message = tr("Error : %1 failed to compile\nPlease check the Asset Processor for more information.").arg(QString::fromUtf8(sourceFileName.c_str()));
+    QMetaObject::invokeMethod(this, "ShowTrayIconErrorMessage", Qt::QueuedConnection, Q_ARG(QString, message));
 }
 
 void GUIApplicationManager::ShowMessageBox(QString title,  QString msg, bool isCritical)
@@ -486,13 +505,14 @@ bool GUIApplicationManager::PostActivate()
     {
         return false;
     }
-
-    GetAssetScanner()->StartScan();
     return true;
 }
 
 void GUIApplicationManager::CreateQtApplication()
 {
+    QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
+    QCoreApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
+
     // Qt actually modifies the argc and argv, you must pass the real ones in as ref so it can.
     m_qApp = new QApplication(*m_frameworkApp.GetArgC(), *m_frameworkApp.GetArgV());
 }
@@ -536,26 +556,21 @@ void GUIApplicationManager::FileChanged(QString path)
     QString assetDbPath = projectCacheRoot.filePath("assetdb.sqlite");
     if (QString::compare(AssetUtilities::NormalizeFilePath(path), bootstrapPath, Qt::CaseInsensitive) == 0)
     {
-        //Check and update the game token if the bootstrap file get modified
-        if (!AssetUtilities::UpdateBranchToken())
-        {
-            QMetaObject::invokeMethod(this, "FileChanged", Qt::QueuedConnection, Q_ARG(QString, path));
-            return; // try again later
-        }
-        //if the bootstrap file changed,checked whether the game name changed
-        QString gameName = AssetUtilities::ReadGameNameFromBootstrap();
-        if (!gameName.isEmpty())
-        {
-            if (QString::compare(gameName, ApplicationManager::GetGameName(), Qt::CaseInsensitive) != 0)
-            {
-                //The gamename have changed ,should restart the assetProcessor
-                QMetaObject::invokeMethod(this, "Restart", Qt::QueuedConnection);
-            }
+        AssetUtilities::UpdateBranchToken();
 
-            if (m_connectionManager)
-            {
-                m_connectionManager->UpdateWhiteListFromBootStrap();
-            }
+        if (m_connectionManager)
+        {
+            m_connectionManager->UpdateWhiteListFromBootStrap();
+        }
+
+        // we only have to quit if the actual project name has changed, not if just the bootstrap has changed.
+        QString previousGameName = AssetUtilities::ComputeGameName(); // get the cached version
+        QString newGameName = AssetUtilities::ComputeGameName(QString(), true); // force=true!
+        
+        if (newGameName != previousGameName)
+        {
+            AZ_TracePrintf(AssetProcessor::ConsoleChannel, "Bootstrap.cfg Game Name changed from %s to %s.  Quitting\n", previousGameName.toUtf8().constData(), newGameName.toUtf8().constData());
+            QMetaObject::invokeMethod(this, "QuitRequested", Qt::QueuedConnection);
         }
     }
     else if (QString::compare(AssetUtilities::NormalizeFilePath(path), assetDbPath, Qt::CaseInsensitive) == 0)
@@ -779,6 +794,23 @@ ShaderCompilerManager* GUIApplicationManager::GetShaderCompilerManager() const
 ShaderCompilerModel* GUIApplicationManager::GetShaderCompilerModel() const
 {
     return m_shaderCompilerModel;
+}
+
+void GUIApplicationManager::ShowTrayIconErrorMessage(QString msg)
+{
+    AZStd::chrono::system_clock::time_point currentTime = AZStd::chrono::system_clock::now();
+
+    if (m_trayIcon && m_mainWindow)
+    {
+        if((currentTime - m_timeWhenLastWarningWasShown) >= AZStd::chrono::milliseconds(s_errorMessageBoxDelay))
+        {
+            m_timeWhenLastWarningWasShown = currentTime;
+            m_trayIcon->showMessage(
+                QCoreApplication::translate("Tray Icon", "Lumberyard Asset Processor"),
+                QCoreApplication::translate("Tray Icon", msg.toUtf8().data()),
+                QSystemTrayIcon::Critical, 3000);
+        }
+    }
 }
 
 void GUIApplicationManager::ShowTrayIconMessage(QString msg)

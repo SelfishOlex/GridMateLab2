@@ -40,8 +40,9 @@
 
 #include <DetailWidget/StackResourcesWidget.moc>
 
-StackResourcesWidget::StackResourcesWidget(QSharedPointer<IStackResourcesModel> stackResourcesModel, ResourceManagementView* mainView)
-    : m_stackResourcesModel{stackResourcesModel}
+StackResourcesWidget::StackResourcesWidget(QSharedPointer<IStackResourcesModel> stackResourcesModel, ResourceManagementView* mainView, QWidget* parent)
+    : QFrame(parent)
+    , m_stackResourcesModel{stackResourcesModel}
     , m_view{mainView}
 {
     // root
@@ -91,7 +92,7 @@ StackResourcesWidget::StackResourcesWidget(QSharedPointer<IStackResourcesModel> 
 
     // resources table
 
-    m_resourcesTable = new MaximumSizedTableView {};
+    m_resourcesTable = new MaximumSizedTableView {this};
     m_resourcesTable->setObjectName("Table");
     m_resourcesTable->TableView()->setModel(m_stackResourcesModel.data());
     m_resourcesTable->TableView()->verticalHeader()->hide();
@@ -167,7 +168,7 @@ QMenu* StackResourcesWidget::GetResourceContextMenu(QMouseEvent* mouseEvent)
         auto viewResource = menu->addAction("View resource in AWS console");
         connect(viewResource, &QAction::triggered, this, [this, physicalResourceId, resourceType]() { StackResourcesWidget::ViewConsoleResource(resourceType, physicalResourceId); });
         auto clipboardCopy = menu->addAction("Copy resource ID to clipboard");
-        connect(clipboardCopy, &QAction::triggered, [physicalResourceId]() {QApplication::clipboard()->setText(physicalResourceId); });
+        connect(clipboardCopy, &QAction::triggered, this, [physicalResourceId]() {QApplication::clipboard()->setText(physicalResourceId); });
     }
     return menu;
 }

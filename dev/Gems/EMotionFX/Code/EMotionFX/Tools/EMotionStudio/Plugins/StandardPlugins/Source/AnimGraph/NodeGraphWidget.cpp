@@ -27,10 +27,8 @@
 #include <QPaintEvent>
 #include <QPushButton>
 #include <QMouseEvent>
-#
+
 #include <MCore/Source/LogManager.h>
-//#include <EMotionFX/Source/EMotionFXManager.h>
-//#include <EMotionFX/Source/AnimGraphNodeFactory.h"
 
 #include <EMotionFX/CommandSystem/Source/AnimGraphConnectionCommands.h>
 #include <EMotionFX/Source/ActorManager.h>
@@ -288,11 +286,11 @@ namespace EMStudio
                 fpsNumFrames    = 0;
             }
 
-            static MCore::String perfTempString;
+            static AZStd::string perfTempString;
             float theoreticalFPS = 1000.0f / renderTime;
-            perfTempString.Format("%i FPS - %.0fms (%i FPS)", lastFPS, renderTime, (int)theoreticalFPS);
+            perfTempString = AZStd::string::format("%i FPS - %.0fms (%i FPS)", lastFPS, renderTime, (int)theoreticalFPS);
 
-            GraphNode::RenderText(painter, perfTempString.AsChar(), QColor(150, 150, 150), mFont, *mFontMetrics, Qt::AlignRight, QRect(width - 55, height - 20, 50, 20));
+            GraphNode::RenderText(painter, perfTempString.c_str(), QColor(150, 150, 150), mFont, *mFontMetrics, Qt::AlignRight, QRect(width - 55, height - 20, 50, 20));
         }
 
         // show the info to which actor the currently rendered graph belongs to
@@ -304,13 +302,13 @@ namespace EMStudio
             EMotionFX::ActorInstance* firstActorInstance = selectionList.GetFirstActorInstance();
 
             // update the stored short filename without path
-            if (mFullActorName.CheckIfIsEqual(firstActorInstance->GetActor()->GetFileName()) == false)
+            if (mFullActorName != firstActorInstance->GetActor()->GetFileName())
             {
-                mActorName = firstActorInstance->GetActor()->GetFileNameString().ExtractFileName();
+                AzFramework::StringFunc::Path::GetFileName(firstActorInstance->GetActor()->GetFileNameString().c_str(), mActorName);
             }
 
-            mTempString.Format("Showing graph for ActorInstance with ID %d and Actor file \"%s\"", firstActorInstance->GetID(), mActorName.AsChar());
-            GraphNode::RenderText(painter, mTempString.AsChar(), QColor(150, 150, 150), mFont, *mFontMetrics, Qt::AlignLeft, QRect(8, 0, 50, 20));
+            mTempString = AZStd::string::format("Showing graph for ActorInstance with ID %d and Actor file \"%s\"", firstActorInstance->GetID(), mActorName.c_str());
+            GraphNode::RenderText(painter, mTempString.c_str(), QColor(150, 150, 150), mFont, *mFontMetrics, Qt::AlignLeft, QRect(8, 0, 50, 20));
         }
     }
 
@@ -419,20 +417,19 @@ namespace EMStudio
                     hoveredNode = portNode;
                 }
 
-                // if we hover over a state, the action is valid
-                mActiveGraph->SetReplaceTransitionValid(hoveredNode);
-
                 if (mActiveGraph->GetIsRepositioningTransitionHead())
                 {
                     // when adjusting the arrow head and we are over the source node with the mouse
-                    if (hoveredNode == stateConnection->GetSourceNode())
+                    if (hoveredNode
+                        && hoveredNode != stateConnection->GetSourceNode()
+                        && CheckIfIsValidTransition(stateConnection->GetSourceNode(), hoveredNode))
+                    {
+                        stateConnection->SetTargetNode(hoveredNode); 
+                        mActiveGraph->SetReplaceTransitionValid(true);
+                    }
+                    else
                     {
                         mActiveGraph->SetReplaceTransitionValid(false);
-                    }
-
-                    if (hoveredNode && hoveredNode != stateConnection->GetSourceNode())
-                    {
-                        stateConnection->SetTargetNode(hoveredNode);
                     }
 
                     GraphNode* targetNode = stateConnection->GetTargetNode();
@@ -445,14 +442,16 @@ namespace EMStudio
                 else if (mActiveGraph->GetIsRepositioningTransitionTail())
                 {
                     // when adjusting the arrow tail and we are over the target node with the mouse
-                    if (hoveredNode == stateConnection->GetTargetNode())
-                    {
-                        mActiveGraph->SetReplaceTransitionValid(false);
-                    }
-
-                    if (hoveredNode && hoveredNode != stateConnection->GetTargetNode())
+                    if (hoveredNode
+                        && hoveredNode != stateConnection->GetTargetNode()
+                        && CheckIfIsValidTransition(hoveredNode, stateConnection->GetTargetNode()))
                     {
                         stateConnection->SetSourceNode(hoveredNode);
+                        mActiveGraph->SetReplaceTransitionValid(true);
+                    }
+                    else
+                    {
+                        mActiveGraph->SetReplaceTransitionValid(false);
                     }
 
                     GraphNode* sourceNode = stateConnection->GetSourceNode();
@@ -461,6 +460,7 @@ namespace EMStudio
                         QPoint offset = globalPos - sourceNode->GetRect().topLeft();
                         stateConnection->SetStartOffset(offset);
                     }
+                    
                 }
             }
 
@@ -712,7 +712,7 @@ namespace EMStudio
                 EMotionFX::AnimGraphNode* animGraphNode = blendNode->GetEMFXNode();
 
                 // check if the node is not part of a state machine, this is the only case where the collapsible node is possible
-                if (animGraphNode->GetParentNode()->GetType() != EMotionFX::AnimGraphStateMachine::TYPE_ID)
+                if (azrtti_typeid(animGraphNode->GetParentNode()) != azrtti_typeid<EMotionFX::AnimGraphStateMachine>())
                 {
                     if (node->GetIsInsideArrowRect(globalPos))
                     {
@@ -759,11 +759,14 @@ namespace EMStudio
                 // create new connection
                 if ((isInputPort && portNode->GetCreateConFromOutputOnly() == false) || isInputPort == false)
                 {
-                    QPoint offset = globalPos - portNode->GetRect().topLeft();
-                    UpdateMouseCursor(mousePos, globalPos);
-                    mActiveGraph->StartCreateConnection(portNr, isInputPort, portNode, port, offset);
-                    //update();
-                    return;
+                    if (CheckIfIsValidTransitionSource(portNode))
+                    {
+                        QPoint offset = globalPos - portNode->GetRect().topLeft();
+                        UpdateMouseCursor(mousePos, globalPos);
+                        mActiveGraph->StartCreateConnection(portNr, isInputPort, portNode, port, offset);
+                        //update();
+                        return;
+                    }
                 }
 
                 //          update();
@@ -977,23 +980,26 @@ namespace EMStudio
                         GraphNode*  targetNode;
 
                         NodePort* targetPort = mActiveGraph->FindPort(globalPos.x(), globalPos.y(), &targetNode, &targetPortNr, &targetIsInputPort);
-                        MCORE_ASSERT(mActiveGraph->GetTargetPort() == targetPort);
-                    #ifndef MCORE_DEBUG
-                        MCORE_UNUSED(targetPort);
-                    #endif
+                        if (targetPort && mActiveGraph->GetTargetPort() == targetPort
+                            && targetNode != mActiveGraph->GetCreateConnectionNode())
+                        {
+#ifndef MCORE_DEBUG
+                            MCORE_UNUSED(targetPort);
+#endif
 
-                        QPoint endOffset = globalPos - targetNode->GetRect().topLeft();
-                        mActiveGraph->SetCreateConnectionEndOffset(endOffset);
+                            QPoint endOffset = globalPos - targetNode->GetRect().topLeft();
+                            mActiveGraph->SetCreateConnectionEndOffset(endOffset);
 
-                        // trigger the callback
-                        OnCreateConnection(mActiveGraph->GetCreateConnectionPortNr(),
-                            mActiveGraph->GetCreateConnectionNode(),
-                            mActiveGraph->GetCreateConnectionIsInputPort(),
-                            targetPortNr,
-                            targetNode,
-                            targetIsInputPort,
-                            mActiveGraph->GetCreateConnectionStartOffset(),
-                            mActiveGraph->GetCreateConnectionEndOffset());
+                            // trigger the callback
+                            OnCreateConnection(mActiveGraph->GetCreateConnectionPortNr(),
+                                mActiveGraph->GetCreateConnectionNode(),
+                                mActiveGraph->GetCreateConnectionIsInputPort(),
+                                targetPortNr,
+                                targetNode,
+                                targetIsInputPort,
+                                mActiveGraph->GetCreateConnectionStartOffset(),
+                                mActiveGraph->GetCreateConnectionEndOffset());
+                        }
                     }
                 }
 
@@ -1030,10 +1036,10 @@ namespace EMStudio
                 {
                     // get the information from the old connection which we want to relink
                     GraphNode*      sourceNode          = relinkedConnection->GetSourceNode();
-                    MCore::String   sourceNodeName      = sourceNode->GetName();
+                    AZStd::string   sourceNodeName      = sourceNode->GetName();
                     uint32          sourcePortNr        = relinkedConnection->GetOutputPortNr();
                     GraphNode*      oldTargetNode       = relinkedConnection->GetTargetNode();
-                    MCore::String   oldTargetNodeName   = oldTargetNode->GetName();
+                    AZStd::string   oldTargetNodeName   = oldTargetNode->GetName();
                     uint32          oldTargetPortNr     = relinkedConnection->GetInputPortNr();
 
                     if (BlendGraphWidget::CheckIfIsRelinkConnectionValid(relinkedConnection, newTargetNode, newTargetPortNr, newTargetIsInputPort))
@@ -1049,8 +1055,8 @@ namespace EMStudio
                         if (connection)
                         {
                             // construct the command
-                            MCore::String commandString;
-                            commandString.Format("AnimGraphRemoveConnection -animGraphID %i -sourceNode \"%s\" -sourcePort %d -targetNode \"%s\" -targetPort %d",
+                            AZStd::string commandString;
+                            commandString = AZStd::string::format("AnimGraphRemoveConnection -animGraphID %i -sourceNode \"%s\" -sourcePort %d -targetNode \"%s\" -targetPort %d",
                                 animGraph->GetID(),
                                 connection->GetSourceNode()->GetName(),
                                 connection->GetOutputPortNr(),
@@ -1058,23 +1064,23 @@ namespace EMStudio
                                 connection->GetInputPortNr());
 
                             // add it to the command group
-                            commandGroup.AddCommandString(commandString.AsChar());
+                            commandGroup.AddCommandString(commandString.c_str());
                         }
 
                         MCORE_ASSERT(newTargetIsInputPort);
-                        MCore::String newTargetNodeName = newTargetNode->GetName();
-                        CommandSystem::RelinkConnectionTarget(&commandGroup, animGraph->GetID(), sourceNodeName.AsChar(), sourcePortNr, oldTargetNodeName.AsChar(), oldTargetPortNr, newTargetNodeName.AsChar(), newTargetPortNr);
+                        AZStd::string newTargetNodeName = newTargetNode->GetName();
+                        CommandSystem::RelinkConnectionTarget(&commandGroup, animGraph->GetID(), sourceNodeName.c_str(), sourcePortNr, oldTargetNodeName.c_str(), oldTargetPortNr, newTargetNodeName.c_str(), newTargetPortNr);
 
                         // call this before calling the commands as the commands will trigger a graph update
                         mActiveGraph->StopRelinkConnection();
 
                         // execute the command group
-                        MCore::String commandResult;
+                        AZStd::string commandResult;
                         if (GetCommandManager()->ExecuteCommandGroup(commandGroup, commandResult) == false)
                         {
-                            if (commandResult.GetIsEmpty() == false)
+                            if (commandResult.empty() == false)
                             {
-                                MCore::LogError(commandResult.AsChar());
+                                MCore::LogError(commandResult.c_str());
                             }
                         }
                     }
@@ -1224,8 +1230,15 @@ namespace EMStudio
         }
 
         // get the mouse position, calculate the global mouse position and update the relevant data
-        QPoint mousePos     = event->pos();
-        QPoint globalPos    = LocalToGlobal(mousePos);
+        
+        // For some reason this call fails to get the correct mouse position
+        // It might be relative to the window?  Jira generated.
+//        QPoint mousePos     = event->pos();
+
+        QPoint globalQtMousePos = event->globalPos();
+        QPoint globalQtMousePosInWidget = this->mapFromGlobal(globalQtMousePos);
+        QPoint globalPos    = LocalToGlobal(globalQtMousePosInWidget);
+
         SetMousePos(globalPos);
 
         // only handle vertical events
@@ -1275,7 +1288,7 @@ namespace EMStudio
             EMotionFX::AnimGraphNode* animGraphNode = blendNode->GetEMFXNode();
 
             // check if the node is part of a state machine, on this case it's not collapsible, the arrow is not needed to be checked
-            if (animGraphNode->GetParentNode()->GetType() == EMotionFX::AnimGraphStateMachine::TYPE_ID)
+            if (azrtti_typeid(animGraphNode->GetParentNode()) == azrtti_typeid<EMotionFX::AnimGraphStateMachine>())
             {
                 // if the mouse is over a node but NOT over the visualize icon
                 if (node->GetIsInsideVisualizeRect(globalMousePos))
@@ -1472,6 +1485,12 @@ namespace EMStudio
         mControlPressed = false;
         mAltPressed     = false;
         releaseKeyboard();
+
+        if (mActiveGraph && mActiveGraph->GetIsCreatingConnection())
+        {
+            mActiveGraph->StopCreateConnection();
+            mLeftMousePressed = false;
+        }
         //update();
     }
 
@@ -1519,6 +1538,20 @@ namespace EMStudio
         return true;
     }
 
+    bool NodeGraphWidget::CheckIfIsValidTransition(GraphNode* sourceState, GraphNode* targetState)
+    {
+        AZ_UNUSED(sourceState);
+        AZ_UNUSED(targetState);
+
+        return true;
+    }
+
+    bool NodeGraphWidget::CheckIfIsValidTransitionSource(GraphNode* sourceState)
+    {
+        AZ_UNUSED(sourceState);
+
+        return true;
+    }
 
     // create the connection
     void NodeGraphWidget::OnCreateConnection(uint32 sourcePortNr, GraphNode* sourceNode, bool sourceIsInputPort, uint32 targetPortNr, GraphNode* targetNode, bool targetIsInputPort, const QPoint& startOffset, const QPoint& endOffset)

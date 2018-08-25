@@ -14,8 +14,6 @@
 // Description : Render thread commands processing.
 
 
-#ifndef CRYINCLUDE_CRYENGINE_RENDERDLL_COMMON_RENDERTHREAD_H
-#define CRYINCLUDE_CRYENGINE_RENDERDLL_COMMON_RENDERTHREAD_H
 #pragma once
 
 #include <AzCore/std/parallel/mutex.h>
@@ -24,13 +22,29 @@
 // Remove this include once the restricted platform separation process is complete
 #include "RendererDefs.h"
 
+
+#if defined(AZ_RESTRICTED_PLATFORM)
+#undef AZ_RESTRICTED_SECTION
+#define RENDERTHREAD_H_SECTION_1 1
+#define RENDERTHREAD_H_SECTION_2 2
+#define RENDERTHREAD_H_SECTION_3 3
+#endif
+
 #if defined(ANDROID)
 #include <sched.h>
 #include <unistd.h>
 #endif
 
 #define RENDER_THREAD_NAME "RenderThread"
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION RENDERTHREAD_H_SECTION_1
+#include AZ_RESTRICTED_FILE(RenderThread_h, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#else
     #define RENDER_THREAD_PRIORITY THREAD_PRIORITY_NORMAL
+#endif
 
 #define RENDER_LOADING_THREAD_NAME "RenderLoadingThread"
 
@@ -246,6 +260,10 @@ struct SRenderThread
     threadID m_nRenderThread;
     threadID m_nRenderThreadLoading;
     threadID m_nMainThread;
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION RENDERTHREAD_H_SECTION_2
+#include AZ_RESTRICTED_FILE(RenderThread_h, AZ_RESTRICTED_PLATFORM)
+#endif
     HRESULT m_hResult;
     //  Confetti BEGIN: Igor Lobanchikov
 #if defined(OPENGL) && !DXGL_FULL_EMULATION && !defined(CRY_USE_METAL)
@@ -350,11 +368,21 @@ struct SRenderThread
     {
         if (m_pThread != NULL)
         {
+            int32 renderThreadPriority = RENDER_THREAD_PRIORITY;
+#if defined(AZ_PLATFORM_APPLE_IOS) || defined(AZ_PLATFORM_APPLE_OSX)
+            //Apple recommends to never use 0 as a render thread priority.
+            //In this case we are getting the max thread priority and going 2 levels below for ideal performance.
+            int thread_policy;
+            sched_param thread_sched_param;
+            pthread_getschedparam(pthread_self(), &thread_policy, &thread_sched_param);
+            renderThreadPriority = sched_get_priority_max(thread_policy) - 2;
+#endif
+            
 #if defined(_DEBUG) || !defined(__OPTIMIZE__) || !defined(__OPTIMIZE_SIZE__)
             // Note that we need bigger stack for debug routines
-            m_pThread->Start(BIT(1), RENDER_THREAD_NAME, RENDER_THREAD_PRIORITY, 128 * 1024);
+            m_pThread->Start(BIT(1), RENDER_THREAD_NAME, renderThreadPriority, 128 * 1024);
 #else
-            m_pThread->Start(BIT(1), RENDER_THREAD_NAME, RENDER_THREAD_PRIORITY, 72 * 1024);
+            m_pThread->Start(BIT(1), RENDER_THREAD_NAME, renderThreadPriority, 72 * 1024);
 #endif
             m_pThread->m_started.Wait();
         }
@@ -565,6 +593,10 @@ struct SRenderThread
     void    RC_ShutDown(uint32 nFlags);
     bool    RC_CreateDevice();
     void    RC_ResetDevice();
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION RENDERTHREAD_H_SECTION_3
+#include AZ_RESTRICTED_FILE(RenderThread_h, AZ_RESTRICTED_PLATFORM)
+#endif
     void    RC_PreloadTextures();
     void    RC_ReadFrameBuffer(unsigned char* pRGB, int nImageX, int nSizeX, int nSizeY, ERB_Type eRBType, bool bRGBA, int nScaledX, int nScaledY);
     bool    RC_CreateDeviceTexture(CTexture* pTex, const byte* pData[6]);
@@ -758,6 +790,3 @@ _inline void SRenderThread::FlushAndWait()
     return;
 }
 #endif
-
-#endif // CRYINCLUDE_CRYENGINE_RENDERDLL_COMMON_RENDERTHREAD_H
-

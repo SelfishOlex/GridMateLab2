@@ -38,6 +38,26 @@
 
 #include "ScopeGuard.h"
 #include "IImageHandler.h"
+
+#if defined(AZ_RESTRICTED_PLATFORM)
+#undef AZ_RESTRICTED_SECTION
+#define DRIVERD3D_CPP_SECTION_1 1
+#define DRIVERD3D_CPP_SECTION_3 3
+#define DRIVERD3D_CPP_SECTION_4 4
+#define DRIVERD3D_CPP_SECTION_5 5
+#define DRIVERD3D_CPP_SECTION_6 6
+#define DRIVERD3D_CPP_SECTION_7 7
+#define DRIVERD3D_CPP_SECTION_8 8
+#define DRIVERD3D_CPP_SECTION_9 9
+#define DRIVERD3D_CPP_SECTION_10 10
+#define DRIVERD3D_CPP_SECTION_11 11
+#define DRIVERD3D_CPP_SECTION_12 12
+#define DRIVERD3D_CPP_SECTION_13 13
+#define DRIVERD3D_CPP_SECTION_14 14
+#define DRIVERD3D_CPP_SECTION_15 15
+#define DRIVERD3D_CPP_SECTION_16 16
+#endif
+
 #if defined(FEATURE_SVO_GI)
 #include "D3D_SVO.h"
 #endif
@@ -49,7 +69,7 @@
 #if defined(WIN32) && !defined(OPENGL)
     #pragma warning(push)
     #pragma warning(disable:4819)   // Invalid character not in default code page
-    #include <NVAPI/nvapi.h>                // NVAPI
+    #include <nvapi.h>                // NVAPI
     #pragma warning(pop)
 #endif
 
@@ -62,88 +82,113 @@
 #include <windows.h>
 #endif
 #if RENDERER_ENABLE_BREAK_ON_ERROR
+#include <d3d9.h>
 namespace detail
 {
     const char* ToString(long const hr)
     {
-        switch (hr)
-        {
-        case D3DOK_NOAUTOGEN:
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION DRIVERD3D_CPP_SECTION_1
+#include AZ_RESTRICTED_FILE(DriverD3D_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+# else
+        if (D3DOK_NOAUTOGEN == hr)
             return "D3DOK_NOAUTOGEN This is a success code. However, the autogeneration of mipmaps is not supported for this format. This means that resource creation will succeed but the mipmap levels will not be automatically generated";
-        case D3DERR_CONFLICTINGRENDERSTATE:
+        else if (D3DERR_CONFLICTINGRENDERSTATE == hr)
             return "D3DERR_CONFLICTINGRENDERSTATE The currently set render states cannot be used together";
-        case D3DERR_CONFLICTINGTEXTUREFILTER:
+        else if (D3DERR_CONFLICTINGTEXTUREFILTER == hr)
             return "D3DERR_CONFLICTINGTEXTUREFILTER The current texture filters cannot be used together";
-        case D3DERR_CONFLICTINGTEXTUREPALETTE:
+        else if (D3DERR_CONFLICTINGTEXTUREPALETTE == hr)
             return "D3DERR_CONFLICTINGTEXTUREPALETTE The current textures cannot be used simultaneously.";
-        case D3DERR_DEVICEHUNG:
+        else if (D3DERR_DEVICEHUNG == hr)
             return "D3DERR_DEVICEHUNG The device that returned this code caused the hardware adapter to be reset by the OS. Most applications should destroy the device and quit. Applications that must continue should destroy all video memory objects (surfaces, textures, state blocks etc) and call Reset() to put the device in a default state. If the application then continues rendering in the same way, the device will return to this state";
-
-        case D3DERR_DEVICELOST:
+        else if (D3DERR_DEVICELOST == hr)
             return "D3DERR_DEVICELOST The device has been lost but cannot be reset at this time. Therefore, rendering is not possible.A Direct 3D device object other than the one that returned this code caused the hardware adapter to be reset by the OS. Delete all video memory objects (surfaces, textures, state blocks) and call Reset() to return the device to a default state. If the application continues rendering without a reset, the rendering calls will succeed.";
-        case D3DERR_DEVICENOTRESET:
+        else if (D3DERR_DEVICENOTRESET == hr)
             return "D3DERR_DEVICENOTRESET The device has been lost but can be reset at this time.";
-        case D3DERR_DEVICEREMOVED:
+        else if (D3DERR_DEVICEREMOVED == hr)
             return "D3DERR_DEVICEREMOVED The hardware adapter has been removed. Application must destroy the device, do enumeration of adapters and create another Direct3D device. If application continues rendering without calling Reset, the rendering calls will succeed";
-
-        case D3DERR_DRIVERINTERNALERROR:
+        else if (D3DERR_DRIVERINTERNALERROR == hr)
             return "D3DERR_DRIVERINTERNALERROR Internal driver error. Applications should destroy and recreate the device when receiving this error. For hints on debugging this error, see Driver Internal Errors (Direct3D 9).";
-        case D3DERR_DRIVERINVALIDCALL:
+        else if (D3DERR_DRIVERINVALIDCALL == hr)
             return "D3DERR_DRIVERINVALIDCALL Not used.";
-        case D3DERR_INVALIDCALL:
+        else if (D3DERR_INVALIDCALL == hr)
             return "D3DERR_INVALIDCALL The method call is invalid. For example, a method's parameter may not be a valid pointer.";
-        case D3DERR_INVALIDDEVICE:
+        else if (D3DERR_INVALIDDEVICE == hr)
             return "D3DERR_INVALIDDEVICE The requested device type is not valid.";
-        case D3DERR_MOREDATA:
+        else if (D3DERR_MOREDATA == hr)
             return "D3DERR_MOREDATA There is more data available than the specified buffer size can hold.";
-        case D3DERR_NOTAVAILABLE:
+        else if (D3DERR_NOTAVAILABLE == hr)
             return "D3DERR_NOTAVAILABLE This device does not support the queried technique.";
-        case D3DERR_NOTFOUND:
+        else if (D3DERR_NOTFOUND == hr)
             return "D3DERR_NOTFOUND The requested item was not found.";
-        case D3D_OK:
+        else if (D3D_OK == hr)
             return "D3D_OK No error occurred.";
-        case D3DERR_OUTOFVIDEOMEMORY:
+        else if (D3DERR_OUTOFVIDEOMEMORY == hr)
             return "D3DERR_OUTOFVIDEOMEMORY Direct3D does not have enough display memory to perform the operation. The device is using more resources in a single scene than can fit simultaneously into video memory. Present, PresentEx, or CheckDeviceState can return this error. Recovery is similar to D3DERR_DEVICEHUNG, though the application may want to reduce its per-frame memory usage as well to avoid having the error recur.";
-        case D3DERR_TOOMANYOPERATIONS:
+        else if (D3DERR_TOOMANYOPERATIONS == hr)
             return "D3DERR_TOOMANYOPERATIONS The application is requesting more texture-filtering operations than the device supports.";
-        case D3DERR_UNSUPPORTEDALPHAARG:
+        else if (D3DERR_UNSUPPORTEDALPHAARG == hr)
             return "D3DERR_UNSUPPORTEDALPHAARG The device does not support a specified texture-blending argument for the alpha channel.";
-        case D3DERR_UNSUPPORTEDALPHAOPERATION:
+        else if (D3DERR_UNSUPPORTEDALPHAOPERATION == hr)
             return "D3DERR_UNSUPPORTEDALPHAOPERATION The device does not support a specified texture-blending operation for the alpha channel.";
-        case D3DERR_UNSUPPORTEDCOLORARG:
+        else if (D3DERR_UNSUPPORTEDCOLORARG == hr)
             return "D3DERR_UNSUPPORTEDCOLORARG The device does not support a specified texture-blending argument for color values.";
-        case D3DERR_UNSUPPORTEDCOLOROPERATION:
+        else if (D3DERR_UNSUPPORTEDCOLOROPERATION == hr)
             return "D3DERR_UNSUPPORTEDCOLOROPERATION The device does not support a specified texture-blending operation for color values.";
-        case D3DERR_UNSUPPORTEDFACTORVALUE:
+        else if (D3DERR_UNSUPPORTEDFACTORVALUE == hr)
             return "D3DERR_UNSUPPORTEDFACTORVALUE The device does not support the specified texture factor value. Not used; provided only to support older drivers.";
-        case D3DERR_UNSUPPORTEDTEXTUREFILTER:
+        else if (D3DERR_UNSUPPORTEDTEXTUREFILTER == hr)
             return "D3DERR_UNSUPPORTEDTEXTUREFILTER The device does not support the specified texture filter.";
-        case D3DERR_WASSTILLDRAWING:
+        else if (D3DERR_WASSTILLDRAWING == hr)
             return "D3DERR_WASSTILLDRAWING The previous blit operation that is transferring information to or from this surface is incomplete.";
-        case D3DERR_WRONGTEXTUREFORMAT:
+        else if (D3DERR_WRONGTEXTUREFORMAT == hr)
             return "D3DERR_WRONGTEXTUREFORMAT The pixel format of the texture surface is not valid.";
-        case E_FAIL:
+        else if (E_FAIL == hr)
             return "E_FAIL An undetermined error occurred inside the Direct3D subsystem.";
-        case E_INVALIDARG:
+        else if (E_INVALIDARG == hr)
             return "E_INVALIDARG An invalid parameter was passed to the returning function.";
-        case E_NOINTERFACE:
+        else if (E_NOINTERFACE == hr)
             return "E_NOINTERFACE No object interface is available.";
-        case E_NOTIMPL:
+        else if (E_NOTIMPL == hr)
             return "E_NOTIMPL Not implemented.";
-        case E_OUTOFMEMORY:
+        else if (E_OUTOFMEMORY == hr)
             return "E_OUTOFMEMORY Direct3D could not allocate sufficient memory to complete the call.";
-
-        case D3DERR_UNSUPPORTEDOVERLAY:
+        else if (D3DERR_UNSUPPORTEDOVERLAY == hr)
             return "D3DERR_UNSUPPORTEDOVERLAY The device does not support overlay for the specified size or display mode.";
-        case D3DERR_UNSUPPORTEDOVERLAYFORMAT:
+        else if (D3DERR_UNSUPPORTEDOVERLAYFORMAT == hr)
             return "D3DERR_UNSUPPORTEDOVERLAYFORMAT The device does not support overlay for the specified surface format.";
-        case D3DERR_CANNOTPROTECTCONTENT:
+        else if (D3DERR_CANNOTPROTECTCONTENT == hr)
             return "D3DERR_CANNOTPROTECTCONTENT The specified content cannot be protected";
-        case D3DERR_UNSUPPORTEDCRYPTO:
+        else if (D3DERR_UNSUPPORTEDCRYPTO == hr)
             return "D3DERR_UNSUPPORTEDCRYPTO The specified cryptographic algorithm is not supported.";
-        default:
-            break;
+        else if (DXGI_ERROR_DEVICE_REMOVED == hr)
+        {
+            HRESULT subResult = gcpRendD3D->GetDevice().GetDeviceRemovedReason();
+            if (DXGI_ERROR_DEVICE_HUNG == subResult)
+            {
+                return "DXGI_ERROR_DEVICE_HUNG. The device was removed as it hung";
+            }
+            else if (DXGI_ERROR_DEVICE_REMOVED == subResult)
+            {
+                return "DXGI_ERROR_DEVICE_REMOVED. The device was removed";
+            }
+            else if (DXGI_ERROR_DEVICE_RESET == subResult)
+            {
+                return "DXGI_ERROR_DEVICE_RESET. The device was reset";
+            }
+            else if (DXGI_ERROR_DRIVER_INTERNAL_ERROR == subResult)
+            {
+                return "DXGI_ERROR_DRIVER_INTERNAL_ERROR. The device was removed due to an internal error";
+            }
+            else if (DXGI_ERROR_INVALID_CALL == subResult)
+            {
+                return "DXGI_ERROR_INVALID_CALL. The device was removed due to an invalid call";
+            }
         }
+#endif
         return "Unknown HRESULT CODE!";
     }
     bool CheckHResult(long const hr
@@ -155,7 +200,7 @@ namespace detail
         {
             return true;
         }
-        CryLogAlways("[%s:%d] d3d error: '%s'", file, line, ToString(hr));
+        CryLogAlways("%s(%d): d3d error: '%s'", file, line, ToString(hr));
         IF (breakOnError, 0)
         {
             __debugbreak();
@@ -295,8 +340,12 @@ void CD3D9Renderer::InitRenderer()
     m_pTiledShading = new CTiledShading();
 
     m_pPipelineProfiler = NULL;
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION DRIVERD3D_CPP_SECTION_3
+#include AZ_RESTRICTED_FILE(DriverD3D_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
 
-#if defined(ENABLE_SIMPLE_GPU_TIMERS)
+#if defined(ENABLE_PROFILING_GPU_TIMERS)
     m_pPipelineProfiler = new CRenderPipelineProfiler();
 #endif
 
@@ -578,13 +627,28 @@ void CD3D9Renderer::ChangeViewport(unsigned int x, unsigned int y, unsigned int 
 
         scDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_SHADER_INPUT;
         scDesc.BufferCount = 1;
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION DRIVERD3D_CPP_SECTION_4
+#include AZ_RESTRICTED_FILE(DriverD3D_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#else
         scDesc.OutputWindow = m_CurrContext->m_hWnd;
+#endif
         scDesc.Windowed = TRUE;
         scDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
         scDesc.Flags = 0;
 
 #if defined(SUPPORT_DEVICE_INFO)
         HRESULT hr = m_devInfo.Factory()->CreateSwapChain(&GetDevice(), &scDesc, &m_CurrContext->m_pSwapChain);
+#define AZ_RESTRICTED_SECTION_IMPLEMENTED
+#elif defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION DRIVERD3D_CPP_SECTION_5
+#include AZ_RESTRICTED_FILE(DriverD3D_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
 #else
     #error UNKNOWN PLATFORM TRYING TO CREATE SWAP CHAIN
 #endif
@@ -736,8 +800,8 @@ void CD3D9Renderer::ChangeLog()
             char time[128];
             char date[128];
 
-            _strtime(time);
-            _strdate(date);
+            azstrtime(time);
+            azstrdate(date);
 
             AZ::IO::Print(m_logFileHandle, "\n==========================================\n");
             AZ::IO::Print(m_logFileHandle, "Direct3D Log file opened: %s (%s)\n", date, time);
@@ -754,8 +818,8 @@ void CD3D9Renderer::ChangeLog()
     {
         char time[128];
         char date[128];
-        _strtime(time);
-        _strdate(date);
+        azstrtime(time);
+        azstrdate(date);
 
         AZ::IO::Print(m_logFileHandle, "\n==========================================\n");
         AZ::IO::Print(m_logFileHandle, "Direct3D Log file closed: %s (%s)\n", date, time);
@@ -775,8 +839,8 @@ void CD3D9Renderer::ChangeLog()
             char time[128];
             char date[128];
 
-            _strtime(time);
-            _strdate(date);
+            azstrtime(time);
+            azstrdate(date);
 
             AZ::IO::Print(m_logFileStrHandle, "\n==========================================\n");
             AZ::IO::Print(m_logFileStrHandle, "Direct3D Textures streaming Log file opened: %s (%s)\n", date, time);
@@ -788,8 +852,8 @@ void CD3D9Renderer::ChangeLog()
     {
         char time[128];
         char date[128];
-        _strtime(time);
-        _strdate(date);
+        azstrtime(time);
+        azstrdate(date);
 
         AZ::IO::Print(m_logFileStrHandle, "\n==========================================\n");
         AZ::IO::Print(m_logFileStrHandle, "Direct3D Textures streaming Log file closed: %s (%s)\n", date, time);
@@ -809,8 +873,8 @@ void CD3D9Renderer::ChangeLog()
             char time[128];
             char date[128];
 
-            _strtime(time);
-            _strdate(date);
+            azstrtime(time);
+            azstrdate(date);
 
             AZ::IO::Print(m_logFileShHandle, "\n==========================================\n");
             AZ::IO::Print(m_logFileShHandle, "Direct3D Shaders Log file opened: %s (%s)\n", date, time);
@@ -822,8 +886,8 @@ void CD3D9Renderer::ChangeLog()
     {
         char time[128];
         char date[128];
-        _strtime(time);
-        _strdate(date);
+        azstrtime(time);
+        azstrdate(date);
 
         AZ::IO::Print(m_logFileShHandle, "\n==========================================\n");
         AZ::IO::Print(m_logFileShHandle, "Direct3D Textures streaming Log file closed: %s (%s)\n", date, time);
@@ -901,20 +965,11 @@ void CD3D9Renderer::PostMeasureOverdraw()
             {
                 STexState TexStatePoint = STexState(FILTER_POINT, true);
                 FX_Commit();
-                SDynTexture* pRT = new SDynTexture(m_width, m_height, eTF_R8G8B8A8, eTT_2D,  FT_STATE_CLAMP, "TempDebugRT");
-                if (pRT)
-                {
-                    pRT->Update(m_width, m_height);
-                    PostProcessUtils().CopyScreenToTexture(pRT->m_pTexture);
+                
+                CTexture::s_ptexSceneDiffuse->Apply(0, CTexture::GetTexState(TexStatePoint));
+                CTextureManager::Instance()->GetDefaultTexture("PaletteDebug")->Apply(1, CTexture::GetTexState(TexStateLinear));
 
-                    pRT->Apply(0, CTexture::GetTexState(TexStatePoint));
-                    CTextureManager::Instance()->GetDefaultTexture("PaletteDebug")->Apply(1, CTexture::GetTexState(TexStateLinear));
-
-                    FX_DrawPrimitive(eptTriangleStrip, 0, 4);
-
-                    delete pRT;
-                    pRT = 0;
-                }
+                FX_DrawPrimitive(eptTriangleStrip, 0, 4);
             }
 
             Unset2DMode(backupSceneMatrices);
@@ -981,7 +1036,7 @@ void CD3D9Renderer::PostMeasureOverdraw()
                 for (int i = 0; i < 8; i++)
                 {
                     char str[256];
-                    sprintf(str, "-- >%d instructions --", n);
+                    azsprintf(str, "-- >%d instructions --", n);
 
                     Draw2dLabel(nX + nW, nY + nH * (i + 1), 1.2f, color, false,  str);
                     n += FtoI(32.0f * CV_r_measureoverdrawscale);
@@ -1038,6 +1093,10 @@ void CD3D9Renderer::DrawTexelsPerMeterInfo()
 #endif
 }
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION DRIVERD3D_CPP_SECTION_6
+#include AZ_RESTRICTED_FILE(DriverD3D_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
 
 void CD3D9Renderer::RT_ForceSwapBuffers()
 {
@@ -1045,6 +1104,10 @@ void CD3D9Renderer::RT_ForceSwapBuffers()
 
 void CD3D9Renderer::SwitchToNativeResolutionBackbuffer()
 {
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION DRIVERD3D_CPP_SECTION_7
+#include AZ_RESTRICTED_FILE(DriverD3D_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
 
     m_pRT->RC_SwitchToNativeResolutionBackbuffer();
 }
@@ -1246,10 +1309,6 @@ void CD3D9Renderer::BeginFrame()
     g_SelectedTechs.resize(0);
     m_RP.m_SysVertexPool[m_RP.m_nFillThreadID].SetUse(0);
     m_RP.m_SysIndexPool[m_RP.m_nFillThreadID].SetUse(0);
-    if (gEnv->p3DEngine)
-    {
-        gEnv->p3DEngine->ResetCoverageBufferSignalVariables();
-    }
 
 #ifdef DO_RENDERLOG
     if (CRenderer::CV_r_log)
@@ -1356,20 +1415,13 @@ void CD3D9Renderer::RT_BeginFrame()
         }
         bool bVolumetricFog = pCVarVolumetricFog && pCVarVolumetricFog->GetIVal();
         CRenderer::CV_r_VolumetricFog = bVolumetricFog && GetVolumetricFog().IsEnableInFrame();
-        if (pCVarVolumetricFog && bVolumetricFog && (CRenderer::CV_r_DeferredShadingTiled == 0))
-        {
-#if !defined(_RELEASE)
-            gEnv->pLog->LogWarning("e_VolumetricFog is set to 0 when r_DeferredShadingTiled is 0.");
-#endif
-            pCVarVolumetricFog->Set((const int)0);
-        }
     }
 
 #if defined(SUPPORT_D3D_DEBUG_RUNTIME)
     if (m_bUpdateD3DDebug)
     {
         m_d3dDebug.Update(ESeverityCombination(CV_d3d11_debugMuteSeverity->GetIVal()), CV_d3d11_debugMuteMsgID->GetString(), CV_d3d11_debugBreakOnMsgID->GetString());
-        if (_stricmp(CV_d3d11_debugBreakOnMsgID->GetString(), "0") != 0 && CV_d3d11_debugBreakOnce)
+        if (azstricmp(CV_d3d11_debugBreakOnMsgID->GetString(), "0") != 0 && CV_d3d11_debugBreakOnce)
         {
             CV_d3d11_debugBreakOnMsgID->Set("0");
         }
@@ -1735,7 +1787,7 @@ bool CD3D9Renderer::CaptureFrameBufferToFile(const char* pFilePath, CTexture* pR
         for (int i(0); i < sizeof(captureFormats) / sizeof(captureFormats[0]); ++i)
         {
             PREFAST_SUPPRESS_WARNING(6387)
-            if (!_stricmp(pReqFileFormatExt, captureFormats[i].pExt))
+            if (!azstricmp(pReqFileFormatExt, captureFormats[i].pExt))
             {
                 fmtIdx = i;
                 break;
@@ -1864,6 +1916,7 @@ bool CD3D9Renderer::CaptureFrameBufferToFile(const char* pFilePath, CTexture* pR
 
         D3D11_MAPPED_SUBRESOURCE resource;
         gcpRendD3D->GetDeviceContext().CopyResource(pTmpTexture, pBackBufferTex);
+
         hr = gcpRendD3D->GetDeviceContext().Map(pTmpTexture, 0, D3D11_MAP_READ, 0, &resource);
         const byte* pSrc = reinterpret_cast<const byte*>(resource.pData);
 
@@ -1873,7 +1926,15 @@ bool CD3D9Renderer::CaptureFrameBufferToFile(const char* pFilePath, CTexture* pR
         byte* pDest = new byte[texsize + sizeof(uint32)];  // Extra space required since we always copy 32 bits
         assert(pDest);
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION DRIVERD3D_CPP_SECTION_8
+#include AZ_RESTRICTED_FILE(DriverD3D_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#else
         bool formatBGRA = false;
+#endif
         bool needRBSwap = captureFormats[fmtIdx].fmt == EFF_FILE_TGA ? !formatBGRA : formatBGRA;
 
         // copy, flip red with blue if needed
@@ -2057,12 +2118,12 @@ void CD3D9Renderer::CaptureFrameBuffer()
         const char* capture_file_name = CV_capture_file_name->GetString();
         if (capture_file_name && capture_file_name[0])
         {
-            gEnv->pCryPak->AdjustFileName(capture_file_name, path, ICryPak::FLAGS_PATH_REAL | ICryPak::FLAGS_FOR_WRITING);
+            gEnv->pCryPak->AdjustFileName(capture_file_name, path, AZ_ARRAY_SIZE(path), ICryPak::FLAGS_PATH_REAL | ICryPak::FLAGS_FOR_WRITING);
         }
 
         if (path[0] == '\0')
         {
-            gEnv->pCryPak->AdjustFileName(CV_capture_folder->GetString(), path, ICryPak::FLAGS_PATH_REAL | ICryPak::FLAGS_FOR_WRITING);
+            gEnv->pCryPak->AdjustFileName(CV_capture_folder->GetString(), path, AZ_ARRAY_SIZE(path), ICryPak::FLAGS_PATH_REAL | ICryPak::FLAGS_FOR_WRITING);
             gEnv->pCryPak->MakeDir(path);
 
             char prefix[64] = "Frame";
@@ -3257,8 +3318,8 @@ void CD3D9Renderer::VidMemLog()
         char time[128];
         char date[128];
 
-        _strtime(time);
-        _strdate(date);
+        azstrtime(time);
+        azstrdate(date);
 
         AZ::IO::Print(fileHandle, "\n==========================================\n");
         AZ::IO::Print(fileHandle, "VidMem Log file opened: %s (%s)\n", date, time);
@@ -3304,6 +3365,13 @@ void CD3D9Renderer::VidMemLog()
 
 void CD3D9Renderer::DebugPrintShader(CHWShader_D3D* pSH, void* pI, int nX, int nY, ColorF colSH)
 {
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION DRIVERD3D_CPP_SECTION_9
+#include AZ_RESTRICTED_FILE(DriverD3D_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#else
     if (!pSH)
     {
         return;
@@ -3316,7 +3384,7 @@ void CD3D9Renderer::DebugPrintShader(CHWShader_D3D* pSH, void* pI, int nX, int n
 
     char str[512];
     pSH->m_pCurInst = pInst;
-    strcpy(str, pSH->m_EntryFunc.c_str());
+    azstrcpy(str, AZ_ARRAY_SIZE(str), pSH->m_EntryFunc.c_str());
     uint32 nSize = strlen(str);
     pSH->mfGenName(pInst, &str[nSize], 512 - nSize, 1);
 
@@ -3363,6 +3431,7 @@ void CD3D9Renderer::DebugPrintShader(CHWShader_D3D* pSH, void* pI, int nX, int n
 
     SAFE_RELEASE(pAsm);
     SAFE_DELETE_ARRAY(pData);
+#endif
 }
 
 void CD3D9Renderer::DebugDrawStats8()
@@ -4064,14 +4133,16 @@ void CD3D9Renderer::RT_RenderDebug(bool bRenderStats)
 
         if (CV_r_DeferredShadingDebug == 1 || CV_r_DeferredShadingDebug == 3)
         {
-            rt.pTexture = CTexture::s_ptexZTarget;
+            AZ_Assert(CTexture::s_ptexZTarget, "Z (depth) render target is NULL");
+            rt.textureID = CTexture::s_ptexZTarget->GetID();
             rt.channelWeight = Vec4(10.0f, 10.0f, 10.0f, 1.0f);
             m_showRenderTargetInfo.rtList.push_back(rt);
         }
         if (CV_r_DeferredShadingDebug == 1 || CV_r_DeferredShadingDebug == 4)
         {
             rt.channelWeight = Vec4(1.0f, 1.0f, 1.0f, 1.0f);
-            rt.pTexture = CTexture::s_ptexSceneNormalsMap;
+            AZ_Assert(CTexture::s_ptexSceneNormalsMap, "Scene normals render target is NULL");
+            rt.textureID = CTexture::s_ptexSceneNormalsMap->GetID();
             m_showRenderTargetInfo.rtList.push_back(rt);
         }
         // DiffuseAccuMap and SpecularAccMap are only calculated when CV_r_DeferredShadingTiled == 0 or 1.
@@ -4079,12 +4150,14 @@ void CD3D9Renderer::RT_RenderDebug(bool bRenderStats)
         {
             if (CV_r_DeferredShadingDebug == 1 || CV_r_DeferredShadingDebug == 5)
             {
-                rt.pTexture = CTexture::s_ptexCurrentSceneDiffuseAccMap;
+                AZ_Assert(CTexture::s_ptexCurrentSceneDiffuseAccMap, "Current scene diffuse accumulator render target is NULL");
+                rt.textureID = CTexture::s_ptexCurrentSceneDiffuseAccMap->GetID();
                 m_showRenderTargetInfo.rtList.push_back(rt);
             }
             if (CV_r_DeferredShadingDebug == 1 || CV_r_DeferredShadingDebug == 6)
             {
-                rt.pTexture = CTexture::s_ptexSceneSpecularAccMap;
+                AZ_Assert(CTexture::s_ptexSceneSpecularAccMap, "Current scene specular accumulator render target is NULL");
+                rt.textureID = CTexture::s_ptexSceneSpecularAccMap->GetID();
                 m_showRenderTargetInfo.rtList.push_back(rt);
             }
         }
@@ -4105,7 +4178,8 @@ void CD3D9Renderer::RT_RenderDebug(bool bRenderStats)
         rt.bAliased = false;
         rt.channelWeight = Vec4(1.0f, 1.0f, 1.0f, 1.0f);
 
-        rt.pTexture = CTexture::s_ptexStereoR;
+        AZ_Assert(CTexture::s_ptexStereoR, "Right stereo render target is NULL");
+        rt.textureID = CTexture::s_ptexStereoR->GetID();
         m_showRenderTargetInfo.rtList.push_back(rt);
 
         DebugShowRenderTarget();
@@ -4125,14 +4199,14 @@ void CD3D9Renderer::RT_RenderDebug(bool bRenderStats)
         iLog->Log("RenderTargets:\n");
         for (size_t i = 0; i < m_showRenderTargetInfo.rtList.size(); ++i)
         {
-            CTexture* pTex = m_showRenderTargetInfo.rtList[i].pTexture;
-            if (pTex)
+            CTexture* pTex = CTexture::GetByID(m_showRenderTargetInfo.rtList[i].textureID);
+            if (pTex && pTex != CTextureManager::Instance()->GetNoTexture())
             {
                 iLog->Log("\t%" PRISIZE_T "  %s\t--------------%s  %d x %d\n",  i, pTex->GetName(), pTex->GetFormatName(), pTex->GetWidth(), pTex->GetHeight());
             }
             else
             {
-                iLog->Log("\t%" PRISIZE_T "  %s\t--------------(NOT INITIALIZED)\n", i, pTex->GetName());
+                iLog->Log("\t%" PRISIZE_T "  %d\t--------------(NOT AVAILABLE)\n", i, m_showRenderTargetInfo.rtList[i].textureID);
             }
         }
 
@@ -4230,7 +4304,8 @@ void CD3D9Renderer::RT_RenderDebug(bool bRenderStats)
                 char* nameListCh = (char*)nameListStr.c_str();
 
                 std::vector<string> nameList;
-                char* p = strtok(nameListCh, " ");
+                char* nextToken = nullptr;
+                char* p = azstrtok(nameListCh, 0, " ", &nextToken);
                 while (p)
                 {
                     string s(p);
@@ -4240,7 +4315,7 @@ void CD3D9Renderer::RT_RenderDebug(bool bRenderStats)
                         const char* curName = s.c_str();
                         nameList.push_back(s);
                     }
-                    p = strtok(NULL, " ");
+                    p = azstrtok(NULL, 0, " ", &nextToken);
                 }
 
                 // render them in a tiled fashion
@@ -4468,7 +4543,7 @@ void CD3D9Renderer::RT_EndFrame()
     m_SceneRecurseCount--;
 
 #if !defined(RELEASE)
-    if (m_DevMan.GetNumInvalidDrawcalls() > 0 && m_cEF.m_ShaderCacheStats.m_nNumShaderAsyncCompiles == 0)
+    if (m_DevMan.GetNumInvalidDrawcalls() > 0)
     {
         // If drawcalls are skipped although there are no pending shaders, something is going wrong
         iLog->LogError("Renderer: Skipped %i drawcalls", m_DevMan.GetNumInvalidDrawcalls());
@@ -4530,7 +4605,13 @@ void CD3D9Renderer::RT_EndFrame()
                 }
             }
 #endif
-#if   defined(SUPPORT_DEVICE_INFO)
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION DRIVERD3D_CPP_SECTION_10
+#include AZ_RESTRICTED_FILE(DriverD3D_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#elif defined(SUPPORT_DEVICE_INFO)
 #if defined(WIN32) || defined(WIN64)
             m_devInfo.EnforceFullscreenPreemption();
     #ifdef CRY_INTEGRATE_DX12
@@ -4714,9 +4795,16 @@ void CD3D9Renderer::RT_EndFrame()
 
     m_fTimeWaitForGPU[m_RP.m_nProcessThreadID] += iTimer->GetAsyncTime().GetDifferenceInSeconds(Time);
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION DRIVERD3D_CPP_SECTION_11
+#include AZ_RESTRICTED_FILE(DriverD3D_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#else
     m_fTimeGPUIdlePercent[m_RP.m_nProcessThreadID] = 0;
 
-  #if !defined(ENABLE_SIMPLE_GPU_TIMERS)
+  #if !defined(ENABLE_PROFILING_GPU_TIMERS)
     // BK: We need a way of getting gpu frame time in release, without gpu timers
     // for now we just use overall frame time
     m_fTimeProcessedGPU[m_RP.m_nProcessThreadID] = m_fTimeProcessedRT[m_RP.m_nProcessThreadID];
@@ -4724,6 +4812,7 @@ void CD3D9Renderer::RT_EndFrame()
     RPProfilerStats profileStats = m_pPipelineProfiler->GetBasicStats(eRPPSTATS_OverallFrame, m_RP.m_nProcessThreadID);
     m_fTimeProcessedGPU[m_RP.m_nProcessThreadID] = profileStats.gpuTime / 1000.0f;
   #endif
+#endif
 
 #if defined(USE_GEOM_CACHES)
     if (m_SceneRecurseCount == 1)
@@ -4746,7 +4835,13 @@ void CD3D9Renderer::RT_EndFrame()
 void CD3D9Renderer::RT_PresentFast()
 {
     HRESULT hReturn = S_OK;
-#if   defined(SUPPORT_DEVICE_INFO)
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION DRIVERD3D_CPP_SECTION_12
+#include AZ_RESTRICTED_FILE(DriverD3D_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#elif defined(SUPPORT_DEVICE_INFO)
 
     GetS3DRend().DisplayStereo();
 #if defined(WIN32) || defined(WIN64)
@@ -4791,7 +4886,7 @@ bool CD3D9Renderer::ScreenShotInternal(const char* filename, int iPreWidth)
     char path[ICryPak::g_nMaxPath];
 
     path[sizeof(path) - 1] = 0;
-    gEnv->pCryPak->AdjustFileName(filename != 0 ? filename : "@user@/ScreenShots", path, ICryPak::FLAGS_PATH_REAL | ICryPak::FLAGS_FOR_WRITING);
+    gEnv->pCryPak->AdjustFileName(filename != 0 ? filename : "@user@/ScreenShots", path, AZ_ARRAY_SIZE(path), ICryPak::FLAGS_PATH_REAL | ICryPak::FLAGS_FOR_WRITING);
 
     if (!filename)
     {
@@ -4801,12 +4896,28 @@ bool CD3D9Renderer::ScreenShotInternal(const char* filename, int iPreWidth)
         int i = 0;
         for (; i < 10000; i++)
         {
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION DRIVERD3D_CPP_SECTION_13
+#include AZ_RESTRICTED_FILE(DriverD3D_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#else
             snprintf(&path[pathLen], sizeof(path) - 1 - pathLen, "%sScreenShot%04d.jpg", pSlash, i);
+#endif
             // HACK
             // CaptureFrameBufferToFile must be fixed for 64-bit stereo screenshots
             if (GetS3DRend().IsStereoEnabled())
             {
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION DRIVERD3D_CPP_SECTION_14
+#include AZ_RESTRICTED_FILE(DriverD3D_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#else
                 snprintf(&path[pathLen], sizeof(path) - 1 - pathLen, "%sScreenShot%04d_L.jpg", pSlash, i);
+#endif
             }
 
             AZ::IO::HandleType fileHandle = fxopen(path, "rb");
@@ -4819,7 +4930,15 @@ bool CD3D9Renderer::ScreenShotInternal(const char* filename, int iPreWidth)
         }
 
         // HACK: DONT REMOVE Stereo3D will add _L and _R suffix later
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION DRIVERD3D_CPP_SECTION_15
+#include AZ_RESTRICTED_FILE(DriverD3D_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#else
         snprintf(&path[pathLen], sizeof(path) - 1 - pathLen, "%sScreenShot%04d.jpg", pSlash, i);
+#endif
 
         if (i == 10000)
         {
@@ -4928,14 +5047,75 @@ bool CD3D9Renderer::SetRenderTarget(int nHandle, SDepthTexture* pDepthSurf)
     return true;
 }
 
-SDepthTexture* CD3D9Renderer::CreateDepthSurface(int nWidth, int nHeight, bool bAA)
+SDepthTexture* CD3D9Renderer::CreateDepthSurface(int nWidth, int nHeight)
 {
-    return FX_CreateDepthSurface(nWidth, nHeight, bAA);
+    ScopedSwitchToGlobalHeap useGlobalHeap;
+    SDepthTexture* pDepthTexture = new SDepthTexture;
+    pDepthTexture->nWidth = nWidth;
+    pDepthTexture->nHeight = nHeight;
+
+    m_pRT->EnqueueRenderCommand([this, pDepthTexture]() 
+    {
+        AZ_TRACE_METHOD_NAME("CreateDepthSurface");
+
+        D3D11_TEXTURE2D_DESC descDepth;
+        ZeroStruct(descDepth);
+        descDepth.Width = pDepthTexture->nWidth;
+        descDepth.Height = pDepthTexture->nHeight;
+        descDepth.MipLevels = 1;
+        descDepth.ArraySize = 1;
+        descDepth.Format = CTexture::ConvertToDepthStencilFmt(m_ZFormat);
+        descDepth.SampleDesc.Count = 1;
+        descDepth.SampleDesc.Quality = 0;
+        descDepth.Usage = D3D11_USAGE_DEFAULT;
+        descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+        descDepth.CPUAccessFlags = 0;
+        descDepth.MiscFlags = 0;
+
+        const float clearDepth = (gRenDev->m_RP.m_TI[gRenDev->m_RP.m_nProcessThreadID].m_PersFlags & RBPF_REVERSE_DEPTH) ? 0.f : 1.f;
+        const uint clearStencil = 0;
+        const FLOAT clearValues[4] = { clearDepth, FLOAT(clearStencil) };
+
+        HRESULT hr = gcpRendD3D->m_DevMan.CreateD3D11Texture2D(&descDepth, clearValues, nullptr, &pDepthTexture->pTarget, "TempDepthBuffer");
+        if (hr == S_OK)
+        {
+            D3D11_DEPTH_STENCIL_VIEW_DESC descDSV;
+            ZeroStruct(descDSV);
+            descDSV.Format = CTexture::ConvertToDepthStencilFmt(m_ZFormat);
+            descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+            descDSV.Texture2D.MipSlice = 0;
+
+            // Create the depth stencil view
+            hr = GetDevice().CreateDepthStencilView(pDepthTexture->pTarget, &descDSV, &pDepthTexture->pSurf);
+            if (hr == S_OK)
+            {
+#if !defined(RELEASE) && defined(WIN64)
+                pDepthTexture->pTarget->SetPrivateData(WKPDID_D3DDebugObjectName, strlen("Dynamically requested Depth-Buffer"), "Dynamically requested Depth-Buffer");
+#endif
+                const float clearValue = (gRenDev->m_RP.m_TI[gRenDev->m_RP.m_nProcessThreadID].m_PersFlags & RBPF_REVERSE_DEPTH) ? 0.f : 1.f;
+                GetDeviceContext().ClearDepthStencilView(pDepthTexture->pSurf, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, clearValue, 0);
+            }
+        }
+        else
+        {
+            AZ_Assert(false, "Failed to create temporary 2D depth buffer during depth surface resource creation.");
+        }
+    });
+
+    return pDepthTexture;
 }
 
-void CD3D9Renderer::DestroyDepthSurface(SDepthTexture* pDepthSurf)
+void CD3D9Renderer::DestroyDepthSurface(SDepthTexture* pDepthTexture)
 {
-    SAFE_RELEASE(pDepthSurf);
+    if (pDepthTexture)
+    {
+        m_pRT->EnqueueRenderCommand([=]() mutable 
+        {
+            // passing in true indicates we want to release the associated texture resource as well 
+            pDepthTexture->Release(true);
+            SAFE_DELETE(pDepthTexture);
+        });
+    }
 }
 
 void CD3D9Renderer::ReadFrameBuffer(unsigned char* pRGB, int nImageX, int nSizeX, int nSizeY, ERB_Type eRBType, bool bRGBA, int nScaledX, int nScaledY)
@@ -5062,7 +5242,7 @@ void CD3D9Renderer::ReadFrameBufferFast(uint32* pDstARGBA8, int dstWidth, int ds
         return;
     }
 
-#if defined (WIN32)
+#if defined (AZ_PLATFORM_WINDOWS) || defined(AZ_PLATFORM_APPLE_OSX)
     gRenDev->ForceFlushRTCommands();
     assert(m_pBackBuffer);
 
@@ -5103,6 +5283,7 @@ void CD3D9Renderer::ReadFrameBufferFast(uint32* pDstARGBA8, int dstWidth, int ds
             srcBox.bottom = dstDesc.Height;
             srcBox.front = 0;
             srcBox.back = 1;
+
             GetDeviceContext().CopySubresourceRegion(pDstTex, 0, 0, 0, 0, pBackBufferTex, 0, &srcBox);
 
             D3D11_MAPPED_SUBRESOURCE mappedTex;
@@ -7042,7 +7223,7 @@ unsigned int CD3D9Renderer::DownLoadToVideoMemory(const byte* data, int w, int h
         }
         else
         {
-            strcpy(name, szCacheName);
+            azstrcpy(name, AZ_ARRAY_SIZE(name), szCacheName);
         }
     }
 
@@ -7407,6 +7588,14 @@ void CD3D9Renderer::PostLevelUnload()
 
         m_pRT->FlushAndWait();
 
+        //In the level unload event shaders may get deleted. If that's the case any PSOs
+        //that point to those deleted shaders will be invalid and will cause a crash if used.
+        //Most shaders will be unloaded so invalidate the entire PSO cache and reset the pipeline.
+        
+        CDeviceObjectFactory::GetInstance().InvalidatePSOCache();
+        //Tell the graphics pipeline to reset and throw out existing PSOs since they're now invalid
+        gcpRendD3D->GetGraphicsPipeline().Reset();
+
         StaticCleanup();
         if (m_pColorGradingControllerD3D)
         {
@@ -7508,8 +7697,8 @@ void CD3D9Renderer::DebugShowRenderTarget()
     size_t col2 = m_showRenderTargetInfo.col * m_showRenderTargetInfo.col;
     for (size_t i = 0; i < min(m_showRenderTargetInfo.rtList.size(), col2); ++i)
     {
-        CTexture* pTex = m_showRenderTargetInfo.rtList[i].pTexture;
-        if (NULL == pTex)
+        CTexture* pTex = CTexture::GetByID(m_showRenderTargetInfo.rtList[i].textureID);
+        if (nullptr == pTex)
         {
             continue;
         }
@@ -7541,8 +7730,8 @@ void CD3D9Renderer::DebugShowRenderTarget()
     // Draw overlay texts.
     for (size_t i = 0; i < min(m_showRenderTargetInfo.rtList.size(), col2); ++i)
     {
-        CTexture* pTex = m_showRenderTargetInfo.rtList[i].pTexture;
-        if (NULL == pTex)
+        CTexture* pTex = CTexture::GetByID(m_showRenderTargetInfo.rtList[i].textureID);
+        if (nullptr == pTex)
         {
             continue;
         }
@@ -7823,7 +8012,15 @@ void CD3D9Renderer::InsertParticleVideoMemoryFence(int nThreadId)
 #ifdef SUPPORT_HW_MOUSE_CURSOR
 IHWMouseCursor* CD3D9Renderer::GetIHWMouseCursor()
 {
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION DRIVERD3D_CPP_SECTION_16
+#include AZ_RESTRICTED_FILE(DriverD3D_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#else
     #error Need implementation of IHWMouseCursor
+#endif
 }
 
 #endif

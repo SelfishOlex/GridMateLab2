@@ -60,10 +60,8 @@ void EditorWindow::AddMenu_File()
         action->setShortcutContext(Qt::WidgetWithChildrenShortcut);
         QObject::connect(action,
             &QAction::triggered,
-            [ this ](bool checked)
-            {
-                NewCanvas();
-            });
+            this,
+            &EditorWindow::NewCanvas);
         menu->addAction(action);
         addAction(action);
     }
@@ -75,6 +73,7 @@ void EditorWindow::AddMenu_File()
         action->setShortcutContext(Qt::WidgetWithChildrenShortcut);
         QObject::connect(action,
             &QAction::triggered,
+            this,
             [ this ](bool checked)
             {
                 EditorMenu_Open("");
@@ -161,6 +160,7 @@ void EditorWindow::AddMenu_File()
                 QAction* action = new QAction(fileName, this);
                 QObject::connect(action,
                     &QAction::triggered,
+                    this,
                     [ this, fileName ](bool checked)
                     {
                         EditorMenu_Open(fileName);
@@ -177,6 +177,7 @@ void EditorWindow::AddMenu_File()
 
             QObject::connect(action,
                 &QAction::triggered,
+                this,
                 [ this ](bool checked)
                 {
                     ClearRecentFile();
@@ -231,10 +232,8 @@ void EditorWindow::AddMenuItems_Edit(QMenu* menu)
         action->setEnabled(canvasLoaded);
         QObject::connect(action,
             &QAction::triggered,
-            [this](bool checked)
-            {
-                GetHierarchy()->selectAll();
-            });
+            GetHierarchy(),
+            &HierarchyWidget::selectAll);
         menu->addAction(action);
         addAction(action);
     }
@@ -320,6 +319,7 @@ void EditorWindow::AddMenuItems_Edit(QMenu* menu)
         action->setEnabled(canvasLoaded);
         QObject::connect(action,
             &QAction::triggered,
+            this,
             [this](bool checked)
             {
                 static QUndoView* undoView = nullptr;
@@ -349,10 +349,8 @@ void EditorWindow::AddMenuItems_Edit(QMenu* menu)
         action->setEnabled(itemsAreSelected);
         QObject::connect(action,
             &QAction::triggered,
-            [this](bool checked)
-            {
-                GetHierarchy()->DeleteSelectedItems();
-            });
+            GetHierarchy(),
+            [this]() { GetHierarchy()->DeleteSelectedItems(); });
         menu->addAction(action);
         addAction(action);  // Qt::WidgetWithChildrenShortcut works on the associated widget, not parent widget. The associated widget is a menu, and menus don't have focus, so also add the action to the window
 
@@ -385,6 +383,7 @@ void EditorWindow::AddMenu_View()
             action->setEnabled(canvasLoaded);
             QObject::connect(action,
                 &QAction::triggered,
+                this,
                 [this](bool checked)
                 {
                     GetViewport()->GetViewportInteraction()->IncreaseCanvasToViewportScale();
@@ -401,6 +400,7 @@ void EditorWindow::AddMenu_View()
             action->setEnabled(canvasLoaded);
             QObject::connect(action,
                 &QAction::triggered,
+                this,
                 [this](bool checked)
                 {
                     GetViewport()->GetViewportInteraction()->DecreaseCanvasToViewportScale();
@@ -420,6 +420,7 @@ void EditorWindow::AddMenu_View()
             action->setEnabled(canvasLoaded);
             QObject::connect(action,
                 &QAction::triggered,
+                this,
                 [this](bool checked)
                 {
                     GetViewport()->GetViewportInteraction()->CenterCanvasInViewport();
@@ -439,6 +440,7 @@ void EditorWindow::AddMenu_View()
             action->setEnabled(canvasLoaded);
             QObject::connect(action,
                 &QAction::triggered,
+                this,
                 [this](bool checked)
                 {
                     // Center the canvas then update scale
@@ -485,16 +487,17 @@ void EditorWindow::AddMenu_View()
     {
         QMenu* drawElementBordersMenu = menu->addMenu("Draw &Borders on Unselected Elements");
 
-        auto viewport = canvasLoaded ? GetViewport() : nullptr;
+        auto viewport = GetViewport();
 
         // Add option to draw borders on all unselected elements (subject to "Include" options below)
         {
             QAction* action = new QAction("&Draw Borders", this);
             action->setCheckable(true);
-            action->setChecked(viewport ? viewport->IsDrawingElementBorders(ViewportWidget::DrawElementBorders_Unselected) : false);
-            action->setEnabled(viewport);
+            action->setChecked(canvasLoaded ? viewport->IsDrawingElementBorders(ViewportWidget::DrawElementBorders_Unselected) : false);
+            action->setEnabled(canvasLoaded);
             QObject::connect(action,
                 &QAction::triggered,
+                viewport,
                 [viewport, this](bool checked)
                 {
                     viewport->ToggleDrawElementBorders(ViewportWidget::DrawElementBorders_Unselected);
@@ -508,10 +511,11 @@ void EditorWindow::AddMenu_View()
         {
             QAction* action = new QAction("Include &Visual Elements", this);
             action->setCheckable(true);
-            action->setChecked(viewport ? viewport->IsDrawingElementBorders(ViewportWidget::DrawElementBorders_Visual) : false);
-            action->setEnabled(viewport ? viewport->IsDrawingElementBorders(ViewportWidget::DrawElementBorders_Unselected) : false);
+            action->setChecked(canvasLoaded ? viewport->IsDrawingElementBorders(ViewportWidget::DrawElementBorders_Visual) : false);
+            action->setEnabled(canvasLoaded ? viewport->IsDrawingElementBorders(ViewportWidget::DrawElementBorders_Unselected) : false);
             QObject::connect(action,
                 &QAction::triggered,
+                viewport,
                 [viewport](bool checked)
                 {
                     viewport->ToggleDrawElementBorders(ViewportWidget::DrawElementBorders_Visual);
@@ -524,10 +528,11 @@ void EditorWindow::AddMenu_View()
         {
             QAction* action = new QAction("Include &Parent Elements", this);
             action->setCheckable(true);
-            action->setChecked(viewport? viewport->IsDrawingElementBorders(ViewportWidget::DrawElementBorders_Parent) : false);
-            action->setEnabled(viewport ? viewport->IsDrawingElementBorders(ViewportWidget::DrawElementBorders_Unselected) : false);
+            action->setChecked(canvasLoaded ? viewport->IsDrawingElementBorders(ViewportWidget::DrawElementBorders_Parent) : false);
+            action->setEnabled(canvasLoaded ? viewport->IsDrawingElementBorders(ViewportWidget::DrawElementBorders_Unselected) : false);
             QObject::connect(action,
                 &QAction::triggered,
+                viewport,
                 [viewport](bool checked)
                 {
                     viewport->ToggleDrawElementBorders(ViewportWidget::DrawElementBorders_Parent);
@@ -544,6 +549,7 @@ void EditorWindow::AddMenu_View()
             action->setEnabled(viewport ? viewport->IsDrawingElementBorders(ViewportWidget::DrawElementBorders_Unselected) : false);
             QObject::connect(action,
                 &QAction::triggered,
+                viewport,
                 [viewport](bool checked)
                 {
                     viewport->ToggleDrawElementBorders(ViewportWidget::DrawElementBorders_Hidden);
@@ -592,6 +598,7 @@ void EditorWindow::AddMenu_View_LanguageSetting(QMenu* viewMenu)
         // When a language is selected, update the localization folder CVar
         QObject::connect(action,
             &QAction::triggered,
+            this,
             [this, directoryName](bool checked)
         {
             // First try to locate the directory by name, without the "_xml"
@@ -669,10 +676,8 @@ void EditorWindow::AddMenu_Preview()
         action->setEnabled(GetCanvas().IsValid());
         QObject::connect(action,
             &QAction::triggered,
-            [this](bool checked)
-            {
-                ToggleEditorMode();
-            });
+            this,
+            &EditorWindow::ToggleEditorMode);
         menu->addAction(action);
         addAction(action);  // Qt::WidgetWithChildrenShortcut works on the associated widget, not parent widget. The associated widget is a menu, and menus don't have focus, so also add the action to the window
     }
@@ -727,6 +732,7 @@ void EditorWindow::AddMenu_Help()
 
         QObject::connect(action,
             &QAction::triggered,
+            this,
             [documentationUrl](bool checked)
             {
                 QDesktopServices::openUrl(QUrl(documentationUrl));
@@ -741,6 +747,7 @@ void EditorWindow::AddMenu_Help()
 
         QObject::connect(action,
             &QAction::triggered,
+            this,
             [tutorualsUrl](bool checked)
             {
                 QDesktopServices::openUrl(QUrl(tutorualsUrl));
@@ -755,6 +762,7 @@ void EditorWindow::AddMenu_Help()
 
         QObject::connect(action,
             &QAction::triggered,
+            this,
             [forumUrl](bool checked)
             {
                 QDesktopServices::openUrl(QUrl(forumUrl));
@@ -769,6 +777,7 @@ void EditorWindow::AddMenu_Help()
 
         QObject::connect(action,
             &QAction::triggered,
+            this,
             [this](bool checked)
             {
                 FeedbackDialog dialog(this);
@@ -855,6 +864,7 @@ QAction* EditorWindow::CreateSaveCanvasAction(AZ::EntityId canvasEntityId, bool 
 
     QObject::connect(action,
         &QAction::triggered,
+        this,
         [this, canvasEntityId](bool checked)
     {
         UiCanvasMetadata *canvasMetadata = GetCanvasMetadata(canvasEntityId);
@@ -899,6 +909,7 @@ QAction* EditorWindow::CreateSaveCanvasAsAction(AZ::EntityId canvasEntityId, boo
 
     QObject::connect(action,
         &QAction::triggered,
+        this,
         [this, canvasEntityId](bool checked)
     {
         UiCanvasMetadata *canvasMetadata = GetCanvasMetadata(canvasEntityId);
@@ -926,6 +937,7 @@ QAction* EditorWindow::CreateSaveAllCanvasesAction(bool forContextMenu)
     action->setEnabled(m_canvasMetadataMap.size() > 0);
     QObject::connect(action,
         &QAction::triggered,
+        this,
         [this](bool checked)
     {
         bool saved = false;
@@ -957,6 +969,7 @@ QAction* EditorWindow::CreateCloseCanvasAction(AZ::EntityId canvasEntityId, bool
     action->setEnabled(canvasEntityId.IsValid());
     QObject::connect(action,
         &QAction::triggered,
+        this,
         [this, canvasEntityId](bool checked)
     {
         CloseCanvas(canvasEntityId);
@@ -971,6 +984,7 @@ QAction* EditorWindow::CreateCloseAllOtherCanvasesAction(AZ::EntityId canvasEnti
     action->setEnabled(m_canvasMetadataMap.size() > 1);
     QObject::connect(action,
         &QAction::triggered,
+        this,
         [this, canvasEntityId](bool checked)
     {
         CloseAllOtherCanvases(canvasEntityId);
@@ -985,10 +999,8 @@ QAction* EditorWindow::CreateCloseAllCanvasesAction(bool forContextMenu)
     action->setEnabled(m_canvasMetadataMap.size() > 0);
     QObject::connect(action,
         &QAction::triggered,
-        [this](bool checked)
-    {
-        CloseAllCanvases();
-    });
+        this,
+        &EditorWindow::CloseAllCanvases);
 
     return action;
 }

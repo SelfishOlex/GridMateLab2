@@ -242,8 +242,8 @@ namespace AZStd
         inline const_reverse_iterator   rbegin() const      { return const_reverse_iterator(end()); }
         inline const_reverse_iterator   crbegin() const     { return const_reverse_iterator(end()); }
         inline reverse_iterator     rend()              { return reverse_iterator(begin()); }
-        inline const_reverse_iterator   rend() const        { return const_reverse_iterator(end()); }
-        inline const_reverse_iterator   crend() const       { return const_reverse_iterator(end()); }
+        inline const_reverse_iterator   rend() const        { return const_reverse_iterator(begin()); }
+        inline const_reverse_iterator   crend() const       { return const_reverse_iterator(begin()); }
 
         inline this_type& operator=(const this_type& rhs)       { return assign(rhs); }
 #if defined(AZ_HAS_RVALUE_REFS)
@@ -864,6 +864,34 @@ namespace AZStd
             AZSTD_CONTAINER_ASSERT(m_size > offset, "Invalid offset");
             const_pointer data = SSO_BUF_SIZE <= m_capacity ? m_data : m_buffer;
             return data[offset];
+        }
+
+        inline reference front()
+        {
+            AZSTD_CONTAINER_ASSERT(m_size != 0, "AZStd::string::front - string is empty!");
+            pointer data = SSO_BUF_SIZE <= m_capacity ? m_data : m_buffer;
+            return data[0];
+        }
+
+        inline const_reference front() const
+        {
+            AZSTD_CONTAINER_ASSERT(m_size != 0, "AZStd::string::front - string is empty!");
+            const_pointer data = SSO_BUF_SIZE <= m_capacity ? m_data : m_buffer;
+            return data[0];
+        }
+
+        inline reference back()
+        {
+            AZSTD_CONTAINER_ASSERT(m_size != 0, "AZStd::string::back - string is empty!");
+            pointer data = SSO_BUF_SIZE <= m_capacity ? m_data : m_buffer;
+            return data[m_size - 1];
+        }
+
+        inline const_reference back() const
+        {
+            AZSTD_CONTAINER_ASSERT(m_size != 0, "AZStd::string::back - string is empty!");
+            const_pointer data = SSO_BUF_SIZE <= m_capacity ? m_data : m_buffer;
+            return data[m_size - 1];
         }
 
         inline void push_back(Element ch)

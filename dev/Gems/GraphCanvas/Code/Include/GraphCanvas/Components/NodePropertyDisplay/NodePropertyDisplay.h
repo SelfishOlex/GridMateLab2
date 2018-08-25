@@ -18,6 +18,7 @@
 #include <GraphCanvas/Components/SceneBus.h>
 #include <GraphCanvas/Components/Nodes/NodeUIBus.h>
 #include <GraphCanvas/Components/VisualBus.h>
+#include <GraphCanvas/Widgets/NodePropertyBus.h>
 
 #include <QGraphicsScene>
 #include <QGraphicsView>
@@ -26,20 +27,23 @@ class QGraphicsLayoutItem;
 
 namespace GraphCanvas
 {
-	// Base class for displaying a NodeProperty.
-	//
-	// Main idea is that in QGraphics, we want to use QWidgets
-	// for a lot of our in-node editing, but this is slow with a large
-	// number of instances.
-	//
-	// This provides an interface for allowing widgets to be swapped out depending
-	// on state(thus letting us have a QWidget editable field, with a QGraphicsWidget display).
+    // Base class for displaying a NodeProperty.
+    //
+    // Main idea is that in QGraphics, we want to use QWidgets
+    // for a lot of our in-node editing, but this is slow with a large
+    // number of instances.
+    //
+    // This provides an interface for allowing widgets to be swapped out depending
+    // on state(thus letting us have a QWidget editable field, with a QGraphicsWidget display).
     class NodePropertyDisplay
         : public AzQtComponents::ShortcutDispatchTraits::Bus::Handler
     {
     public:
         NodePropertyDisplay() = default;
-        virtual ~NodePropertyDisplay() = default;
+        virtual ~NodePropertyDisplay()
+        {
+            NodePropertiesRequestBus::Event(GetNodeId(), &NodePropertiesRequests::UnlockEditState, this);
+        }
         
         void SetId(const AZ::EntityId& id)
         {
@@ -92,17 +96,22 @@ namespace GraphCanvas
         virtual void UpdateDisplay() = 0;
 
         // Display Widgets handles display the 'disabled' widget.
-        virtual QGraphicsLayoutItem* GetDisabledGraphicsLayoutItem() const = 0;
+        virtual QGraphicsLayoutItem* GetDisabledGraphicsLayoutItem() = 0;
 
         // Display Widgets handles displaying the data in the non-editable base case.
-        virtual QGraphicsLayoutItem* GetDisplayGraphicsLayoutItem() const = 0;
+        virtual QGraphicsLayoutItem* GetDisplayGraphicsLayoutItem() = 0;
         
         // Display Widgets handles displaying the data in an editable way
-        virtual QGraphicsLayoutItem* GetEditableGraphicsLayoutItem() const = 0;
+        virtual QGraphicsLayoutItem* GetEditableGraphicsLayoutItem() = 0;
 
         void RegisterShortcutDispatcher(QWidget* widget)
         {
             AzQtComponents::ShortcutDispatchBus::Handler::BusConnect(widget);
+        }
+        
+        void UnregisterShortcutDispatcher(QWidget* widget)
+        {
+            AzQtComponents::ShortcutDispatchBus::Handler::BusDisconnect(widget);
         }
 
     protected:

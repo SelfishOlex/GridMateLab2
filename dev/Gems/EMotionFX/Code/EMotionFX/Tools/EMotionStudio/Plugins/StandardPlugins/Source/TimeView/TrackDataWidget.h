@@ -13,7 +13,6 @@
 #pragma once
 
 #include <MCore/Source/StandardHeaders.h>
-#include <MCore/Source/UnicodeString.h>
 #include <MCore/Source/Array.h>
 #include "../StandardPluginsConfig.h"
 #include <EMotionFX/CommandSystem/Source/MotionEventCommands.h>
@@ -51,19 +50,19 @@ namespace EMStudio
         void initializeGL() override;
         void resizeGL(int w, int h) override;
         void paintGL() override;
-
+        
     protected:
         //void paintEvent(QPaintEvent* event);
-        void mouseDoubleClickEvent(QMouseEvent* event);
-        void mouseMoveEvent(QMouseEvent* event);
-        void mousePressEvent(QMouseEvent* event);
-        void mouseReleaseEvent(QMouseEvent* event);
-        void dragEnterEvent(QDragEnterEvent* event);
-        void dragMoveEvent(QDragMoveEvent* event);
-        void dropEvent(QDropEvent* event);
-        void keyPressEvent(QKeyEvent* event);
-        void keyReleaseEvent(QKeyEvent* event);
-        void contextMenuEvent(QContextMenuEvent* event);
+        void mouseDoubleClickEvent(QMouseEvent* event) override;
+        void mouseMoveEvent(QMouseEvent* event) override;
+        void mousePressEvent(QMouseEvent* event) override;
+        void mouseReleaseEvent(QMouseEvent* event) override;
+        void dragEnterEvent(QDragEnterEvent* event) override;
+        void dragMoveEvent(QDragMoveEvent* event) override;
+        void dropEvent(QDropEvent* event) override;
+        void keyPressEvent(QKeyEvent* event) override;
+        void keyReleaseEvent(QKeyEvent* event) override;
+        void contextMenuEvent(QContextMenuEvent* event) override;
 
     signals:
         void MotionEventPresetsDropped(QPoint position);
@@ -86,12 +85,14 @@ namespace EMStudio
         void OnCopyElement();
         void OnPaste();
         void OnPasteAtLocation();
+        
+        void OnRequiredHeightChanged(int newHeight);
 
+    private:
         void RemoveMotionEvent(int32 x, int32 y);
         void AddMotionEvent(int32 x, int32 y);
 
-    private:
-        void wheelEvent(QWheelEvent* event);
+        void wheelEvent(QWheelEvent* event) override;
         void DoPaste(bool useLocation);
         void PaintRecorder(QPainter& painter, const QRect& rect);
         void PaintRecorderNodeHistory(QPainter& painter, const QRect& rect, const EMotionFX::Recorder::ActorInstanceData* actorInstanceData);
@@ -99,26 +100,22 @@ namespace EMStudio
         void PaintMotionTracks(QPainter& painter, const QRect& rect);
         void ShowElementTimeInfo(TimeTrackElement* element);
         void PaintRelativeGraph(QPainter& painter, const QRect& rect, const EMotionFX::Recorder::ActorInstanceData* actorInstanceData);
-        uint32 PaintTitle(const QString& text, QPainter& painter, int32 heightOffset, float animationLength);
         uint32 PaintSeparator(QPainter& painter, int32 heightOffset, float animationLength);
 
         QBrush              mBrushBackground;
         QBrush              mBrushBackgroundClipped;
         QBrush              mBrushBackgroundOutOfRange;
-        QPen                mPenTimeHandles;
         TimeViewPlugin*     mPlugin;
         bool                mMouseLeftClicked;
         bool                mMouseMidClicked;
         bool                mMouseRightClicked;
         bool                mDragging;
         bool                mResizing;
-        bool                mMotionPaused;
         bool                mRectZooming;
         bool                mIsScrolling;
         int32               mLastLeftClickedX;
         int32               mLastMouseMoveX;
         int32               mLastMouseX;
-        int32               mLastMouseMoveY;
         int32               mLastMouseY;
         uint32              mNodeHistoryItemHeight;
         uint32              mEventHistoryTotalHeight;
@@ -138,8 +135,6 @@ namespace EMStudio
         MCore::Array<EMotionFX::Recorder::ExtractedNodeHistoryItem> mActiveItems;
         MCore::Array<uint32>                                        mTrackRemap;
 
-        QPixmap             mTimeHandleTop;
-
         // copy and paste
         struct CopyElement
         {
@@ -156,26 +151,9 @@ namespace EMStudio
 
         AZStd::vector<CopyElement>      mCopyElements;
         bool                            mCutMode;
-        bool                            mPasteAtMousePos;
 
-        QFont           mTimeLineFont;
         QFont           mDataFont;
-        QFont           mTitleFont;
-        AZStd::string   mTimeString;
         AZStd::string   mTempString;
-        QLinearGradient mHeaderGradientActive;
-        QLinearGradient mHeaderGradientInactive;
-        QLinearGradient mHeaderGradientActiveFocus;
-        QLinearGradient mHeaderGradientInactiveFocus;
-        QPen            mPenTimeStepLinesActive;
-        QPen            mPenMidTimeStepLinesActive;
-        QPen            mPenMainTimeStepLinesActive;
-        QPen            mPenTimeStepLinesInactive;
-        QPen            mPenMidTimeStepLinesInactive;
-        QPen            mPenMainTimeStepLinesInactive;
-        int32           mTimeLineHeight;
-
-        uint32          mRecordContextFlags;
 
         // rect selection
         QPoint          mSelectStart;
@@ -189,13 +167,11 @@ namespace EMStudio
 
         void RenderTracks(QPainter& painter, uint32 width, uint32 height, double animationLength, double clipStartTime, double clipEndTime);
         void UpdateMouseOverCursor(int32 x, int32 y);
-        void DrawTimeLine(QPainter& painter, const QRect& rect);
         void DrawTimeMarker(QPainter& painter, const QRect& rect);
 
         bool GetIsInsideNodeHistory(int32 y) const                                              { return mNodeHistoryRect.contains(1, y); }
         void DoRecorderContextMenuEvent(QContextMenuEvent* event);
 
-        MCORE_INLINE bool GetIsInsideTimeLine(int32 y)                                          { return (y <= mTimeLineHeight); }
         void UpdateRects();
         EMotionFX::Recorder::NodeHistoryItem* FindNodeHistoryItem(EMotionFX::Recorder::ActorInstanceData* actorInstanceData, int32 x, int32 y);
         EMotionFX::Recorder::EventHistoryItem* FindEventHistoryItem(EMotionFX::Recorder::ActorInstanceData* actorInstanceData, int32 x, int32 y) const;
@@ -203,6 +179,6 @@ namespace EMStudio
         void BuildToolTipString(EMotionFX::Recorder::NodeHistoryItem* item, AZStd::string& outString);
         void BuildToolTipString(EMotionFX::Recorder::EventHistoryItem* item, AZStd::string& outString);
 
-        bool event(QEvent* event);
+        bool event(QEvent* event) override;
     };
 }   // namespace EMStudio

@@ -29,7 +29,7 @@ class LevelEditorMenuHandler
 {
     Q_OBJECT
 public:
-    LevelEditorMenuHandler(MainWindow* mainWindow, QtViewPaneManager* const viewPaneManager, QSettings& settings);
+    explicit LevelEditorMenuHandler(MainWindow* mainWindow, QtViewPaneManager* const viewPaneManager, QSettings& settings);
     ~LevelEditorMenuHandler();
 
     void Initialize();
@@ -61,6 +61,9 @@ private:
     QMenu* CreateAWSMenu();
     QMenu* CreateViewMenu();
     QMenu* CreateHelpMenu();
+
+    void checkOrOpenView();
+
 
     QMap<QString, QList<QtViewPane*>> CreateMenuMap(QMap<QString, QList<QtViewPane*>>& menuMap, QtViewPanes& allRegisteredViewPanes);
     void CreateMenuOptions(QMap<QString, QList<QtViewPane*>>* menuMap, ActionManager::MenuWrapper& menu, const char* category);

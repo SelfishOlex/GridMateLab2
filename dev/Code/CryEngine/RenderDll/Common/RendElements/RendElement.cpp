@@ -103,7 +103,7 @@ CRendElement::CRendElement()
 
 CRendElement::~CRendElement()
 {
-    assert(m_Type == eDATA_Unknown || m_Type == eDATA_Particle || m_Type == eDATA_GPUParticle || m_Type == eDATA_Gem);
+    assert(m_Type == eDATA_Unknown || m_Type == eDATA_Particle || m_Type == eDATA_GPUParticle || m_Type == eDATA_Gem || m_Type == eDATA_VolumeObject);
 
     //@TODO: Fix later, prevent crash on exit in single executable
     if (this == &m_RootRelease[0] || this == &m_RootRelease[1] || this == &m_RootRelease[2] || this == &m_RootRelease[3] || this == &m_RootGlobal)
@@ -158,16 +158,6 @@ CRendElementBase::~CRendElementBase()
         m_CustomData = 0;
     }
 }
-
-
-void CRendElementBase::mfPrepare(bool bCheckOverflow)
-{
-}
-
-CRenderChunk* CRendElementBase::mfGetMatInfo() {return NULL; }
-TRenderChunkArray* CRendElementBase::mfGetMatInfoList() {return NULL; }
-int CRendElementBase::mfGetMatId() {return -1; }
-void CRendElementBase::mfReset() {}
 
 const char* CRendElement::mfTypeString()
 {
@@ -248,9 +238,6 @@ void CRendElementBase::mfGetPlane(Plane& pl)
     pl.n = Vec3(0, 0, 1);
     pl.d = 0;
 }
-
-bool CRendElementBase::mfDraw(CShader* ef, SShaderPass* sfm) {return false; }
-void* CRendElementBase::mfGetPointer(ESrcPointer ePT, int* Stride, EParamType Type, ESrcPointer Dst, int Flags) {return NULL; }
 
 //=============================================================================
 

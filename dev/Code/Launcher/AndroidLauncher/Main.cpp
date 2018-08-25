@@ -83,12 +83,42 @@
 #endif // !defined(_RELEASE)
 
 
-#define MAIN_EXIT_FAILURE() exit(1)
+#define MAIN_EXIT_FAILURE(_appState, ...) \
+    LOGE("****************************************************************"); \
+    LOGE("STARTUP FAILURE - EXITING"); \
+    LOGE("REASON:"); \
+    LOGE(__VA_ARGS__); \
+    LOGE("****************************************************************"); \
+    _appState->userData = nullptr; \
+    ANativeActivity_finish(_appState->activity); \
+    while (_appState->destroyRequested == 0) { \
+        PumpEvents(_appState); \
+    } \
+    return;
 
 
 namespace
 {
     bool g_windowInitialized = false;
+
+    //////////////////////////////////////////////////////////////////////////
+    void PumpEvents(android_app* appState)
+    {
+        int events;
+        android_poll_source* source;
+        while (ALooper_pollAll(0, NULL, &events, reinterpret_cast<void**>(&source)) >= 0)
+        {
+            if (source != NULL)
+            {
+                source->process(appState, source);
+            }
+
+            if (appState->destroyRequested != 0)
+            {
+                break;
+            }
+        }
+    }
 
     //////////////////////////////////////////////////////////////////////////
     bool IncreaseResourceToMaxLimit(int resource)
@@ -98,7 +128,7 @@ namespace
         struct rlimit limit;
         if (getrlimit(resource, &limit) != 0)
         {
-            LOGE("[ERROR] Failed to get limit for resource %d", resource);
+            LOGE("[ERROR] Failed to get limit for resource %d.  Error: %s", resource, strerror(errno));
             return false;
         }
 
@@ -107,7 +137,7 @@ namespace
             limit.rlim_max = maxLimit;
             if (setrlimit(resource, &limit) != 0)
             {
-                LOGE("[ERROR] Failed to update limit for resource %d with value %ld", resource, maxLimit);
+                LOGE("[ERROR] Failed to update resource limit to RLIM_INFINITY for resource %d.  Error: %s", resource, strerror(errno));
                 return false;
             }
         }
@@ -165,8 +195,25 @@ namespace
     #endif
 
         AZ::Android::AndroidEnv* androidEnv = static_cast<AZ::Android::AndroidEnv*>(appState->userData);
+        if (!androidEnv)
+        {
+            return;
+        }
+
         switch (command)
         {
+            case APP_CMD_GAINED_FOCUS:
+            {
+                EBUS_EVENT(AzFramework::AndroidLifecycleEvents::Bus, OnGainedFocus);
+            }
+            break;
+
+            case APP_CMD_LOST_FOCUS:
+            {
+                EBUS_EVENT(AzFramework::AndroidLifecycleEvents::Bus, OnLostFocus);
+            }
+            break;
+
             case APP_CMD_PAUSE:
             {
                 EBUS_EVENT(AzFramework::AndroidLifecycleEvents::Bus, OnPause);
@@ -209,25 +256,114 @@ namespace
                 EBUS_EVENT(AzFramework::AndroidLifecycleEvents::Bus, OnLowMemory);
             }
             break;
+
+            case APP_CMD_CONFIG_CHANGED:
+            {
+                androidEnv->UpdateConfiguration();
+            }
+            break;
+
+            case APP_CMD_WINDOW_REDRAW_NEEDED:
+            {
+                EBUS_EVENT(AzFramework::AndroidLifecycleEvents::Bus, OnWindowRedrawNeeded);
+            }
+            break;
+        }
+    }
+
+    void OnWindowRedrawNeeded(ANativeActivity* activity, ANativeWindow* rect)
+    {
+        android_app* app = static_cast<android_app*>(activity->instance);
+        int8_t cmd = APP_CMD_WINDOW_REDRAW_NEEDED;
+        if (write(app->msgwrite, &cmd, sizeof(cmd)) != sizeof(cmd))
+        {
+            LOGE("Failure writing android_app cmd: %s\n", strerror(errno));
         }
     }
 }
 
+#ifdef AZ_RUN_ANDROID_LAUNCHER_TESTS
+
+struct SimulatedTickBusInterface
+    : public AZ::EBusTraits
+{
+    static const AZ::EBusAddressPolicy AddressPolicy = AZ::EBusAddressPolicy::ById;
+    typedef size_t BusIdType;
+    typedef AZStd::mutex EventQueueMutexType;
+    static const bool EnableEventQueue = true;
+
+    virtual void OnTick() = 0;
+    virtual void OnPayload(size_t payload) = 0;
+};
+
+using SimulatedTickBus = AZ::EBus<SimulatedTickBusInterface>;
+
+struct SimulatedTickBusHandler
+    : public SimulatedTickBus::Handler
+{
+    void OnTick() override {}
+    void OnPayload(size_t) override {}
+};
+
+void TestEBuses()
+{
+    AZ::AllocatorInstance<AZ::SystemAllocator>::Create();
+
+    {
+        const size_t numLoops = 10000;
+        auto mainLoop = [numLoops]()
+        {
+            size_t loops = 0;
+            while (loops++ < numLoops)
+            {
+                SimulatedTickBus::ExecuteQueuedEvents();
+                SimulatedTickBus::Event(0, &SimulatedTickBus::Events::OnTick);
+            }
+        };
+
+        auto workerLoop = [numLoops]()
+        {
+            size_t loops = 0;
+            while (loops++ < numLoops)
+            {
+                SimulatedTickBus::QueueEvent(0, &SimulatedTickBus::Events::OnPayload, loops);
+            }
+        };
+
+        SimulatedTickBusHandler handler;
+        handler.BusConnect(0);
+
+        AZStd::thread mainThread(mainLoop);
+        AZStd::thread workerThread(workerLoop);
+
+        mainThread.join();
+        workerThread.join();
+    }
+
+    AZ::AllocatorInstance<AZ::SystemAllocator>::Destroy();
+}
+
+void RunAndroidLauncherTests()
+{
+    TestEBuses();
+}
+#endif
+
 
 ////////////////////////////////////////////////////////////////
-// This is the main entry point of a native application that is using android_native_app_glue.  
+// This is the main entry point of a native application that is using android_native_app_glue.
 // It runs in its own thread, with its own event loop for receiving input events and doing other things.
 void android_main(android_app* appState)
 {
     // Adding a start up banner so you can see when the game is starting up in amongst the logcat spam
-    LOGI("******************************************************");
-    LOGI("*         Amazon Lumberyard - Launching Game....     *");
-    LOGI("******************************************************");
+    LOGI("****************************************************************");
+    LOGI("*            Amazon Lumberyard - Launching Game....            *");
+    LOGI("****************************************************************");
 
-    if (    !IncreaseResourceToMaxLimit(RLIMIT_CORE) 
+    if (    !IncreaseResourceToMaxLimit(RLIMIT_CORE)
         ||  !IncreaseResourceToMaxLimit(RLIMIT_STACK))
     {
-        MAIN_EXIT_FAILURE();
+        MAIN_EXIT_FAILURE(appState, "A resource limit was unable to be updated, see logs above for more details");
     }
 
     // register our signal handlers
@@ -236,6 +372,11 @@ void android_main(android_app* appState)
 
     // setup the system command handler
     appState->onAppCmd = HandleApplicationLifecycleEvents;
+
+    // This callback will notify us when the orientation of the device changes.
+    // While Android does have an onNativeWindowResized callback, it is never called in android_native_app_glue when the window size changes.
+    // The onNativeConfigChanged callback is called too early(before the window size has changed), so we won't have the correct window size at that point.
+    appState->activity->callbacks->onNativeWindowRedrawNeeded = OnWindowRedrawNeeded;
 
     // setup the android environment
     AZ::AllocatorInstance<AZ::OSAllocator>::Create();
@@ -246,6 +387,8 @@ void android_main(android_app* appState)
         descriptor.m_activityRef = appState->activity->clazz;
         descriptor.m_assetManager = appState->activity->assetManager;
 
+        descriptor.m_configuration = appState->config;
+
         descriptor.m_appPrivateStoragePath = appState->activity->internalDataPath;
         descriptor.m_appPublicStoragePath = appState->activity->externalDataPath;
         descriptor.m_obbStoragePath = appState->activity->obbPath;
@@ -253,9 +396,7 @@ void android_main(android_app* appState)
         if (!AZ::Android::AndroidEnv::Create(descriptor))
         {
             AZ::Android::AndroidEnv::Destroy();
-
-            LOGE("[ERROR] Failed to create the AndroidEnv\n");
-            MAIN_EXIT_FAILURE();
+            MAIN_EXIT_FAILURE(appState, "Failed to create the AndroidEnv");
         }
 
         AZ::Android::AndroidEnv* androidEnv = AZ::Android::AndroidEnv::Get();
@@ -265,40 +406,33 @@ void android_main(android_app* appState)
 
     // sync the window creation
     {
-        // While not ideal to have the event pump code duplicated here and in AzFramework, this 
+        // While not ideal to have the event pump code duplicated here and in AzFramework, this
         // at least solves the splash screen issues when the window creation sync happened later
         // in initialization.  It's also the lesser of 2 evils, the other requiring a change in
-        // how the platform specific private Application implementation is created for ALL 
+        // how the platform specific private Application implementation is created for ALL
         // platforms
         while (!g_windowInitialized)
         {
-            int events;
-            android_poll_source* source;
-
-            while (ALooper_pollAll(0, NULL, &events, reinterpret_cast<void**>(&source)) >= 0)
-            {
-                if (source != NULL)
-                {
-                    source->process(appState, source);
-                }
-            }
+            PumpEvents(appState);
         }
 
         // Now that the window has been created we can show the java splash screen.  We need
-        // to do it here and not in the window init event because every time the app is 
+        // to do it here and not in the window init event because every time the app is
         // backgrounded/foregrounded the window is destroyed/created, respectively.  So, we
         // don't want to show the splash screen when we resumed from a paused state.
         AZ::Android::Utils::ShowSplashScreen();
     }
 
+#ifdef AZ_RUN_ANDROID_LAUNCHER_TESTS
+    RunAndroidLauncherTests();
+#endif
+
     // Engine Config (bootstrap.cfg)
     const char* assetsPath = AZ::Android::Utils::FindAssetsDirectory();
     if (!assetsPath)
     {
-        LOGE("#################################################");
-        LOGE("[ERROR] Unable to locate bootstrap.cfg - Exiting!");
-        LOGE("#################################################");
-        MAIN_EXIT_FAILURE();
+        AZ::Android::AndroidEnv::Destroy();
+        MAIN_EXIT_FAILURE(appState, "Unable to locate bootstrap.cfg");
     }
 
     const char* searchPaths[] = { assetsPath };
@@ -315,11 +449,11 @@ void android_main(android_app* appState)
 #endif
 
     {
-        // The path returned if assets are in the APK has to have a trailing slash other wise it causes 
-        // issues later on when parsing directories.  When they are on the sdcard, no trailing slash is 
-        // returned.  This patches the problem specifically for the descriptor only (it's not needed 
+        // The path returned if assets are in the APK has to have a trailing slash other wise it causes
+        // issues later on when parsing directories.  When they are on the sdcard, no trailing slash is
+        // returned.  This patches the problem specifically for the descriptor only (it's not needed
         // elsewhere).
-        const char* pathSep = (AZ::Android::Utils::IsApkPath(assetsPath) ? "" : "/"); 
+        const char* pathSep = (AZ::Android::Utils::IsApkPath(assetsPath) ? "" : "/");
 
         char descriptorRelativePath[AZ_MAX_PATH_LEN] = { 0 };
         AzGameFramework::GameApplication::GetGameDescriptorPath(descriptorRelativePath, engineCfg.m_gameFolder);
@@ -329,8 +463,8 @@ void android_main(android_app* appState)
 
         if (!AZ::IO::SystemFile::Exists(descriptorFullPath))
         {
-            LOGE("Application descriptor file not found: %s\n", descriptorFullPath);
-            MAIN_EXIT_FAILURE();
+            AZ::Android::AndroidEnv::Destroy();
+            MAIN_EXIT_FAILURE(appState, "Application descriptor file not found: %s", descriptorFullPath);
         }
 
         gameApp.Start(descriptorFullPath, gameAppParams);
@@ -386,7 +520,8 @@ void android_main(android_app* appState)
 
 #if !defined(AZ_MONOLITHIC_BUILD)
     IGameStartup::TEntryFunction CreateGameStartup = nullptr;
-    HMODULE gameDll = 0;
+    HMODULE gameDll = nullptr;
+    HMODULE systemLib = nullptr;
 
     if (legacyGameDllStartup)
     {
@@ -396,17 +531,17 @@ void android_main(android_app* appState)
         gameDll = CryLoadLibrary(gameSoFilename);
         if (!gameDll)
         {
-            LOGE("[ERROR] Failed to load GAME DLL (%s)\n", dlerror());
-            MAIN_EXIT_FAILURE();
+            AZ::Android::AndroidEnv::Destroy();
+            MAIN_EXIT_FAILURE(appState, "Failed to load GAME DLL (%s)", dlerror());
         }
 
         // get address of startup function
         CreateGameStartup = (IGameStartup::TEntryFunction)CryGetProcAddress(gameDll, "CreateGameStartup");
         if (!CreateGameStartup)
         {
-            LOGE("[ERROR] CreateGameStartup could not be found in %s!\n", gameName);
             CryFreeLibrary(gameDll);
-            MAIN_EXIT_FAILURE();
+            AZ::Android::AndroidEnv::Destroy();
+            MAIN_EXIT_FAILURE(appState, "CreateGameStartup could not be found in lib%s.so!", gameName);
         }
     }
 #endif //!AZ_MONOLITHIC_BUILD
@@ -422,45 +557,62 @@ void android_main(android_app* appState)
         EditorGameRequestBus::BroadcastResult(gameStartup, &EditorGameRequestBus::Events::CreateGameStartup);
     }
 
-    if (!gameStartup)
+    // The legacy IGameStartup and IGameFramework are now optional,
+    // if they don't exist we need to create CrySystem here instead.
+    if (!gameStartup || !gameStartup->Init(startupParams))
     {
-        LOGE("[ERROR] Failed to create the GameStartup Interface!\n");
     #if !defined(AZ_MONOLITHIC_BUILD)
-        if (legacyGameDllStartup)
+        systemLib = CryLoadLibraryDefName("CrySystem");
+        PFNCREATESYSTEMINTERFACE CreateSystemInterface = systemLib ? (PFNCREATESYSTEMINTERFACE)CryGetProcAddress(systemLib, "CreateSystemInterface") : nullptr;
+        if (CreateSystemInterface)
         {
-            CryFreeLibrary(gameDll);
+            startupParams.pSystem = CreateSystemInterface(startupParams);
         }
-    #endif
-        MAIN_EXIT_FAILURE();
+    #else
+        startupParams.pSystem = CreateSystemInterface(startupParams);
+    #endif // AZ_MONOLITHIC_BUILD
     }
 
-    // run the game
-    IGame* game = gameStartup->Init(startupParams);
-    if (game)
+    if (startupParams.pSystem)
     {
         AZ::Android::Utils::DismissSplashScreen();
 
-#if !defined(SYS_ENV_AS_STRUCT)
+    #if !defined(SYS_ENV_AS_STRUCT)
         gEnv = startupParams.pSystem->GetGlobalEnvironment();
-#endif
+    #endif
 
         // Execute autoexec.cfg to load the initial level
         gEnv->pConsole->ExecuteString("exec autoexec.cfg");
 
         // Run the main loop
-        LumberyardLauncher::RunMainLoop(gameApp, *gEnv->pGame->GetIGameFramework());
-    }
+        LumberyardLauncher::RunMainLoop(gameApp);
+	}
     else
     {
-        LOGE("[ERROR] Failed to initialize the GameStartup Interface!\n");
+        MAIN_EXIT_FAILURE(appState, "Failed to initialize the CrySystem Interface!");
     }
 
     // Shutdown
-    AZ::Android::AndroidEnv::Destroy();
+    if (gameStartup)
+    {
+        gameStartup->Shutdown();
+        gameStartup = 0;
+    }
 
-    gameStartup->Shutdown();
-    gameStartup = 0;
+#if !defined(AZ_MONOLITHIC_BUILD)
+    if (legacyGameDllStartup)
+    {
+        CryFreeLibrary(gameDll);
+    }
+
+    if (systemLib)
+    {
+        CryFreeLibrary(systemLib);
+    }
+#endif
 
     gameApp.Stop();
+
+    AZ::Android::AndroidEnv::Destroy();
 }
 

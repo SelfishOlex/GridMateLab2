@@ -11,7 +11,7 @@
 */
 // Original file Copyright Crytek GMBH or its affiliates, used under license.
 
-#include "StdAfx.h"
+#include "stdafx.h"
 #include "EditorDefs.h"
 #include "Resource.h"
 #include "UiEditorAnimationBus.h"
@@ -359,7 +359,7 @@ CUiAnimViewNodesCtrl::CUiAnimViewNodesCtrl(QWidget* hParentWnd, CUiAnimViewDialo
     action->setShortcut(QKeySequence::Delete);
     action->setShortcutContext(Qt::WidgetWithChildrenShortcut);
     QObject::connect(action,
-        &QAction::triggered,
+        &QAction::triggered, this,
         [this](bool checked)
         {
             CUiAnimViewSequence* pSequence = nullptr;
@@ -1472,24 +1472,20 @@ void CUiAnimViewNodesCtrl::SetPopupMenuLock(QMenu* menu)
 //////////////////////////////////////////////////////////////////////////
 float CUiAnimViewNodesCtrl::SaveVerticalScrollPos() const
 {
-#ifdef KDAB_PORT    // will remove when sure it's not needed
-    int sbMin = 0, sbMax = 0;
-    GetScrollRange(SB_VERT, &sbMin, &sbMax);
-    return float(GetTopRowIndex()) / std::max(float(sbMax - sbMin), 1.0f);
-#endif
-    return 0.f;
+    const QScrollBar* scrollBar = ui->treeWidget->verticalScrollBar();
+    const int sbMin = scrollBar->minimum();
+    const int sbMax = scrollBar->maximum();
+    return float(scrollBar->value()) / std::max(float(sbMax - sbMin), 1.0f);
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CUiAnimViewNodesCtrl::RestoreVerticalScrollPos(float fScrollPos)
 {
-#ifdef KDAB_PORT    // will remove when sure it's not needed
-    int sbMin = 0, sbMax = 0;
-    GetScrollRange(SB_VERT, &sbMin, &sbMax);
-    int newScrollPos = FloatToIntRet(fScrollPos * (sbMax - sbMin) + sbMin);
-    SetTopRow(newScrollPos);
-#endif
-    update();
+    QScrollBar* scrollBar = ui->treeWidget->verticalScrollBar();
+    const int sbMin = scrollBar->minimum();
+    const int sbMax = scrollBar->maximum();
+    const int newScrollPos = FloatToIntRet(fScrollPos * (sbMax - sbMin) + sbMin);
+    scrollBar->setValue(newScrollPos);
 }
 
 //////////////////////////////////////////////////////////////////////////

@@ -96,6 +96,7 @@ namespace AzToolsFramework
         void SetEditButtonTooltip(QString tooltip);
         void SetCurrentAssetID(const AZ::Data::AssetId& newID);
         void SetCurrentAssetType(const AZ::Data::AssetType& newType);
+        void SetCurrentAssetID(const AZ::Data::AssetId& newID, const AZ::Data::AssetType& newType);
         void SetCurrentAssetHint(const AZStd::string& hint);
         void PopupAssetBrowser();
         void ClearAsset();

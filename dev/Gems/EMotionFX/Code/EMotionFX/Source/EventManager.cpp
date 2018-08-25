@@ -17,10 +17,13 @@
 #include "EventHandler.h"
 #include "AnimGraphStateMachine.h"
 #include "AnimGraph.h"
-
+#include <EMotionFX/Source/Allocators.h>
 
 namespace EMotionFX
 {
+    AZ_CLASS_ALLOCATOR_IMPL(EventManager, MotionEventManagerAllocator, 0)
+
+
     // the constructor
     EventManager::EventManager()
         : BaseObject()
@@ -48,7 +51,7 @@ namespace EMotionFX
     // create
     EventManager* EventManager::Create()
     {
-        return new EventManager();
+        return aznew EventManager();
     }
 
 
@@ -268,7 +271,7 @@ namespace EMotionFX
         const uint32 numEvents = mRegisteredEventTypes.GetLength();
         for (uint32 i = 0; i < numEvents; ++i)
         {
-            if (mRegisteredEventTypes[i].mEventType.CheckIfIsEqualNoCase(eventType))
+            if (AzFramework::StringFunc::Equal(mRegisteredEventTypes[i].mEventType.c_str(), eventType, false /* no case */))
             {
                 return mRegisteredEventTypes[i].mEventID;
             }
@@ -322,12 +325,12 @@ namespace EMotionFX
     // get a event type string for a given event number
     const char* EventManager::GetEventTypeString(uint32 eventIndex) const
     {
-        return mRegisteredEventTypes[eventIndex].mEventType.AsChar();
+        return mRegisteredEventTypes[eventIndex].mEventType.c_str();
     }
 
 
     // get a event type string for a given event number
-    const MCore::String& EventManager::GetEventTypeStringAsString(uint32 eventIndex) const
+    const AZStd::string& EventManager::GetEventTypeStringAsString(uint32 eventIndex) const
     {
         return mRegisteredEventTypes[eventIndex].mEventType;
     }
@@ -358,7 +361,7 @@ namespace EMotionFX
         const uint32 numEvents = mRegisteredEventTypes.GetLength();
         for (uint32 i = 0; i < numEvents; ++i)
         {
-            if (mRegisteredEventTypes[i].mEventType.CheckIfIsEqualNoCase(eventType))
+            if (AzFramework::StringFunc::Equal(mRegisteredEventTypes[i].mEventType.c_str(), eventType, false /* no case */))
             {
                 return i;
             }
@@ -763,12 +766,8 @@ namespace EMotionFX
 
 
     // call the callbacks for when we renamed a node
-    void EventManager::OnRenamedNode(AnimGraph* animGraph, AnimGraphNode* node, const MCore::String& oldName)
+    void EventManager::OnRenamedNode(AnimGraph* animGraph, AnimGraphNode* node, const AZStd::string& oldName)
     {
-        // get the root state machine and call the callbacks recursively
-        AnimGraphStateMachine* rootSM = animGraph->GetRootStateMachine();
-        rootSM->OnRenamedNode(animGraph, node, oldName);
-
         // get the number of event handlers and iterate through them
         const uint32 numEventHandlers = mEventHandlers.GetLength();
         for (uint32 i = 0; i < numEventHandlers; ++i)
@@ -781,10 +780,6 @@ namespace EMotionFX
     // call the callbacks for a node creation
     void EventManager::OnCreatedNode(AnimGraph* animGraph, AnimGraphNode* node)
     {
-        // get the root state machine and call the callbacks recursively
-        AnimGraphStateMachine* rootSM = animGraph->GetRootStateMachine();
-        rootSM->OnCreatedNode(animGraph, node);
-
         // get the number of event handlers and iterate through them
         const uint32 numEventHandlers = mEventHandlers.GetLength();
         for (uint32 i = 0; i < numEventHandlers; ++i)
@@ -843,24 +838,13 @@ namespace EMotionFX
     }
 
 
-    void EventManager::OnParameterNodeMaskChanged(BlendTreeParameterNode* parameterNode)
+    void EventManager::OnParameterNodeMaskChanged(BlendTreeParameterNode* parameterNode, const AZStd::vector<AZStd::string>& newParameterMask)
     {
         // get the number of event handlers and iterate through them
         const uint32 numEventHandlers = mEventHandlers.GetLength();
         for (uint32 i = 0; i < numEventHandlers; ++i)
         {
-            mEventHandlers[i]->OnParameterNodeMaskChanged(parameterNode);
-        }
-    }
-
-
-    void EventManager::OnConditionTriggered(AnimGraphInstance* animGraphInstance, AnimGraphTransitionCondition* condition)
-    {
-        // get the number of event handlers and iterate through them
-        const uint32 numEventHandlers = mEventHandlers.GetLength();
-        for (uint32 i = 0; i < numEventHandlers; ++i)
-        {
-            mEventHandlers[i]->OnConditionTriggered(animGraphInstance, condition);
+            mEventHandlers[i]->OnParameterNodeMaskChanged(parameterNode, newParameterMask);
         }
     }
 
@@ -1115,14 +1099,4 @@ namespace EMotionFX
         }
     }
 
-
-    // scale animgraph data
-    void EventManager::OnScaleAnimGraphData(AnimGraph* animGraph, float scaleFactor)
-    {
-        const uint32 numEventHandlers = mEventHandlers.GetLength();
-        for (uint32 i = 0; i < numEventHandlers; ++i)
-        {
-            mEventHandlers[i]->OnScaleAnimGraphData(animGraph, scaleFactor);
-        }
-    }
 } // namespace EMotionFX

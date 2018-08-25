@@ -66,6 +66,7 @@
 #include "Animation/MotionParameterSmoothingComponent.h"
 #include "Animation/CharacterAnimationManagerComponent.h"
 #include "Ai/NavigationSystemComponent.h"
+#include "Geometry/GeometrySystemComponent.h"
 
 // Unhandled asset types
 // Animation
@@ -128,6 +129,7 @@
 #include "Shape/BoxShapeComponent.h"
 #include "Shape/CylinderShapeComponent.h"
 #include "Shape/CapsuleShapeComponent.h"
+#include "Shape/TubeShapeComponent.h"
 #include "Shape/CompoundShapeComponent.h"
 #include "Shape/SplineComponent.h"
 #include "Shape/PolygonPrismShapeComponent.h"
@@ -194,17 +196,25 @@ namespace LmbrCentral
             BoxShapeComponent::CreateDescriptor(),
             CylinderShapeComponent::CreateDescriptor(),
             CapsuleShapeComponent::CreateDescriptor(),
+            TubeShapeComponent::CreateDescriptor(),
             PrimitiveColliderComponent::CreateDescriptor(),
             CompoundShapeComponent::CreateDescriptor(),
             SplineComponent::CreateDescriptor(),
             PolygonPrismShapeComponent::CreateDescriptor(),
             StereoRendererComponent::CreateDescriptor(),
             NavigationSystemComponent::CreateDescriptor(),
+            GeometrySystemComponent::CreateDescriptor(),
             FogVolumeComponent::CreateDescriptor(),
             RandomTimedSpawnerComponent::CreateDescriptor(),
             GeometryCacheComponent::CreateDescriptor(),
+            SphereShapeDebugDisplayComponent::CreateDescriptor(),
+            BoxShapeDebugDisplayComponent::CreateDescriptor(),
+            CapsuleShapeDebugDisplayComponent::CreateDescriptor(),
+            CylinderShapeDebugDisplayComponent::CreateDescriptor(),
+            PolygonPrismShapeDebugDisplayComponent::CreateDescriptor(),
+            TubeShapeDebugDisplayComponent::CreateDescriptor(),
 #if AZ_LOADSCREENCOMPONENT_ENABLED
-                LoadScreenComponent::CreateDescriptor(),
+            LoadScreenComponent::CreateDescriptor(),
 #endif // if AZ_LOADSCREENCOMPONENT_ENABLED
             });
 
@@ -229,6 +239,7 @@ namespace LmbrCentral
                    azrtti_typeid<CharacterAnimationManagerComponent>(),
                    azrtti_typeid<StereoRendererComponent>(),
                    azrtti_typeid<NavigationSystemComponent>(),
+                   azrtti_typeid<GeometrySystemComponent>(),
 #if AZ_LOADSCREENCOMPONENT_ENABLED
                    azrtti_typeid<LoadScreenComponent>(),
 #endif // if AZ_LOADSCREENCOMPONENT_ENABLED
@@ -249,7 +260,6 @@ namespace LmbrCentral
 
             serializeContext->Class<LmbrCentralSystemComponent, AZ::Component>()
                 ->Version(1)
-                ->SerializerForEmptyClass()
             ;
 
             if (AZ::EditContext* editContext = serializeContext->GetEditContext())
@@ -267,9 +277,10 @@ namespace LmbrCentral
 
         if (AZ::BehaviorContext* behaviorContext = azrtti_cast<AZ::BehaviorContext*>(context))
         {
-            ReflectScriptableEvents::Reflect(behaviorContext);
             MaterialHandle::Reflect(behaviorContext);
         }
+
+        ReflectScriptableEvents::Reflect(context);
     }
 
     void LmbrCentralSystemComponent::GetProvidedServices(AZ::ComponentDescriptor::DependencyArrayType& provided)
@@ -461,6 +472,8 @@ namespace LmbrCentral
 
     void LmbrCentralSystemComponent::OnAssetEventsDispatched()
     {
+        AZ_Assert((!gEnv) || (gEnv->mMainThreadId == CryGetCurrentThreadId()), "OnAssetEventsDispatched from a non-main thread - the AssetBus should only be called from the main thread!");
+
         // Pump deferred engine loading events.
         if (gEnv && gEnv->mMainThreadId == CryGetCurrentThreadId())
         {

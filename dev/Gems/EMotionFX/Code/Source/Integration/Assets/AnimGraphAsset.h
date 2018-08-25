@@ -13,8 +13,7 @@
 
 #pragma once
 
-#include <Integration/Assets/MotionSetAsset.h> // forward-decl?
-
+#include <Integration/Assets/AssetCommon.h>
 
 namespace EMotionFX
 {
@@ -26,33 +25,36 @@ namespace EMotionFX
     {
         class ActorAsset;
 
-        class AnimGraphAsset : public EMotionFXAsset
+        class AnimGraphAsset 
+            : public EMotionFXAsset
         {
         public:
 
             friend class AnimGraphAssetHandler;
 
-            AZ_CLASS_ALLOCATOR(AnimGraphAsset, EMotionFXAllocator, 0);
+            AZ_CLASS_ALLOCATOR_DECL
             AZ_RTTI(AnimGraphAsset, "{28003359-4A29-41AE-8198-0AEFE9FF5263}", EMotionFXAsset);
 
             AnimGraphAsset();
 
             typedef EMotionFXPtr<EMotionFX::AnimGraphInstance> AnimGraphInstancePtr;
             AnimGraphInstancePtr CreateInstance(
-                const EMotionFXPtr<EMotionFX::ActorInstance>& actorInstance,
-                const EMotionFXPtr<EMotionFX::MotionSet>& motionSet);
+                EMotionFX::ActorInstance* actorInstance,
+                EMotionFX::MotionSet* motionSet);
 
-            EMotionFXPtr<EMotionFX::AnimGraph> GetAnimGraph() { return m_emfxAnimGraph; }
+            EMotionFX::AnimGraph* GetAnimGraph() { return m_emfxAnimGraph ? m_emfxAnimGraph.get() : nullptr; }
+
+            void SetData(EMotionFX::AnimGraph* animGraph);
 
         private:
 
-            EMotionFXPtr<EMotionFX::AnimGraph> m_emfxAnimGraph;
+            AZStd::unique_ptr<EMotionFX::AnimGraph> m_emfxAnimGraph;
         };
 
         class AnimGraphAssetHandler : public EMotionFXAssetHandler<AnimGraphAsset>
         {
         public:
-            AZ_CLASS_ALLOCATOR(AnimGraphAssetHandler, EMotionFXAllocator, 0);
+            AZ_CLASS_ALLOCATOR_DECL
 
             bool OnInitAsset(const AZ::Data::Asset<AZ::Data::AssetData>& asset) override final;
             void DestroyAsset(AZ::Data::AssetPtr ptr) override final;

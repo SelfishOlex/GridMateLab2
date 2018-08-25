@@ -33,8 +33,6 @@
 
 #include <LoadScreenBus.h>
 
-#include "CheatProtection.h"
-
 struct IConsoleCmdArgs;
 class CServerThrottle;
 struct ICryFactoryRegistryImpl;
@@ -49,6 +47,13 @@ namespace minigui
     struct IMiniGUI;
 }
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#undef AZ_RESTRICTED_SECTION
+#define SYSTEM_H_SECTION_1 1
+#define SYSTEM_H_SECTION_2 2
+#define SYSTEM_H_SECTION_3 3
+#define SYSTEM_H_SECTION_4 4
+#endif
 
 #if defined(ANDROID)
 #define USE_ANDROIDCONSOLE
@@ -63,7 +68,8 @@ namespace minigui
 #endif
 
 #if defined(AZ_RESTRICTED_PLATFORM)
-#include AZ_RESTRICTED_FILE(System_h)
+#define AZ_RESTRICTED_SECTION SYSTEM_H_SECTION_1
+#include AZ_RESTRICTED_FILE(System_h, AZ_RESTRICTED_PLATFORM)
 #else
 #if defined(WIN32) || defined(LINUX) || defined(APPLE)
 #define AZ_LEGACY_CRYSYSTEM_TRAIT_ALLOW_CREATE_BACKUP_LOG_FILE 1
@@ -143,16 +149,8 @@ namespace minigui
 #define AZ_LEGACY_CRYSYSTEM_TRAIT_JOBMANAGER_SIXWORKERTHREADS 0
 #endif
 
-#if defined (LINUX)
-#define AZ_LEGACY_CRYSYSTEM_TRAIT_MEMREPLAY_MODULE_STATE 0
-#endif
-
 #if defined(WIN32)
 #define AZ_LEGACY_CRYSYSTEM_TRAIT_MEMADDRESSRANGE_WINDOWS_STYLE 1
-#endif
-
-#if !defined(LINUX) && !defined(APPLE)
-#define AZ_LEGACY_CRYSYSTEM_TRAIT_STROBOSCOPE_PTHREADS 1
 #endif
 
 #if 1
@@ -319,6 +317,9 @@ struct SSystemCVars
 
 #if defined(WIN32)
     int sys_display_threads;
+#elif defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION SYSTEM_H_SECTION_2
+#include AZ_RESTRICTED_FILE(System_h, AZ_RESTRICTED_PLATFORM)
 #endif
 };
 extern SSystemCVars g_cvars;
@@ -519,6 +520,8 @@ public:
     virtual IDiskProfiler* GetIDiskProfiler() { return m_pDiskProfiler; }
     CThreadProfiler* GetThreadProfiler() { return m_pThreadProfiler; }
     INameTable* GetINameTable() { return m_env.pNameTable; };
+    IViewSystem* GetIViewSystem();
+    ILevelSystem* GetILevelSystem();
     IBudgetingSystem* GetIBudgetingSystem()  { return(m_pIBudgetingSystem); }
     IFlowSystem* GetIFlowSystem() { return m_env.pFlowSystem; }
     IDialogSystem* GetIDialogSystem() { return m_env.pDialogSystem; }
@@ -762,7 +765,7 @@ private:
     void WaitForAssetProcessorToBeReady();
 #endif
 
-    CHEAT_PROTECTION_EXPORT bool OpenRenderLibrary(const char* t_rend, const SSystemInitParams& initParams);
+    bool OpenRenderLibrary(const char* t_rend, const SSystemInitParams& initParams);
 
     //@}
 
@@ -780,7 +783,6 @@ private:
     void CreateAudioVars();
     void RenderStats();
     void RenderOverscanBorders();
-    void RenderJobStats();
     void RenderMemStats();
     void RenderThreadInfo();
     WIN_HMODULE LoadDLL(const char* dllName);
@@ -809,7 +811,10 @@ private:
 
     WIN_HMODULE LoadDynamiclibrary(const char* dllName) const;
 
-#if   defined(WIN32)
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION SYSTEM_H_SECTION_3
+#include AZ_RESTRICTED_FILE(System_h, AZ_RESTRICTED_PLATFORM)
+#elif defined(WIN32)
     bool GetWinGameFolder(char* szMyDocumentsPath, int maxPathSize);
 #endif
 
@@ -941,6 +946,12 @@ private: // ------------------------------------------------------
     //! The default font for end-user UI interfaces
     IFFont* m_pIFontUi;
 
+    //! System to manage levels.
+    ILevelSystem* m_pLevelSystem;
+
+    //! System to manage views.
+    IViewSystem* m_pViewSystem;
+
     //! System to monitor given budget.
     IBudgetingSystem* m_pIBudgetingSystem;
 
@@ -977,7 +988,6 @@ private: // ------------------------------------------------------
     //////////////////////////////////////////////////////////////////////////
 
     // DLL names
-    ICVar* m_sys_dll_ai;
     ICVar* m_sys_dll_response_system;
     ICVar* m_sys_dll_game;
     ICVar* m_sys_game_folder;
@@ -1042,10 +1052,6 @@ private: // ------------------------------------------------------
     ICVar* m_sys_profile_memory;
     ICVar* m_sys_profile_sampler;
     ICVar* m_sys_profile_sampler_max_samples;
-    ICVar* m_sys_job_system_filter;
-    ICVar* m_sys_job_system_enable;
-    ICVar* m_sys_job_system_profiler;
-    ICVar* m_sys_job_system_max_worker;
     ICVar* m_sys_GraphicsQuality;
     ICVar* m_sys_firstlaunch;
     ICVar* m_sys_skip_input;
@@ -1053,6 +1059,10 @@ private: // ------------------------------------------------------
 
     ICVar* m_sys_physics_CPU;
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION SYSTEM_H_SECTION_4
+#include AZ_RESTRICTED_FILE(System_h, AZ_RESTRICTED_PLATFORM)
+#endif
 
     ICVar* m_sys_audio_disable;
 

@@ -11,8 +11,12 @@
 */
 // Original file Copyright Crytek GMBH or its affiliates, used under license.
 
-#ifndef __SHADERCACHE_H__
-#define __SHADERCACHE_H__
+#pragma once
+
+// Shader cache directory
+#define g_shaderCache "Shaders/Cache/"
+
+#define CONCAT_PATHS(a, b) a b
 
 struct SPreprocessMasks
 {
@@ -104,6 +108,9 @@ struct SShaderLevelPolicies
 // CRY DX12
 union UPipelineState // Pipeline state relevant for shader instantiation
 {
+#if defined(AZ_RESTRICTED_PLATFORM)
+#include AZ_RESTRICTED_FILE(ShaderCache_h, AZ_RESTRICTED_PLATFORM)
+#endif
     uint64 opaque;
     UPipelineState()
         : opaque(0) {
@@ -432,7 +439,3 @@ typedef std::map<CCryNameR, SCacheCombination> FXShaderCacheCombinations;
 typedef FXShaderCacheCombinations::iterator FXShaderCacheCombinationsItor;
 typedef std::map<CCryNameR, std::vector<SCacheCombination> > FXShaderCacheCombinationsList;
 typedef FXShaderCacheCombinationsList::iterator FXShaderCacheCombinationsListItor;
-
-
-#endif
-

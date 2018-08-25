@@ -15,7 +15,10 @@
 #include "RenderPlugin.h"
 #include "../EMStudioCore.h"
 #include "../PreferencesWindow.h"
+#include <AzCore/Component/ComponentApplicationBus.h>
 #include <EMotionFX/CommandSystem/Source/SelectionList.h>
+#include <AzToolsFramework/UI/PropertyEditor/ReflectedPropertyEditor.hxx>
+
 #include <QMenuBar>
 
 
@@ -196,9 +199,9 @@ namespace EMStudio
             // toolbar button
             QPushButton* toolbarButton = new QPushButton();
             mToolbarButtons[actionIndex] = toolbarButton;
-            MCore::String iconFileName = "Images/Rendering/";
+            AZStd::string iconFileName = "Images/Rendering/";
             iconFileName += toolbarIconFileName;
-            toolbarButton->setIcon(MysticQt::GetMysticQt()->FindIcon(iconFileName.AsChar()));
+            toolbarButton->setIcon(MysticQt::GetMysticQt()->FindIcon(iconFileName.c_str()));
             toolbarButton->setCheckable(true);
             toolbarButton->setToolTip(menuEntryName);
 
@@ -236,7 +239,33 @@ namespace EMStudio
         {
             mRenderOptionsWindow = new PreferencesWindow(this);
             mRenderOptionsWindow->Init();
-            mRenderOptionsWindow->AddCategoriesFromPlugin(mPlugin);
+
+            AzToolsFramework::ReflectedPropertyEditor* generalPropertyWidget = mRenderOptionsWindow->FindPropertyWidgetByName("General");
+            if (!generalPropertyWidget)
+            {
+                generalPropertyWidget = mRenderOptionsWindow->AddCategory("General", "Images/Preferences/General.png", false);
+                generalPropertyWidget->ClearInstances();
+                generalPropertyWidget->InvalidateAll();
+            }
+
+            AZ::SerializeContext* serializeContext = nullptr;
+            AZ::ComponentApplicationBus::BroadcastResult(serializeContext, &AZ::ComponentApplicationBus::Events::GetSerializeContext);
+            if (!serializeContext)
+            {
+                AZ_Error("EMotionFX", false, "Can't get serialize context from component application.");
+                return;
+            }
+
+            PluginOptions* pluginOptions = mPlugin->GetOptions();
+            AZ_Assert(pluginOptions, "Expected options in render plugin");
+            generalPropertyWidget->AddInstance(pluginOptions, azrtti_typeid(pluginOptions));
+
+            // Now add EMStudio settings
+            generalPropertyWidget->SetAutoResizeLabels(true);
+            generalPropertyWidget->Setup(serializeContext, nullptr, true);
+            generalPropertyWidget->show();
+            generalPropertyWidget->ExpandAll();
+            generalPropertyWidget->InvalidateAll();
         }
 
         mRenderOptionsWindow->show();

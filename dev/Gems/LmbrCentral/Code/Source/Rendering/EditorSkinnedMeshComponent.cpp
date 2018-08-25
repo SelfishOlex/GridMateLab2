@@ -152,6 +152,7 @@ namespace LmbrCentral
         AzFramework::EntityDebugDisplayEventBus::Handler::BusConnect(GetEntityId());
         SkinnedMeshComponentRequestBus::Handler::BusConnect(GetEntityId());
         SkeletalHierarchyRequestBus::Handler::BusConnect(GetEntityId());
+        AzToolsFramework::EditorComponentSelectionRequestsBus::Handler::BusConnect(GetEntityId());
 
         auto renderOptionsChangeCallback =
             [this]()
@@ -160,7 +161,14 @@ namespace LmbrCentral
         };
         m_mesh.m_renderOptions.m_changeCallback = renderOptionsChangeCallback;
 
-        m_mesh.CreateMesh();
+        if (m_mesh.m_isQueuedForDestroyMesh)
+        {
+            m_mesh.m_isQueuedForDestroyMesh = false;
+        }
+        else
+        {
+            m_mesh.CreateMesh();
+        }
     }
 
     void EditorSkinnedMeshComponent::Deactivate()
@@ -174,12 +182,21 @@ namespace LmbrCentral
         AZ::TransformNotificationBus::Handler::BusDisconnect();
         AzToolsFramework::EditorVisibilityNotificationBus::Handler::BusDisconnect();
         AzFramework::EntityDebugDisplayEventBus::Handler::BusDisconnect();
+        AzToolsFramework::EditorComponentSelectionRequestsBus::Handler::BusDisconnect();
 
         DestroyEditorPhysics();
 
         m_mesh.m_renderOptions.m_changeCallback = 0;
 
-        m_mesh.DestroyMesh();
+        if (!m_mesh.GetMeshAsset().IsReady())
+        {
+            m_mesh.m_isQueuedForDestroyMesh = true;
+        }
+        else
+        {
+            m_mesh.DestroyMesh();
+        }
+
         m_mesh.AttachToEntity(AZ::EntityId());
 
         EditorComponentBase::Deactivate();
@@ -290,6 +307,11 @@ namespace LmbrCentral
         {
             m_mesh.CopyPropertiesTo(meshComponent->m_skinnedMeshRenderNode);
         }
+    }
+
+    AZ::Aabb EditorSkinnedMeshComponent::GetEditorSelectionBounds()
+    {
+        return GetWorldBounds();
     }
 
     void EditorSkinnedMeshComponent::CreateEditorPhysics()

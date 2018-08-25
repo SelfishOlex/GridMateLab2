@@ -9,10 +9,15 @@
 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 *
 */
-#ifndef AZCORE_BASE_H
-#define AZCORE_BASE_H 1
+#pragma once
 
 #include <AzCore/PlatformDef.h> ///< Platform/compiler specific defines
+
+#if defined(AZ_RESTRICTED_PLATFORM)
+#undef AZ_RESTRICTED_SECTION
+#define BASE_H_SECTION_1 1
+#define BASE_H_SECTION_2 2
+#endif
 
 #if defined(AZ_DEBUG_BUILD) && defined(AZ_PLATFORM_WINDOWS) && !defined(AZ_PLATFORM_WINDOWS_X64)
 // for x86 we need to stop FPO (Frame Pointer Omit) so we can record good callstack fast!
@@ -65,8 +70,16 @@ namespace AZ
 
 #if defined(AZ_PLATFORM_WINDOWS_X64)
     static const PlatformID g_currentPlatform = PLATFORM_WINDOWS_64;
+#define AZ_RESTRICTED_SECTION_IMPLEMENTED
 #elif defined(AZ_PLATFORM_WINDOWS)
     static const PlatformID g_currentPlatform = PLATFORM_WINDOWS_32;
+#define AZ_RESTRICTED_SECTION_IMPLEMENTED
+#elif defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION BASE_H_SECTION_1
+#include AZ_RESTRICTED_FILE(base_h, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
 #elif defined(AZ_PLATFORM_LINUX_X64)
     static const PlatformID g_currentPlatform = PLATFORM_LINUX_64;
 #elif defined(AZ_PLATFORM_ANDROID_X32)
@@ -166,7 +179,7 @@ namespace AZ
 #if AZ_TRAIT_USE_SECURE_CRT_FUNCTIONS
 #   define azsnprintf(_buffer, _size, ...)        _snprintf_s(_buffer, _size, _size-1, __VA_ARGS__)
 #   define azvsnprintf(_buffer, _size, ...)       _vsnprintf_s(_buffer, _size, _size-1, __VA_ARGS__)
-#   define azswnprintf(_buffer, _size, ...)       _snwprintf_s(_buffer, _size, _size-1, __VA_ARGS__)
+#   define azsnwprintf(_buffer, _size, ...)       _snwprintf_s(_buffer, _size, _size-1, __VA_ARGS__)
 #   define azvsnwprintf(_buffer, _size, ...)      _vsnwprintf_s(_buffer, _size, _size-1, __VA_ARGS__)
 #   define azstrtok(_buffer, _size, _delim, _context)  strtok_s(_buffer, _delim, _context)
 #   define azstrcat         strcat_s
@@ -179,14 +192,29 @@ namespace AZ
 #   define azstricmp        _stricmp
 #   define azstrnicmp       _strnicmp
 #   define isfinite         _finite
+#   define azltoa           _ltoa_s
+#   define azitoa           _itoa_s
+#   define azui64toa        _ui64toa_s
+#   define azswscanf        swscanf_s
+#   define azwcsicmp        _wcsicmp
+#   define azwcsnicmp       _wcsnicmp
+#   define azmemicmp        _memicmp
+#   define azfopen          fopen_s
+#   define azsprintf(_buffer, ...)      sprintf_s(_buffer, AZ_ARRAY_SIZE(_buffer), __VA_ARGS__)
+#   define azstrlwr         _strlwr_s
+#   define azvsprintf       vsprintf_s
+#   define azwcscpy         wcscpy_s
+#   define azstrtime        _strtime_s
+#   define azstrdate        _strdate_s
+#   define azlocaltime(time, result) localtime_s(result, time)
 #else
 #   define azsnprintf       snprintf
 #   define azvsnprintf      vsnprintf
 #   if AZ_TRAIT_COMPILER_DEFINE_AZSWNPRINTF_AS_SWPRINTF
-#       define azswnprintf  swprintf
+#       define azsnwprintf  swprintf
 #       define azvsnwprintf vswprintf
 #   else
-#       define azswnprintf  snwprintf
+#       define azsnwprintf  snwprintf
 #       define azvsnwprintf vsnwprintf
 #   endif
 #   define azstrtok(_buffer, _size, _delim, _context)  strtok(_buffer, _delim)
@@ -197,6 +225,21 @@ namespace AZ
 #   define azstrncpy(_dest, _destSize, _src, _count) strncpy(_dest, _src, _count)
 #   define azstricmp        strcasecmp
 #   define azstrnicmp       strncasecmp
+#   define azltoa(_value, _buffer, _size, _radix) ltoa(_value, _buffer, _radix)
+#   define azitoa(_value, _buffer, _size, _radix) itoa(_value, _buffer, _radix)
+#   define azui64toa(_value, _buffer, _size, _radix) _ui64toa(_value, _buffer, _radix)
+#   define azswscanf        swscanf
+#   define azwcsicmp        wcsicmp
+#   define azwcsnicmp       wcsnicmp
+#   define azmemicmp        memicmp
+#   define azfopen(_fp, _filename, _attrib) *(_fp) = fopen(_filename, _attrib)
+#   define azsprintf       sprintf
+#   define azstrlwr(_buffer, _size)             strlwr(_buffer)
+#   define azvsprintf       vsprintf
+#   define azwcscpy(_dest, _size, _buffer)      wcscpy(_dest, _buffer)
+#   define azstrtime        _strtime
+#   define azstrdate        _strdate
+#   define azlocaltime      localtime_r
 #endif
 
 #if defined(AZ_PLATFORM_APPLE) || defined(AZ_PLATFORM_ANDROID) || defined(AZ_PLATFORM_LINUX)
@@ -365,6 +408,13 @@ namespace AZ
 
 // Platform includes
 #ifdef AZ_PLATFORM_WINDOWS
+#define AZ_RESTRICTED_SECTION_IMPLEMENTED
+#elif defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION BASE_H_SECTION_2
+#include AZ_RESTRICTED_FILE(base_h, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
 #elif defined(AZ_PLATFORM_LINUX)
 
 #elif defined(AZ_PLATFORM_ANDROID)
@@ -416,6 +466,3 @@ inline  EnumType operator ^ (EnumType a, EnumType b) \
     { return EnumType(((AZStd::underlying_type<EnumType>::type)a) ^ ((AZStd::underlying_type<EnumType>::type)b)); } \
 inline EnumType &operator ^= (EnumType &a, EnumType b) \
     { return (EnumType &)(((AZStd::underlying_type<EnumType>::type &)a) ^= ((AZStd::underlying_type<EnumType>::type)b)); }
-
-#endif // AZCORE_BASE_H
-#pragma once

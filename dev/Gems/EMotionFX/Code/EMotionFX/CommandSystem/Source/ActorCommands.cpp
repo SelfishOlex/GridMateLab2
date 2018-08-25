@@ -10,7 +10,6 @@
 *
 */
 
-#include <AzFramework/StringFunc/StringFunc.h>
 #include <EMotionFX/Source/Actor.h>
 #include <EMotionFX/Source/EventManager.h>
 #include <EMotionFX/Source/Recorder.h>
@@ -22,7 +21,6 @@
 #include <EMotionFX/Source/AnimGraphObject.h>
 #include <EMotionFX/Source/TransformData.h>
 #include <EMotionFX/Source/Mesh.h>
-#include <MCore/Source/AttributeSet.h>
 #include <MCore/Source/FileSystem.h>
 #include "ActorCommands.h"
 #include "CommandManager.h"
@@ -45,7 +43,7 @@ namespace CommandSystem
     }
 
 
-    bool CommandAdjustActor::Execute(const MCore::CommandLine& parameters, MCore::String& outResult)
+    bool CommandAdjustActor::Execute(const MCore::CommandLine& parameters, AZStd::string& outResult)
     {
         const uint32 actorID = parameters.GetValueAsInt("actorID", MCORE_INVALIDINDEX32);
 
@@ -53,7 +51,7 @@ namespace CommandSystem
         EMotionFX::Actor* actor = EMotionFX::GetActorManager().FindActorByID(actorID);
         if (!actor)
         {
-            outResult.Format("Cannot adjust actor. Actor ID %i is not valid.", actorID);
+            outResult = AZStd::string::format("Cannot adjust actor. Actor ID %i is not valid.", actorID);
             return false;
         }
 
@@ -90,6 +88,23 @@ namespace CommandSystem
                 {
                     animGraph->GetObject(n)->OnActorMotionExtractionNodeChanged();
                 }
+            }
+        }
+
+        // Set retarget root node.
+        if (parameters.CheckIfHasParameter("retargetRootNodeName"))
+        {
+            mOldRetargetRootNodeIndex = actor->GetRetargetRootNodeIndex();
+
+            AZStd::string retargetRootNodeName = parameters.GetValue("retargetRootNodeName", this);
+            if (retargetRootNodeName.empty() || retargetRootNodeName == "$NULL$")
+            {
+                actor->SetRetargetRootNode(nullptr);
+            }
+            else
+            {
+                EMotionFX::Node* node = skeleton->FindNodeByName(retargetRootNodeName.c_str());
+                actor->SetRetargetRootNode(node);
             }
         }
 
@@ -313,7 +328,7 @@ namespace CommandSystem
     }
 
 
-    bool CommandAdjustActor::Undo(const MCore::CommandLine& parameters, MCore::String& outResult)
+    bool CommandAdjustActor::Undo(const MCore::CommandLine& parameters, AZStd::string& outResult)
     {
         const uint32 actorID = parameters.GetValueAsInt("actorID", MCORE_INVALIDINDEX32);
 
@@ -321,13 +336,18 @@ namespace CommandSystem
         EMotionFX::Actor* actor = EMotionFX::GetActorManager().FindActorByID(actorID);
         if (!actor)
         {
-            outResult.Format("Cannot adjust actor. Actor ID %i is not valid.", actorID);
+            outResult = AZStd::string::format("Cannot adjust actor. Actor ID %i is not valid.", actorID);
             return false;
         }
 
         if (parameters.CheckIfHasParameter("motionExtractionNodeName"))
         {
             actor->SetMotionExtractionNodeIndex(mOldMotionExtractionNodeIndex);
+        }
+
+        if (parameters.CheckIfHasParameter("retargetRootNodeName"))
+        {
+            actor->SetRetargetRootNodeIndex(mOldRetargetRootNodeIndex);
         }
 
         if (parameters.CheckIfHasParameter("name"))
@@ -348,7 +368,7 @@ namespace CommandSystem
 
             if (!GetCommandManager()->ExecuteCommandInsideCommand(command, outResult))
             {
-                AZ_Error("EMotionFX", false, outResult.AsChar());
+                AZ_Error("EMotionFX", false, outResult.c_str());
                 return false;
             }
         }
@@ -360,7 +380,7 @@ namespace CommandSystem
 
             if (!GetCommandManager()->ExecuteCommandInsideCommand(command, outResult))
             {
-                AZ_Error("EMotionFX", false, outResult.AsChar());
+                AZ_Error("EMotionFX", false, outResult.c_str());
                 return false;
             }
         }
@@ -376,6 +396,7 @@ namespace CommandSystem
         GetSyntax().ReserveParameters(7);
         GetSyntax().AddRequiredParameter("actorID",            "The actor identification number of the actor to work on.", MCore::CommandSyntax::PARAMTYPE_INT);
         GetSyntax().AddParameter("motionExtractionNodeName",   "The node from which to transfer a filtered part of the motion onto the actor instance.", MCore::CommandSyntax::PARAMTYPE_STRING, "");
+        GetSyntax().AddParameter("retargetRootNodeName",       "The node that controls vertical movement of the character, most likely the hip or pelvis.", MCore::CommandSyntax::PARAMTYPE_STRING, "");
         GetSyntax().AddParameter("attachmentNodes",            "A list of nodes that should be set to attachment nodes.", MCore::CommandSyntax::PARAMTYPE_STRING, "");
         GetSyntax().AddParameter("nodesExcludedFromBounds",    "A list of nodes that are excluded from all bounding volume calculations.", MCore::CommandSyntax::PARAMTYPE_STRING, "");
         GetSyntax().AddParameter("name",                       "The name of the actor.", MCore::CommandSyntax::PARAMTYPE_STRING, "");
@@ -438,7 +459,7 @@ namespace CommandSystem
     }
 
 
-    bool CommandActorSetCollisionMeshes::Execute(const MCore::CommandLine& parameters, MCore::String& outResult)
+    bool CommandActorSetCollisionMeshes::Execute(const MCore::CommandLine& parameters, AZStd::string& outResult)
     {
         const uint32 actorID = parameters.GetValueAsInt("actorID", MCORE_INVALIDINDEX32);
 
@@ -446,7 +467,7 @@ namespace CommandSystem
         EMotionFX::Actor* actor = EMotionFX::GetActorManager().FindActorByID(actorID);
         if (!actor)
         {
-            outResult.Format("Cannot set collision meshes. Actor ID %i is not valid.", actorID);
+            outResult = AZStd::string::format("Cannot set collision meshes. Actor ID %i is not valid.", actorID);
             return false;
         }
 
@@ -454,7 +475,7 @@ namespace CommandSystem
         const uint32 lod = parameters.GetValueAsInt("lod", MCORE_INVALIDINDEX32);
         if (lod > (actor->GetNumLODLevels() - 1))
         {
-            outResult.Format("Cannot set collision meshes. LOD %i is not valid.", lod);
+            outResult = AZStd::string::format("Cannot set collision meshes. LOD %i is not valid.", lod);
             return false;
         }
 
@@ -504,13 +525,13 @@ namespace CommandSystem
         actor->SetDirtyFlag(true);
 
         // Reinit the renderable actors.
-        MCore::String reinitResult;
+        AZStd::string reinitResult;
         GetCommandManager()->ExecuteCommandInsideCommand("ReInitRenderActors -resetViewCloseup false", reinitResult);
         return true;
     }
 
 
-    bool CommandActorSetCollisionMeshes::Undo(const MCore::CommandLine& parameters, MCore::String& outResult)
+    bool CommandActorSetCollisionMeshes::Undo(const MCore::CommandLine& parameters, AZStd::string& outResult)
     {
         const uint32 actorID = parameters.GetValueAsInt("actorID", MCORE_INVALIDINDEX32);
 
@@ -518,7 +539,7 @@ namespace CommandSystem
         EMotionFX::Actor* actor = EMotionFX::GetActorManager().FindActorByID(actorID);
         if (!actor)
         {
-            outResult.Format("Cannot set collision meshes. Actor ID %i is not valid.", actorID);
+            outResult = AZStd::string::format("Cannot set collision meshes. Actor ID %i is not valid.", actorID);
             return false;
         }
 
@@ -552,7 +573,7 @@ namespace CommandSystem
     //--------------------------------------------------------------------------------
     // CommandResetToBindPose
     //--------------------------------------------------------------------------------
-    bool CommandResetToBindPose::Execute(const MCore::CommandLine& parameters, MCore::String& outResult)
+    bool CommandResetToBindPose::Execute(const MCore::CommandLine& parameters, AZStd::string& outResult)
     {
         MCORE_UNUSED(parameters);
 
@@ -578,7 +599,7 @@ namespace CommandSystem
     }
 
 
-    bool CommandResetToBindPose::Undo(const MCore::CommandLine& parameters, MCore::String& outResult)
+    bool CommandResetToBindPose::Undo(const MCore::CommandLine& parameters, AZStd::string& outResult)
     {
         MCORE_UNUSED(parameters);
         MCORE_UNUSED(outResult);
@@ -600,7 +621,7 @@ namespace CommandSystem
     //--------------------------------------------------------------------------------
     // CommandReInitRenderActors
     //--------------------------------------------------------------------------------
-    bool CommandReInitRenderActors::Execute(const MCore::CommandLine& parameters, MCore::String& outResult)
+    bool CommandReInitRenderActors::Execute(const MCore::CommandLine& parameters, AZStd::string& outResult)
     {
         MCORE_UNUSED(parameters);
         MCORE_UNUSED(outResult);
@@ -608,7 +629,7 @@ namespace CommandSystem
     }
 
 
-    bool CommandReInitRenderActors::Undo(const MCore::CommandLine& parameters, MCore::String& outResult)
+    bool CommandReInitRenderActors::Undo(const MCore::CommandLine& parameters, AZStd::string& outResult)
     {
         MCORE_UNUSED(parameters);
         MCORE_UNUSED(outResult);
@@ -632,7 +653,7 @@ namespace CommandSystem
     //--------------------------------------------------------------------------------
     // CommandUpdateRenderActors
     //--------------------------------------------------------------------------------
-    bool CommandUpdateRenderActors::Execute(const MCore::CommandLine& parameters, MCore::String& outResult)
+    bool CommandUpdateRenderActors::Execute(const MCore::CommandLine& parameters, AZStd::string& outResult)
     {
         MCORE_UNUSED(parameters);
         MCORE_UNUSED(outResult);
@@ -640,7 +661,7 @@ namespace CommandSystem
     }
 
 
-    bool CommandUpdateRenderActors::Undo(const MCore::CommandLine& parameters, MCore::String& outResult)
+    bool CommandUpdateRenderActors::Undo(const MCore::CommandLine& parameters, AZStd::string& outResult)
     {
         MCORE_UNUSED(parameters);
         MCORE_UNUSED(outResult);
@@ -674,7 +695,7 @@ namespace CommandSystem
     }
 
 
-    bool CommandRemoveActor::Execute(const MCore::CommandLine& parameters, MCore::String& outResult)
+    bool CommandRemoveActor::Execute(const MCore::CommandLine& parameters, AZStd::string& outResult)
     {
         EMotionFX::Actor* actor;
         if (parameters.CheckIfHasParameter("actorID"))
@@ -685,7 +706,7 @@ namespace CommandSystem
             actor = EMotionFX::GetActorManager().FindActorByID(actorID);
             if (!actor)
             {
-                outResult.Format("Cannot create actor instance. Actor ID %i is not valid.", actorID);
+                outResult = AZStd::string::format("Cannot create actor instance. Actor ID %i is not valid.", actorID);
                 return false;
             }
         }
@@ -716,13 +737,13 @@ namespace CommandSystem
         GetCommandManager()->SetWorkspaceDirtyFlag(true);
 
         // update our render actors
-        MCore::String updateRenderActorsResult;
+        AZStd::string updateRenderActorsResult;
         GetCommandManager()->ExecuteCommandInsideCommand("UpdateRenderActors", updateRenderActorsResult);
         return true;
     }
 
 
-    bool CommandRemoveActor::Undo(const MCore::CommandLine& parameters, MCore::String& outResult)
+    bool CommandRemoveActor::Undo(const MCore::CommandLine& parameters, AZStd::string& outResult)
     {
         MCORE_UNUSED(parameters);
 
@@ -733,7 +754,7 @@ namespace CommandSystem
         }
 
         // Update our render actors.
-        MCore::String updateRenderActorsResult;
+        AZStd::string updateRenderActorsResult;
         if (!GetCommandManager()->ExecuteCommandInsideCommand("UpdateRenderActors", updateRenderActorsResult))
         {
             return false;
@@ -881,11 +902,11 @@ namespace CommandSystem
 
 
     // walk over the meshes and check which of them we want to set as collision mesh
-    void PrepareCollisionMeshesNodesString(EMotionFX::Actor* actor, uint32 lod, MCore::String* outNodeNames)
+    void PrepareCollisionMeshesNodesString(EMotionFX::Actor* actor, uint32 lod, AZStd::string* outNodeNames)
     {
         // reset the resulting string
-        outNodeNames->Clear();
-        outNodeNames->Reserve(16384);
+        outNodeNames->clear();
+        outNodeNames->reserve(16384);
 
         // check if the actor is invalid
         if (actor == nullptr)
@@ -906,21 +927,21 @@ namespace CommandSystem
             EMotionFX::Mesh* mesh = actor->GetMesh(lod, i);
             if (mesh && mesh->GetIsCollisionMesh())
             {
-                outNodeNames->FormatAdd("%s;", actor->GetSkeleton()->GetNode(i)->GetName());
+                *outNodeNames += AZStd::string::format("%s;", actor->GetSkeleton()->GetNode(i)->GetName());
             }
         }
 
         // make sure there is no semicolon at the end
-        outNodeNames->TrimRight(MCore::UnicodeCharacter(';'));
+        AzFramework::StringFunc::Strip(*outNodeNames, MCore::CharacterConstants::semiColon, true /* case sensitive */, false /* beginning */, true /* ending */);
     }
 
 
     // walk over the actor nodes and check which of them we want to exclude from the bounding volume calculations
-    void PrepareExcludedNodesString(EMotionFX::Actor* actor, MCore::String* outNodeNames)
+    void PrepareExcludedNodesString(EMotionFX::Actor* actor, AZStd::string* outNodeNames)
     {
         // reset the resulting string
-        outNodeNames->Clear();
-        outNodeNames->Reserve(16384);
+        outNodeNames->clear();
+        outNodeNames->reserve(16384);
 
         // check if the actor is valid
         if (actor == nullptr)
@@ -942,7 +963,7 @@ namespace CommandSystem
         }
 
         // make sure there is no semicolon at the end
-        outNodeNames->TrimRight(MCore::UnicodeCharacter(';'));
+        AzFramework::StringFunc::Strip(*outNodeNames, MCore::CharacterConstants::semiColon, true /* case sensitive */, false /* beginning */, true /* ending */);
     }
 
 
@@ -964,7 +985,7 @@ namespace CommandSystem
     }
 
 
-    bool CommandScaleActorData::Execute(const MCore::CommandLine& parameters, MCore::String& outResult)
+    bool CommandScaleActorData::Execute(const MCore::CommandLine& parameters, AZStd::string& outResult)
     {
         EMotionFX::Actor* actor;
         if (parameters.CheckIfHasParameter("id"))
@@ -975,7 +996,7 @@ namespace CommandSystem
             actor = EMotionFX::GetActorManager().FindActorByID(actorID);
             if (!actor)
             {
-                outResult.Format("Cannot find actor with ID %d.", actorID);
+                outResult = AZStd::string::format("Cannot find actor with ID %d.", actorID);
                 return false;
             }
         }
@@ -1002,7 +1023,7 @@ namespace CommandSystem
         mActorID = actor->GetID();
         mScaleFactor = parameters.GetValueAsFloat("scaleFactor", this);
 
-        MCore::String targetUnitTypeString;
+        AZStd::string targetUnitTypeString;
         parameters.GetValue("unitType", this, &targetUnitTypeString);
 
         mUseUnitType = parameters.CheckIfHasParameter("unitType");
@@ -1011,7 +1032,7 @@ namespace CommandSystem
         bool stringConvertSuccess = MCore::Distance::StringToUnitType(targetUnitTypeString, &targetUnitType);
         if (mUseUnitType && stringConvertSuccess == false)
         {
-            outResult.Format("The passed unitType '%s' is not a valid unit type.", targetUnitTypeString.AsChar());
+            outResult = AZStd::string::format("The passed unitType '%s' is not a valid unit type.", targetUnitTypeString.c_str());
             return false;
         }
 
@@ -1052,14 +1073,14 @@ namespace CommandSystem
         }
 
         // reinit the renderable actors
-        MCore::String reinitResult;
+        AZStd::string reinitResult;
         GetCommandManager()->ExecuteCommandInsideCommand("ReInitRenderActors -resetViewCloseup false", reinitResult);
 
         return true;
     }
 
 
-    bool CommandScaleActorData::Undo(const MCore::CommandLine& parameters, MCore::String& outResult)
+    bool CommandScaleActorData::Undo(const MCore::CommandLine& parameters, AZStd::string& outResult)
     {
         MCORE_UNUSED(parameters);
 
@@ -1070,7 +1091,7 @@ namespace CommandSystem
         }
         else
         {
-            const AZStd::string command = AZStd::string::format("ScaleActorData -id %d -unitType \"%s\"", mActorID, mOldUnitType.AsChar());
+            const AZStd::string command = AZStd::string::format("ScaleActorData -id %d -unitType \"%s\"", mActorID, mOldUnitType.c_str());
             GetCommandManager()->ExecuteCommandInsideCommand(command, outResult);
         }
 

@@ -14,7 +14,7 @@
 #ifndef GEMS_MULTIPLAYER_MULTIPLAYERLOBBYCOMPONENT_H
 #define GEMS_MULTIPLAYER_MULTIPLAYERLOBBYCOMPONENT_H
 
-#include <ActionMap.h>
+#include <IActionMapManager.h>
 #include <AzCore/Component/Component.h>
 
 #include <GridMate/GridMate.h>
@@ -168,6 +168,7 @@ namespace Multiplayer
 
         // GameLift Functions
         const char* GetGameLiftParam(const char* param);
+        bool GetGameLiftBoolParam(const char* param);
         void SetGameLiftParam(const char* param, const char* value);
 
         void ShowGameLiftConfig();

@@ -12,21 +12,52 @@
 
 #include "LmbrCentral_precompiled.h"
 #include "CapsuleShapeComponent.h"
+
 #include <AzCore/Math/IntersectPoint.h>
+#include <AzCore/Math/IntersectSegment.h>
 #include <AzCore/Math/Transform.h>
-#include <AzCore/RTTI/BehaviorContext.h>
+#include <AzCore/Serialization/EditContext.h>
+#include <AzCore/Serialization/SerializeContext.h>
 #include <MathConversion.h>
 
 namespace LmbrCentral
 {
-    void CapsuleShape::Activate(const AZ::EntityId& entityId)
+    const AZ::u32 g_capsuleDebugShapeSides = 16;
+    const AZ::u32 g_capsuleDebugShapeCapSegments = 8;
+
+    void CapsuleShape::Reflect(AZ::ReflectContext* context)
+    {
+        CapsuleShapeConfig::Reflect(context);
+
+        if (AZ::SerializeContext* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
+        {
+            serializeContext->Class<CapsuleShape>()
+                ->Version(1)
+                ->Field("Configuration", &CapsuleShape::m_capsuleShapeConfig)
+                ;
+
+            if (AZ::EditContext* editContext = serializeContext->GetEditContext())
+            {
+                editContext->Class<CapsuleShape>("Capsule Shape", "Capsule shape configuration parameters")
+                    ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
+                    ->DataElement(AZ::Edit::UIHandlers::Default, &CapsuleShape::m_capsuleShapeConfig, "Capsule Configuration", "Capsule shape configuration")
+                        ->Attribute(AZ::Edit::Attributes::Visibility, AZ::Edit::PropertyVisibility::ShowChildrenOnly)
+                        ->Attribute(AZ::Edit::Attributes::AutoExpand, true)
+                        ;
+            }
+        }
+    }
+
+    void CapsuleShape::Activate(AZ::EntityId entityId)
     {
         m_entityId = entityId;
-        AZ::TransformBus::EventResult(m_currentWorldTransform, m_entityId, &AZ::TransformBus::Events::GetWorldTM);
+        m_currentTransform = AZ::Transform::CreateIdentity();
+        AZ::TransformBus::EventResult(m_currentTransform, m_entityId, &AZ::TransformBus::Events::GetWorldTM);
+        m_intersectionDataCache.InvalidateCache(InvalidateShapeCacheReason::ShapeChange);
+
         AZ::TransformNotificationBus::Handler::BusConnect(m_entityId);
         ShapeComponentRequestsBus::Handler::BusConnect(m_entityId);
         CapsuleShapeComponentRequestsBus::Handler::BusConnect(m_entityId);
-        m_intersectionDataCache.SetCacheStatus(CapsuleIntersectionDataCache::CacheStatus::Obsolete_ShapeChange);
     }
 
     void CapsuleShape::Deactivate()
@@ -36,49 +67,68 @@ namespace LmbrCentral
         AZ::TransformNotificationBus::Handler::BusDisconnect();
     }
 
-    void CapsuleShape::InvalidateCache(CapsuleIntersectionDataCache::CacheStatus reason)
+    void CapsuleShape::InvalidateCache(InvalidateShapeCacheReason reason)
     {
-        m_intersectionDataCache.SetCacheStatus(reason);
+        m_intersectionDataCache.InvalidateCache(reason);
     }
 
     void CapsuleShape::OnTransformChanged(const AZ::Transform& /*local*/, const AZ::Transform& world)
     {
-        m_currentWorldTransform = world;
-        m_intersectionDataCache.SetCacheStatus(CapsuleShapeComponent::CapsuleIntersectionDataCache::CacheStatus::Obsolete_TransformChange);    
-        ShapeComponentNotificationsBus::Event(m_entityId, &ShapeComponentNotificationsBus::Events::OnShapeChanged, ShapeComponentNotifications::ShapeChangeReasons::TransformChanged);        
-    }
-    
-    void CapsuleShape::SetHeight(float newHeight)
-    {
-        GetConfiguration().SetHeight(newHeight);
-        m_intersectionDataCache.SetCacheStatus(CapsuleShapeComponent::CapsuleIntersectionDataCache::CacheStatus::Obsolete_ShapeChange);        
-        ShapeComponentNotificationsBus::Event(m_entityId, &ShapeComponentNotificationsBus::Events::OnShapeChanged, ShapeComponentNotifications::ShapeChangeReasons::ShapeChanged);
+        m_currentTransform = world;
+        m_intersectionDataCache.InvalidateCache(InvalidateShapeCacheReason::TransformChange);
+        ShapeComponentNotificationsBus::Event(
+            m_entityId, &ShapeComponentNotificationsBus::Events::OnShapeChanged,
+            ShapeComponentNotifications::ShapeChangeReasons::TransformChanged);
     }
 
-    void CapsuleShape::SetRadius(float newRadius)
+    void CapsuleShape::SetHeight(float height)
     {
-        GetConfiguration().SetRadius(newRadius);
-        m_intersectionDataCache.SetCacheStatus(CapsuleShapeComponent::CapsuleIntersectionDataCache::CacheStatus::Obsolete_ShapeChange);
-        ShapeComponentNotificationsBus::Event(m_entityId, &ShapeComponentNotificationsBus::Events::OnShapeChanged, ShapeComponentNotifications::ShapeChangeReasons::ShapeChanged);
-    }    
+        m_capsuleShapeConfig.m_height = height;
+        m_intersectionDataCache.InvalidateCache(InvalidateShapeCacheReason::ShapeChange);
+        ShapeComponentNotificationsBus::Event(
+            m_entityId, &ShapeComponentNotificationsBus::Events::OnShapeChanged,
+            ShapeComponentNotifications::ShapeChangeReasons::ShapeChanged);
+    }
+
+    void CapsuleShape::SetRadius(float radius)
+    {
+        m_capsuleShapeConfig.m_radius = radius;
+        m_intersectionDataCache.InvalidateCache(InvalidateShapeCacheReason::ShapeChange);
+        ShapeComponentNotificationsBus::Event(
+            m_entityId, &ShapeComponentNotificationsBus::Events::OnShapeChanged,
+            ShapeComponentNotifications::ShapeChangeReasons::ShapeChanged);
+    }
+
+    float CapsuleShape::GetHeight()
+    {
+        return m_capsuleShapeConfig.m_height;
+    }
+
+    float CapsuleShape::GetRadius()
+    {
+        return m_capsuleShapeConfig.m_radius;
+    }
 
     AZ::Aabb CapsuleShape::GetEncompassingAabb()
     {
-        m_intersectionDataCache.UpdateIntersectionParams(m_currentWorldTransform, GetConfiguration());
-        AZ::Aabb topAabb(AZ::Aabb::CreateCenterRadius(m_intersectionDataCache.m_topPlaneCenterPoint, GetConfiguration().GetRadius()));
-        AZ::Aabb baseAabb(AZ::Aabb::CreateCenterRadius(m_intersectionDataCache.m_basePlaneCenterPoint, GetConfiguration().GetRadius()));
+        m_intersectionDataCache.UpdateIntersectionParams(m_currentTransform, m_capsuleShapeConfig);
+
+        const AZ::Aabb topAabb(AZ::Aabb::CreateCenterRadius(
+            m_intersectionDataCache.m_topPlaneCenterPoint, m_intersectionDataCache.m_radius));
+        AZ::Aabb baseAabb(AZ::Aabb::CreateCenterRadius(
+            m_intersectionDataCache.m_basePlaneCenterPoint, m_intersectionDataCache.m_radius));
         baseAabb.AddAabb(topAabb);
         return baseAabb;
     }
 
     bool CapsuleShape::IsPointInside(const AZ::Vector3& point)
     {
-        m_intersectionDataCache.UpdateIntersectionParams(m_currentWorldTransform, GetConfiguration());
+        m_intersectionDataCache.UpdateIntersectionParams(m_currentTransform, m_capsuleShapeConfig);
 
-        AZ::Vector3 currentPosition = m_currentWorldTransform.GetPosition();
+        const float radiusSquared = powf(m_intersectionDataCache.m_radius, 2.0f);
 
         // Check Bottom sphere
-        if (AZ::Intersect::PointSphere(m_intersectionDataCache.m_basePlaneCenterPoint, m_intersectionDataCache.m_radiusSquared, point))
+        if (AZ::Intersect::PointSphere(m_intersectionDataCache.m_basePlaneCenterPoint, radiusSquared, point))
         {
             return true;
         }
@@ -90,61 +140,75 @@ namespace LmbrCentral
         }
 
         // Check Top sphere
-        if (AZ::Intersect::PointSphere(m_intersectionDataCache.m_topPlaneCenterPoint, m_intersectionDataCache.m_radiusSquared, point))
+        if (AZ::Intersect::PointSphere(m_intersectionDataCache.m_topPlaneCenterPoint, radiusSquared, point))
         {
             return true;
         }
 
         // If its not in either sphere check the cylinder
-        return AZ::Intersect::PointCylinder(m_intersectionDataCache.m_basePlaneCenterPoint, m_intersectionDataCache.m_axisVector,
-            m_intersectionDataCache.m_axisLengthSquared, m_intersectionDataCache.m_radiusSquared, point);
+        return AZ::Intersect::PointCylinder(
+            m_intersectionDataCache.m_basePlaneCenterPoint, m_intersectionDataCache.m_axisVector,
+            powf(m_intersectionDataCache.m_internalHeight, 2.0f), radiusSquared, point);
     }
 
     float CapsuleShape::DistanceSquaredFromPoint(const AZ::Vector3& point)
     {
-        m_intersectionDataCache.UpdateIntersectionParams(m_currentWorldTransform, GetConfiguration());
+        m_intersectionDataCache.UpdateIntersectionParams(m_currentTransform, m_capsuleShapeConfig);
 
-        Lineseg lineSeg(
+        const Lineseg lineSeg(
             AZVec3ToLYVec3(m_intersectionDataCache.m_basePlaneCenterPoint),
-            AZVec3ToLYVec3(m_intersectionDataCache.m_topPlaneCenterPoint)
-            );
+            AZVec3ToLYVec3(m_intersectionDataCache.m_topPlaneCenterPoint));
 
-        float tValue = 0.f;
-        float distance = Distance::Point_Lineseg(AZVec3ToLYVec3(point), lineSeg, tValue);
-        distance -= GetConfiguration().GetRadius();
-        return sqr(AZStd::max(distance, 0.f));
-    }    
-
-    void CapsuleShape::CapsuleIntersectionDataCache::UpdateIntersectionParams(const AZ::Transform& currentTransform, const CapsuleShapeConfig& configuration)
-    {
-        if (m_cacheStatus > CacheStatus::Current)
-        {
-            m_axisVector = currentTransform.GetBasisZ();
-
-            float internalCylinderHeight = configuration.GetHeight() - 2 * configuration.GetRadius();
-
-            if (internalCylinderHeight > std::numeric_limits<float>::epsilon())
-            {
-                AZ::Vector3 CurrentPositionToPlanesVector = m_axisVector * (internalCylinderHeight / 2);
-                m_topPlaneCenterPoint = currentTransform.GetPosition() + CurrentPositionToPlanesVector;
-                m_basePlaneCenterPoint = currentTransform.GetPosition() - CurrentPositionToPlanesVector;
-                m_axisVector = m_axisVector * internalCylinderHeight;
-                m_isSphere = false;
-            }
-            else
-            {
-                m_basePlaneCenterPoint = currentTransform.GetPosition();
-                m_isSphere = true;
-            }
-
-            if (m_cacheStatus == CacheStatus::Obsolete_ShapeChange)
-            {
-                m_radiusSquared = pow(configuration.GetRadius(), 2);
-                m_axisLengthSquared = pow(internalCylinderHeight, 2);
-            }
-
-            SetCacheStatus(CacheStatus::Current);
-        }
+        float t = 0.0f;
+        float distance = Distance::Point_Lineseg(AZVec3ToLYVec3(point), lineSeg, t);
+        distance -= m_intersectionDataCache.m_radius;
+        return powf(AZStd::max(distance, 0.0f), 2.0f);
     }
 
+    bool CapsuleShape::IntersectRay(const AZ::Vector3& src, const AZ::Vector3& dir, AZ::VectorFloat& distance)
+    {
+        m_intersectionDataCache.UpdateIntersectionParams(m_currentTransform, m_capsuleShapeConfig);
+
+        if (m_intersectionDataCache.m_isSphere)
+        {
+            return AZ::Intersect::IntersectRaySphere(
+                src, dir, m_intersectionDataCache.m_basePlaneCenterPoint,
+                m_intersectionDataCache.m_radius, distance) > 0;
+        }
+
+        AZ::VectorFloat t;
+        const AZ::VectorFloat rayLength = AZ::VectorFloat(1000.0f);
+        const bool intersection = AZ::Intersect::IntersectSegmentCapsule(
+            src, dir * rayLength, m_intersectionDataCache.m_basePlaneCenterPoint,
+            m_intersectionDataCache.m_topPlaneCenterPoint, m_intersectionDataCache.m_radius, t) > 0;
+        distance = rayLength * t;
+        return intersection;
+    }
+
+    void CapsuleShape::CapsuleIntersectionDataCache::UpdateIntersectionParamsImpl(
+        const AZ::Transform& currentTransform, const CapsuleShapeConfig& configuration)
+    {
+        const AZ::VectorFloat entityScale = currentTransform.RetrieveScale().GetMaxElement();
+        m_axisVector = currentTransform.GetBasisZ().GetNormalizedSafe() * entityScale;
+
+        const float internalCylinderHeight = configuration.m_height - configuration.m_radius * 2.0f;
+        if (internalCylinderHeight > std::numeric_limits<float>::epsilon())
+        {
+            const AZ::Vector3 currentPositionToPlanesVector = m_axisVector * (internalCylinderHeight * 0.5f);
+            m_topPlaneCenterPoint = currentTransform.GetPosition() + currentPositionToPlanesVector;
+            m_basePlaneCenterPoint = currentTransform.GetPosition() - currentPositionToPlanesVector;
+            m_axisVector = m_axisVector * internalCylinderHeight;
+            m_isSphere = false;
+        }
+        else
+        {
+            m_basePlaneCenterPoint = currentTransform.GetPosition();
+            m_topPlaneCenterPoint = currentTransform.GetPosition();
+            m_isSphere = true;
+        }
+
+        // scale intersection data cache radius by entity transform for internal calculations
+        m_radius = configuration.m_radius * entityScale;
+        m_internalHeight = internalCylinderHeight;
+    }
 } // namespace LmbrCentral

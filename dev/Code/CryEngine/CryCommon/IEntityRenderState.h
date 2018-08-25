@@ -363,10 +363,8 @@ struct IRenderNode
         VM_Dynamic, // Real-time every-frame voxelization on GPU
     };
 
-#if defined(FEATURE_SVO_GI)
     virtual EVoxelGIMode GetVoxelGIMode() { return VM_None; }
     virtual void SetDesiredVoxelGIMode(EVoxelGIMode voxelMode) {}
-#endif
 
     virtual void SetMinSpec(int nMinSpec) { m_dwRndFlags &= ~ERF_SPEC_BITS_MASK; m_dwRndFlags |= (nMinSpec << ERF_SPEC_BITS_SHIFT) & ERF_SPEC_BITS_MASK; };
 
@@ -564,6 +562,7 @@ struct IVegetation
 struct IBrush
     : public IRenderNode
 {
+    virtual float GetScale(void) const = 0;
     virtual const Matrix34& GetMatrix() const = 0;
     virtual void SetDrawLast(bool enable) = 0;
 };
@@ -618,6 +617,13 @@ struct IRoadRenderNode
     virtual void GetClipPlanes(Plane* pPlanes, int nPlanesNum, int nVertId = 0) = 0;
     virtual void GetTexCoordInfo(float* pTexCoordInfo) = 0;
     // </interfuscator:shuffle>
+
+    // This flag is used to account for legacy entities which used to serialize the node without parent objects.
+    // Now there are runtime components which spawn the rendering node, however we need to support legacy code as well. 
+    // Remove this flag when legacy entities are removed entirely
+    bool m_hasToBeSerialised = true;
+    // Whether or not ends of the road should be faded out
+    bool m_bAlphaBlendRoadEnds = true;
 };
 
 // Summary:
@@ -820,6 +826,11 @@ struct IWaterVolumeRenderNode
 
     virtual IPhysicalEntity* SetAndCreatePhysicsArea(const Vec3* pVertices, unsigned int numVertices) = 0;
     // </interfuscator:shuffle>
+
+    // This flag is used to account for legacy entities which used to serialize the node without parent objects.
+    // Now there are runtime components which spawn the rendering node, however we need to support legacy code as well. 
+    // Remove this flag when legacy entities are removed entirely
+    bool m_hasToBeSerialised = true;
 };
 
 // Description:

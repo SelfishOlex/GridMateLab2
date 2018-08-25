@@ -105,7 +105,7 @@ namespace UnitTest
     TEST(StringC, AZSWNPrintf)
     {
         wchar_t wbuffer32[32];
-        azswnprintf(wbuffer32, AZ_ARRAY_SIZE(wbuffer32), L"This is a buffer test %ls", L"Bla1");
+        azsnwprintf(wbuffer32, AZ_ARRAY_SIZE(wbuffer32), L"This is a buffer test %ls", L"Bla1");
         EXPECT_EQ(0, wcscmp(wbuffer32, L"This is a buffer test Bla1"));
     }
 
@@ -136,6 +136,7 @@ namespace UnitTest
     {
         char buffer32[32];
         azstrncpy(buffer32, AZ_ARRAY_SIZE(buffer32), "Gla Gla 1", 7);
+        // azstrncpy note: if count is reached before the entire array src was copied, the resulting character array is not null-terminated.
         buffer32[7] = '\0';
         EXPECT_EQ(0, strcmp(buffer32, "Gla Gla"));
     }
@@ -144,6 +145,8 @@ namespace UnitTest
     {
         char buffer32[32];
         azstrncpy(buffer32, AZ_ARRAY_SIZE(buffer32), "Gla Gla 1", 7);
+        // azstrncpy note: if count is reached before the entire array src was copied, the resulting character array is not null-terminated.
+        buffer32[7] = '\0';
         EXPECT_EQ(0, azstricmp(buffer32, "gla gla"));
     }
 
@@ -434,6 +437,13 @@ namespace UnitTest
         str2[0] = 'G';
         AZ_TEST_ASSERT(str2.at(0) == 'G');
 
+        AZ_TEST_ASSERT(str2.front() == 'G');
+        str2.front() = 'X';
+        AZ_TEST_ASSERT(str2.front() == 'X');
+        AZ_TEST_ASSERT(str2.back() == 'c'); // From the insert of 2 'c's at the end() further up.
+        str2.back() = 'p';
+        AZ_TEST_ASSERT(str2.back() == 'p');
+
         AZ_TEST_ASSERT(str2.c_str() != 0);
         AZ_TEST_ASSERT(::strlen(str2.c_str()) == str2.length());
 
@@ -581,6 +591,24 @@ namespace UnitTest
         AZ_TEST_ASSERT(cmpRes == 0);
         cmpRes = str1.compare(11, 3, sChar, 3);
         AZ_TEST_ASSERT(cmpRes < 0);
+
+        using iteratorType = char;
+        auto testValue = str4;
+        reverse_iterator<iteratorType*> rend = testValue.rend();
+        reverse_iterator<const iteratorType*> crend1 = testValue.rend();
+        reverse_iterator<const iteratorType*> crend2 = testValue.crend();
+
+        reverse_iterator<iteratorType*> rbegin = testValue.rbegin();
+        reverse_iterator<const iteratorType*> crbegin1 = testValue.rbegin();
+        reverse_iterator<const iteratorType*> crbegin2 = testValue.crbegin();
+
+        AZ_TEST_ASSERT(rend == crend1);
+        AZ_TEST_ASSERT(crend1 == crend2);
+
+        AZ_TEST_ASSERT(rbegin == crbegin1);
+        AZ_TEST_ASSERT(crbegin1 == crbegin2);
+        
+        AZ_TEST_ASSERT(rbegin != rend);
 
         str1.set_capacity(3);
         AZ_TEST_VALIDATE_STRING(str1, 3);

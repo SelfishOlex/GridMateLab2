@@ -36,7 +36,12 @@
 using namespace AZ;
 using namespace AZ::Debug;
 
-#if   defined(AZ_PLATFORM_LINUX) || defined(AZ_PLATFORM_APPLE_OSX)
+#if defined(AZ_RESTRICTED_PLATFORM)
+#include AZ_RESTRICTED_FILE(Driller_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#elif defined(AZ_PLATFORM_LINUX) || defined(AZ_PLATFORM_APPLE_OSX)
 #   define AZ_ROOT_TEST_FOLDER "./"
 #elif defined(AZ_PLATFORM_ANDROID)
 #   define AZ_ROOT_TEST_FOLDER  "/sdcard/"
@@ -108,6 +113,11 @@ namespace UnitTest
             : i(0)
         {
             BusConnect();
+        }
+
+        ~MyDrilledObject()
+        {
+            BusDisconnect();
         }
         //////////////////////////////////////////////////////////////////////////
         // MyDrillerCommandBus

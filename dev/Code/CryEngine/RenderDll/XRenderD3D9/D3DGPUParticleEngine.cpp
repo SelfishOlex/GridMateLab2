@@ -17,9 +17,11 @@
 #include "../../Cry3DEngine/ParticleEffect.h"
 #include "D3DPostProcess.h"
 #include "../../Cry3DEngine/ParticleEnviron.h"
+#include "../../CryEngine/CryCommon/ParticleParams.h"
 
 #include "D3DGPUParticleEngine.h"
 #include "D3DGPUParticleProfiler.h"
+#include "GPUTimerFactory.h"
 
 #include <AzCore/Casting/numeric_cast.h>
 #include <vector>
@@ -64,6 +66,27 @@ static const int s_GPUParticles_ThreadGroupMaximalX = MAX(MAX(MAX(MAX(s_GPUParti
 
 static const float nearPlane = 0.2f;
 
+
+#if defined(AZ_RESTRICTED_PLATFORM)
+#undef AZ_RESTRICTED_SECTION
+#define D3DGPUPARTICLEENGINE_CPP_SECTION_1 1
+#define D3DGPUPARTICLEENGINE_CPP_SECTION_2 2
+#define D3DGPUPARTICLEENGINE_CPP_SECTION_3 3
+#define D3DGPUPARTICLEENGINE_CPP_SECTION_4 4
+#define D3DGPUPARTICLEENGINE_CPP_SECTION_5 5
+#define D3DGPUPARTICLEENGINE_CPP_SECTION_6 6
+#define D3DGPUPARTICLEENGINE_CPP_SECTION_7 7
+#define D3DGPUPARTICLEENGINE_CPP_SECTION_8 8
+#define D3DGPUPARTICLEENGINE_CPP_SECTION_9 9
+#define D3DGPUPARTICLEENGINE_CPP_SECTION_10 10
+#define D3DGPUPARTICLEENGINE_CPP_SECTION_11 11
+#define D3DGPUPARTICLEENGINE_CPP_SECTION_12 12
+#endif
+
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION D3DGPUPARTICLEENGINE_CPP_SECTION_1
+#include AZ_RESTRICTED_FILE(D3DGPUParticleEngine_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
 static const Vec3 s_GPUParticles_RotationOffset = Vec3(90, 0, 0);
 
 struct GPUEmitterResources
@@ -72,10 +95,15 @@ struct GPUEmitterResources
         : numMaxParticlesInBuffer(0)
         , texSampledCurves(0)
         , depthCubemap(nullptr)
-    {}
+    {
+    }
 
     ~GPUEmitterResources()
     {
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION D3DGPUPARTICLEENGINE_CPP_SECTION_2
+#include AZ_RESTRICTED_FILE(D3DGPUParticleEngine_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
     }
 
 
@@ -88,6 +116,10 @@ struct GPUEmitterResources
     WrappedDX11Buffer bufDeadParticleLocationsStaging;
     WrappedDX11Buffer bufWindAreas;
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION D3DGPUPARTICLEENGINE_CPP_SECTION_3
+#include AZ_RESTRICTED_FILE(D3DGPUParticleEngine_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
 
     unsigned int texSampledCurves;                      // bind as t9
     CTexture* depthCubemap;
@@ -97,7 +129,7 @@ struct GPUEmitterResources
 
 #if PROFILE_GPU_PARTICLES
     CGPUParticleProfiler gpuParticleProfiler;
-#endif // endif
+#endif // PROFILE_GPU_PARTICLES
 };
 
 struct GPUSubemitterData
@@ -107,6 +139,8 @@ struct GPUSubemitterData
         , accumParticlePulse(1.0f)
         , paramCurrentCount(1.0f)
         , paramCurrentPulsePeriod(1.0f)
+        , renderTimeInMilliseconds(0)
+        , particleSpawnPerformanceScale(1.0f)
         , chaosKey(0u)
         , transform(IDENTITY)
         , strength(0)
@@ -117,6 +151,8 @@ struct GPUSubemitterData
     float accumParticlePulse;
     float paramCurrentCount;
     float paramCurrentPulsePeriod;
+    UFloat renderTimeInMilliseconds;
+    UnitFloat particleSpawnPerformanceScale;
 
     ParticleTarget target; //need a separate target per subemitter to allow for indirect spawning targetting own position
 
@@ -347,6 +383,9 @@ public:
     // GPU Particle buffer
     std::vector<SGPUParticleEmitterData*> emitters;
     std::vector<SGPUParticleEmitterData*> emittersQueuedForUpdate;
+    
+    // Used in RenderEmiter() to measure render-time for throttling emission rates.
+    IGPUTimer* gpuTimer;
 
     // Sort odd even incremental
     uint32 oddEvenLValue;
@@ -367,12 +406,19 @@ public:
         : latestModelview(IDENTITY)
         , latestProjection(IDENTITY)
         , latestCameraPos(0)
-    {}
+    {
+        gpuTimer = GPUTimerFactory::Create();
+    }
+
+    ~CImpl_GPUParticles()
+    {
+        delete gpuTimer;
+    }
 
     void InitializeEmitter(SGPUParticleEmitterData* emitter);
     void InitializeBuffers(GPUEmitterResources& resources, int numParticlesRequested, const ResourceParticleParams* particleParams, const SpawnParams& spawnParams, bool isIndirectParent, int numSubemitters, int numWindAreas);
     void GrowBuffers(SGPUParticleEmitterData& emitter);
-    void RenderEmitter(const RenderPassData& renderPassData, const GPUEmitterBaseData& baseData, const GPUEmitterResources& resources, const GPUSubemitterData& emitData, const ResourceParticleParams* particleParams, const SpawnParams& spawnParams);
+    float RenderEmitter(const RenderPassData& renderPassData, const GPUEmitterBaseData& baseData, const GPUEmitterResources& resources, const GPUSubemitterData& emitData, const ResourceParticleParams* particleParams, const SpawnParams& spawnParams);
     void EmitParticles(SGPUParticleEmitterData* emitter);
     void EmitParticlesGPU(GPUEmitterBaseData& baseData, const GPUEmitterResources& resources, const GPUSubemitterData& emitData, const ResourceParticleParams* particleParams, const SpawnParams& spawnParams, int numSpawnParticles);
     void BeginUpdate(GPUEmitterResources& resources, int numSubEmitters);
@@ -1029,8 +1075,21 @@ static bool UpdateSubemitter(GPUSubemitterData& emitData, const ResourceParticle
                 spawnRate = max(particleCount / particleLifetime, particleCount / emitterLifetime);
             }
 
+            // If the GPU took too long during last emitter render, we will surely take just as long next time.
+            // Repeating emissions under this condition further stalls the GPU (and will eventually hang), thus we reduce emitting, but continue to update.
+            // In order to render with better performance, we allow the emitter to gradually resume emitting at original rate when rendering performance threshold is not exceeded.
+            const float renderTimeThresholdInMilliseconds = 100.0f; // <-Arbitrary value selected based on particle effect look. 
+            
+            emitData.particleSpawnPerformanceScale = (emitData.renderTimeInMilliseconds >= renderTimeThresholdInMilliseconds)
+                ? emitData.particleSpawnPerformanceScale - deltaTime  // Scale down emissions (Automatically caps at value 0).
+                : emitData.particleSpawnPerformanceScale + deltaTime; // Restore the emission scale over-time. (Automatically caps at value 1.0f)
 
-            emitData.accumParticleSpawn += spawnRate * deltaTime;
+            // Update the particle spawn accumulation amount, but ultimately scale it by the 'particleSpawnPerformanceScale'.
+            // This way, we scale the emission rate according to how much load the GPU can take before hanging.
+            // The scale ranges from [0-1], and changes based on how long the GPU proessed during last emitter render.
+            const float incrementAccumulation = spawnRate * deltaTime * emitData.particleSpawnPerformanceScale;
+            static const ICVar* particlesMaxEmitCount = gEnv->pConsole->GetCVar("r_ParticlesGpuMaxEmitCount");
+            emitData.accumParticleSpawn = AZ::GetMin<float>(emitData.accumParticleSpawn + incrementAccumulation, particlesMaxEmitCount->GetFVal());
         }
         else     // if the spawn rate is not continuous
         {
@@ -1247,6 +1306,10 @@ void CImpl_GPUParticles::InitializeBuffers(GPUEmitterResources& resources, int n
 
     resources.bufParticleDistance.Create(resources.numMaxParticlesInBuffer, sizeof(float), DXGI_FORMAT_UNKNOWN, DX11BUF_STRUCTURED | DX11BUF_BIND_UAV | DX11BUF_BIND_SRV, nullptr);
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION D3DGPUPARTICLEENGINE_CPP_SECTION_4
+#include AZ_RESTRICTED_FILE(D3DGPUParticleEngine_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
 
     resources.bufParticleIndices.Create(resources.numMaxParticlesInBuffer, sizeof(int) * 2, DXGI_FORMAT_UNKNOWN, DX11BUF_STRUCTURED | DX11BUF_BIND_UAV | DX11BUF_BIND_SRV, cpuSortIndices);
     if (numWindAreas > 0)
@@ -1297,7 +1360,7 @@ void CImpl_GPUParticles::GrowBuffers(SGPUParticleEmitterData& emitter)
     emitter.numMaxSubemitters = newMaxSubemitters;
 }
 
-void CImpl_GPUParticles::RenderEmitter(const RenderPassData& renderPassData, const GPUEmitterBaseData& baseData, const GPUEmitterResources& resources, const GPUSubemitterData& emitData, const ResourceParticleParams* particleParams, const SpawnParams& spawnParams)
+float CImpl_GPUParticles::RenderEmitter(const RenderPassData& renderPassData, const GPUEmitterBaseData& baseData, const GPUEmitterResources& resources, const GPUSubemitterData& emitData, const ResourceParticleParams* particleParams, const SpawnParams& spawnParams)
 {
     CRY_ASSERT(particleParams);
 
@@ -1638,7 +1701,7 @@ void CImpl_GPUParticles::RenderEmitter(const RenderPassData& renderPassData, con
     m_impl->dxRenderer->m_DevMan.BindSRV(eHWSC_Vertex, pSRV, 6, sizeof(pSRV) / sizeof(pSRV[0]));
     if (!BindCurveData(m_impl->dxRenderer, resources, eHWSC_Vertex) || 
         !BindCurveData(m_impl->dxRenderer, resources, eHWSC_Pixel))
-        return;
+        return 0;
 
     // bind textures
     if (renderPassData.isWireframeEnabled)
@@ -1668,9 +1731,11 @@ void CImpl_GPUParticles::RenderEmitter(const RenderPassData& renderPassData, con
     }
 
     // draw (internally actuates GPU state changes)
-    GPU_PARTICLE_PROFILER_START((&(resources)), CGPUParticleProfiler::RENDER);
+    gpuTimer->Start("Emit Throttle Timer");
+    GPU_PARTICLE_PROFILER_START(const_cast<GPUEmitterResources*>(&resources), CGPUParticleProfiler::RENDER);
     m_impl->dxRenderer->FX_DrawPrimitive(eRenderPrimitiveType::eptTriangleStrip, 0, baseData.numParticlesPerChunk, 4);
-    GPU_PARTICLE_PROFILER_END((&(resources)), CGPUParticleProfiler::RENDER);
+    GPU_PARTICLE_PROFILER_END(const_cast<GPUEmitterResources*>(&resources), CGPUParticleProfiler::RENDER);
+    gpuTimer->Stop();
 
     // unbind SRVs
     ID3D11ShaderResourceView* pSRVNull[10] = { NULL, NULL };
@@ -1734,6 +1799,9 @@ void CImpl_GPUParticles::RenderEmitter(const RenderPassData& renderPassData, con
             PostProcessUtils().ShEndPass();
         }
     }
+
+    gpuTimer->UpdateTime();
+    return gpuTimer->GetTime();
 }
 
 void CImpl_GPUParticles::EmitParticles(SGPUParticleEmitterData* emitter)
@@ -1860,9 +1928,9 @@ void CImpl_GPUParticles::EmitParticlesGPU(GPUEmitterBaseData& baseData, const GP
 
 
     // dispatch compute (internally actuates GPU state changes)
-    GPU_PARTICLE_PROFILER_START((&(resources)), CGPUParticleProfiler::EMIT);
+    GPU_PARTICLE_PROFILER_START(const_cast<GPUEmitterResources*>(&resources), CGPUParticleProfiler::EMIT);
     dxRenderer->m_DevMan.Dispatch(RoundUpAndDivide(numSpawnParticles, s_GPUParticles_ThreadGroupEmitX), 1, 1);
-    GPU_PARTICLE_PROFILER_END((&(resources)), CGPUParticleProfiler::EMIT);
+    GPU_PARTICLE_PROFILER_END(const_cast<GPUEmitterResources*>(&resources), CGPUParticleProfiler::EMIT);
 
     // unbind UAVs & SRVs
     ID3D11UnorderedAccessView* pUAVNull[10] = { NULL };
@@ -2388,7 +2456,15 @@ void CImpl_GPUParticles::GatherSortScore(GPUEmitterResources& emitter)
     m_impl->dxRenderer->FX_Commit(false);
 
     // bind UAVs (rwStructuredBuffers) & SRVs (textures/structuredBuffers/curve data)
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION D3DGPUPARTICLEENGINE_CPP_SECTION_5
+#include AZ_RESTRICTED_FILE(D3DGPUParticleEngine_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#else
     ID3D11UnorderedAccessView* pUAV[] = { emitter.bufParticleIndices.GetUnorderedAccessView() };
+#endif
     uint32 pUAVCounters[] = { 0 }; // initial UAV counter values
     m_impl->dxRenderer->m_DevMan.BindUAV(eHWSC_Compute, pUAV, pUAVCounters, 0, sizeof(pUAV) / sizeof(pUAV[0]));
 
@@ -2432,7 +2508,15 @@ void CImpl_GPUParticles::SortParticlesBitonicLocal(GPUEmitterResources& emitter,
     shader->FXBeginPass(0);
 
     // bind UAVs (rwStructuredBuffers)
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION D3DGPUPARTICLEENGINE_CPP_SECTION_6
+#include AZ_RESTRICTED_FILE(D3DGPUParticleEngine_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#else
     ID3D11UnorderedAccessView* pUAV[] = { emitter.bufParticleIndices.GetUnorderedAccessView() };
+#endif
     uint32 pUAVCounters[] = { 0 }; // initial UAV counter values
     dxRenderer->m_DevMan.BindUAV(eHWSC_Compute, pUAV, pUAVCounters, 0, sizeof(pUAV) / sizeof(pUAV[0]));
 
@@ -2497,7 +2581,15 @@ void CImpl_GPUParticles::SortParticlesBitonic(GPUEmitterResources& emitter, GPUE
         globalShader->FXBeginPass(0);
 
         // bind UAVs (rwStructuredBuffers)
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION D3DGPUPARTICLEENGINE_CPP_SECTION_7
+#include AZ_RESTRICTED_FILE(D3DGPUParticleEngine_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
+#if defined(AZ_RESTRICTED_SECTION_IMPLEMENTED)
+#undef AZ_RESTRICTED_SECTION_IMPLEMENTED
+#else
         ID3D11UnorderedAccessView* pUAV[] = { emitter.bufParticleIndices.GetUnorderedAccessView() };
+#endif
         uint32 pUAVCounters[] = { 0 }; // initial UAV counter values
         dxRenderer->m_DevMan.BindUAV(eHWSC_Compute, pUAV, pUAVCounters, 0, sizeof(pUAV) / sizeof(pUAV[0]));
 
@@ -2703,7 +2795,7 @@ void CImpl_GPUParticles::OnEffectChanged(GPUEmitterResources& resources, GPUEmit
         {
             static unsigned short mapID = 0;
             char name_buffer[27]; //20 chars for the name, 1 space, max 5 digits, 1 NULL
-            sprintf(name_buffer, "ParticleDepthCubemap %05hu", mapID++);
+            azsprintf(name_buffer, "ParticleDepthCubemap %05hu", mapID++);
             resources.depthCubemap = CTexture::CreateTextureObject(name_buffer, dxRenderer->CV_r_CubeDepthMapResolution, dxRenderer->CV_r_CubeDepthMapResolution,
                     1, eTT_Cube, FT_USAGE_DEPTHSTENCIL | FT_USAGE_UNORDERED_ACCESS, eTF_D16);
             const byte* pData[6] = { NULL };
@@ -2806,6 +2898,10 @@ CD3DGPUParticleEngine::CD3DGPUParticleEngine()
     m_impl = new CImpl_GPUParticles();
     m_impl->initialized = false;
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION D3DGPUPARTICLEENGINE_CPP_SECTION_8
+#include AZ_RESTRICTED_FILE(D3DGPUParticleEngine_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
 }
 
 CD3DGPUParticleEngine::~CD3DGPUParticleEngine()
@@ -2931,7 +3027,7 @@ void CD3DGPUParticleEngine::Render(EmitterTypePtr emitter, EGPUParticlePass pass
 
     for (GPUSubemitterData& emitData : pEmitter->subEmitters)
     {
-        m_impl->RenderEmitter(renderPassData, pEmitter->baseData, pEmitter->resources, emitData, pEmitter->resourceParameters, pEmitter->spawnParams);
+        emitData.renderTimeInMilliseconds = m_impl->RenderEmitter(renderPassData, pEmitter->baseData, pEmitter->resources, emitData, pEmitter->resourceParameters, pEmitter->spawnParams);
     }
 
     if (pass == EGPUParticlePass::Main)
@@ -2947,13 +3043,35 @@ void CD3DGPUParticleEngine::Render(EmitterTypePtr emitter, EGPUParticlePass pass
 #if PROFILE_GPU_PARTICLES
         const ColorF color = Col_SteelBlue;
         const float xpos = 10, ypos = 10;
+        const float verticalIndent = 20.0f;
         for (unsigned int i = 0; i < CGPUParticleProfiler::COUNT; ++i)
         {
-            const float yOffset = i * 20.0f;
+            const float yOffset = i * verticalIndent;
 
             float timeOUT = GPU_PARTICLE_PROFILER_GET_TIME((&(pEmitter->resources)), i);
             m_impl->dxRenderer->Draw2dLabel(xpos, ypos + yOffset, 1.5f, &color.r, false, "%s", GPU_PARTICLE_PROFILER_GET_INDEX_NAME((&(pEmitter->resources)), i));
-            m_impl->dxRenderer->Draw2dLabel(xpos + 130, ypos + yOffset, 1.5f, &color.r, false, "%.2fms", timeOUT);
+            m_impl->dxRenderer->Draw2dLabel(xpos + 130, ypos + yOffset, 1.5f, &color.r, false, "%.8fms", timeOUT);
+        }
+        {// Throttle stats. Will only the report the most-significant sub-emitter.
+            const float yOffset = verticalIndent * CGPUParticleProfiler::COUNT;
+            bool isThrottled = false;
+            m_impl->dxRenderer->Draw2dLabel(xpos, ypos + yOffset, 1.5f, &color.r, false, "EMIT THROTTLE");
+
+            for (const auto& subEmitter : pEmitter->subEmitters)
+            {
+                if (subEmitter.particleSpawnPerformanceScale < 1.0f)
+                {
+                    const float throttlePercentage = (1.0f - subEmitter.particleSpawnPerformanceScale) * 100.0f;
+                    m_impl->dxRenderer->Draw2dLabel(xpos + 130, ypos + yOffset, 1.5f, &color.r, false, "%.2f%%", throttlePercentage);
+                    isThrottled = true;
+                    break;
+                }
+            }
+
+            if (!isThrottled)
+            {
+                m_impl->dxRenderer->Draw2dLabel(xpos + 130, ypos + yOffset, 1.5f, &color.r, false, "0.00%%");
+            }
         }
         m_impl->dxRenderer->RT_RenderTextMessages();
 #endif
@@ -2970,6 +3088,10 @@ void CD3DGPUParticleEngine::UpdateFrame()
     PROFILE_LABEL_SCOPE("UPDATE_GPU_PARTICLES");
 
     // sort particles that need sorting
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION D3DGPUPARTICLEENGINE_CPP_SECTION_9
+#include AZ_RESTRICTED_FILE(D3DGPUParticleEngine_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
 
     //render cubemaps for collision, if necesary
     for (int i = 0; i < m_impl->emittersQueuedForUpdate.size(); ++i)
@@ -3016,6 +3138,10 @@ void CD3DGPUParticleEngine::UpdateFrame()
         {
             if (emitter->resourceParameters->eSortMethod != ParticleParams::ESortMethod::None)
             {
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION D3DGPUPARTICLEENGINE_CPP_SECTION_10
+#include AZ_RESTRICTED_FILE(D3DGPUParticleEngine_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
                 m_impl->GatherSortScore(emitter->resources);
             }
 
@@ -3036,6 +3162,10 @@ void CD3DGPUParticleEngine::UpdateFrame()
                 }
             }
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION D3DGPUPARTICLEENGINE_CPP_SECTION_11
+#include AZ_RESTRICTED_FILE(D3DGPUParticleEngine_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
         }
     }
 
@@ -3047,6 +3177,10 @@ void CD3DGPUParticleEngine::UpdateFrame()
 
         m_impl->EndUpdate(emitter->baseData);
 
+#if defined(AZ_RESTRICTED_PLATFORM)
+#define AZ_RESTRICTED_SECTION D3DGPUPARTICLEENGINE_CPP_SECTION_12
+#include AZ_RESTRICTED_FILE(D3DGPUParticleEngine_cpp, AZ_RESTRICTED_PLATFORM)
+#endif
     }
 
     // clear queue

@@ -101,6 +101,10 @@ public:
     virtual bool SnapTimeToPrevKey(float& time) const override;
     virtual bool SnapTimeToNextKey(float& time) const override;
 
+    // Expanded state interface
+    void SetExpanded(bool expanded) override;
+    bool GetExpanded() const override;
+
     // Key getters
     virtual unsigned int GetKeyCount() const override { return m_pAnimTrack->GetNumKeys(); }
     virtual CTrackViewKeyHandle GetKey(unsigned int index) override;
@@ -202,7 +206,7 @@ private:
     void SelectKey(unsigned int keyIndex, bool bSelect);
     bool IsKeySelected(unsigned int keyIndex) const;
 
-    void SetKeyTime(const int index, const float time);
+    void SetKeyTime(const int index, const float time, bool notifyListeners = true);
     float GetKeyTime(const int index) const;
 
     void RemoveKey(const int index);

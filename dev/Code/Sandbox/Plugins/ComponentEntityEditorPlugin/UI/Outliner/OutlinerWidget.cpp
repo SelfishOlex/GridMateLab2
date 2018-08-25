@@ -38,7 +38,7 @@
 #include <QMenu>
 #include <QPainter>
 #include <QtCore/QPropertyAnimation>
-#include <QtCore/qtimer>
+#include <QtCore/QTimer>
 
 #include <UI/Outliner/ui_OutlinerWidget.h>
 
@@ -192,20 +192,6 @@ void OutlinerWidget::OnSelectionChanged(const QItemSelection& selected, const QI
     AZ_PROFILE_FUNCTION(AZ::Debug::ProfileCategory::AzToolsFramework);
     // Add the newly selected and deselected entities from the outliner to the appropriate selection buffer.
 
-    for (const auto& deselectedIndex : deselected.indexes())
-    {
-        // Skip any column except the main name column...
-        if (deselectedIndex.column() == OutlinerListModel::ColumnName)
-        {
-            const AZ::EntityId entityId = GetEntityIdFromIndex(deselectedIndex);
-            if (entityId.IsValid())
-            {
-                m_entitiesDeselectedByOutliner.insert(entityId);
-                AzToolsFramework::ToolsApplicationRequestBus::Broadcast(&AzToolsFramework::ToolsApplicationRequests::MarkEntityDeselected, entityId);
-            }
-        }
-    }
-
     for (const auto& selectedIndex : selected.indexes())
     {
         // Skip any column except the main name column...
@@ -216,6 +202,20 @@ void OutlinerWidget::OnSelectionChanged(const QItemSelection& selected, const QI
             {
                 m_entitiesSelectedByOutliner.insert(entityId);
                 AzToolsFramework::ToolsApplicationRequestBus::Broadcast(&AzToolsFramework::ToolsApplicationRequests::MarkEntitySelected, entityId);
+            }
+        }
+    }
+
+    for (const auto& deselectedIndex : deselected.indexes())
+    {
+        // Skip any column except the main name column...
+        if (deselectedIndex.column() == OutlinerListModel::ColumnName)
+        {
+            const AZ::EntityId entityId = GetEntityIdFromIndex(deselectedIndex);
+            if (entityId.IsValid())
+            {
+                m_entitiesDeselectedByOutliner.insert(entityId);
+                AzToolsFramework::ToolsApplicationRequestBus::Broadcast(&AzToolsFramework::ToolsApplicationRequests::MarkEntityDeselected, entityId);
             }
         }
     }
@@ -726,6 +726,10 @@ void OutlinerWidget::SetupActions()
     addAction(m_actionToDeleteSelectionAndDescendants);
 
     m_actionToRenameSelection = new QAction(tr("Rename Selection"), this);
+#ifdef AZ_PLATFORM_APPLE_OSX
+    // "Alt+Return" translates to Option+Return on macOS
+    m_actionToRenameSelection->setShortcut(tr("Alt+Return"));
+#endif
     m_actionToRenameSelection->setShortcutContext(Qt::WidgetWithChildrenShortcut);
     connect(m_actionToRenameSelection, &QAction::triggered, this, &OutlinerWidget::DoRenameSelection);
     addAction(m_actionToRenameSelection);
@@ -837,6 +841,8 @@ void OutlinerWidget::OnEnableSelectionUpdates(bool enable)
 void OutlinerWidget::EntityCreated(const AZ::EntityId& entityId)
 {
     QueueScrollToNewContent(entityId);
+    // When a new entity is created we need to make sure to apply the filter
+    m_listModel->FilterEntity(entityId);
 }
 
 void OutlinerWidget::ScrollToNewContent()

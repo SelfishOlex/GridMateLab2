@@ -13,7 +13,7 @@
 #pragma once
 
 #include "native/utilities/BatchApplicationManager.h"
-#include "native/utilities/assetUtilEBusHelper.h"
+#include "native/utilities/AssetUtilEBusHelper.h"
 #include <QFileSystemWatcher>
 #include <QMap>
 #include <QAtomicInt>
@@ -55,6 +55,7 @@ public:
     ////////////////////////////////////////////////////
     ///MessageInfoBus::Listener interface///////////////
     void NegotiationFailed() override;
+    void OnAssetFailed(const AZStd::string& sourceFileName) override;
     ///////////////////////////////////////////////////
 
     //! TraceMessageBus::Handler
@@ -84,6 +85,7 @@ protected Q_SLOTS:
     void DirectoryChanged(QString path);
     void ShowMessageBox(QString title, QString msg, bool isCritical);
     void ShowTrayIconMessage(QString msg);
+    void ShowTrayIconErrorMessage(QString msg);
 
 private:
     bool Restart();
@@ -99,4 +101,6 @@ private:
 
     QPointer<QSystemTrayIcon> m_trayIcon;
     QPointer<MainWindow> m_mainWindow;
+
+    AZStd::chrono::system_clock::time_point m_timeWhenLastWarningWasShown;
 };

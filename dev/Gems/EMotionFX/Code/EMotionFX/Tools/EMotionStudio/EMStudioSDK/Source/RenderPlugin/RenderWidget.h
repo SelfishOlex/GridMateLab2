@@ -15,7 +15,6 @@
 
 //
 #include <MCore/Source/StandardHeaders.h>
-#include <MCore/Source/UnicodeString.h>
 #include "../EMStudioConfig.h"
 #include <EMotionFX/Rendering/Common/Camera.h>
 #include <EMotionFX/Rendering/Common/TransformationManipulator.h>
@@ -90,6 +89,8 @@ namespace EMStudio
             : public EMotionFX::EventHandler
         {
         public:
+            AZ_CLASS_ALLOCATOR_DECL
+
             EventHandler(RenderWidget* widget)
                 : EMotionFX::EventHandler() { mWidget = widget; }
             ~EventHandler() {}

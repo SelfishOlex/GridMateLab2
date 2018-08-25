@@ -253,7 +253,7 @@ void SFileSystemSearchFolder::Process()
             int res = 0;
             do
             {
-                if (fd.name[0] != 0 && (fd.attrib & _A_SUBDIR) != 0 && strcmpi(fd.name, ".") != 0 && strcmpi(fd.name, "..") != 0)
+                if (fd.name[0] != 0 && (fd.attrib & _A_SUBDIR) != 0 && azstricmp(fd.name, ".") != 0 && azstricmp(fd.name, "..") != 0)
                 {
                     QString dir = fd.name;
                     GetOrCreateSubdir(dir.toLower());
@@ -418,6 +418,10 @@ CFileSystemSearcher::CFileSystemSearcher()
 
     m_assetTypes[6] = SFileSystemAssetDesc("Material", IVariable::DT_MATERIAL);
     m_assetTypes[6].AddExt("mtl");
+
+    m_assetTypes[7] = SFileSystemAssetDesc("Motion", IVariable::DT_MOTION);
+    m_assetTypes[7].AddExt("motion");
+
 }
 
 ////////////////////////////////////////////////////////////////////////////

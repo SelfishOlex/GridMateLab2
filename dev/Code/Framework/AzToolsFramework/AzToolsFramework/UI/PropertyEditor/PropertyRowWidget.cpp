@@ -13,88 +13,16 @@
 #include "PropertyRowWidget.hxx"
 #include "PropertyQTConstants.h"
 
+#include <AzQtComponents/Components/Widgets/ElidingLabel.h>
+
 #include <QtWidgets/QHBoxLayout>
+#include <QtWidgets/QWidget>
 #include <QtGui/QFontMetrics>
 #include <QtGui/QTextLayout>
 #include <QtGui/QPainter>
 
 namespace AzToolsFramework
 {
-
-    ElidingLabel::ElidingLabel(QWidget* parent /* = nullptr */)
-        : QWidget(parent)
-        , m_label(new QLabel(this))
-    {
-        auto layout = new QHBoxLayout(this);
-        layout->setMargin(0);
-        layout->addWidget(m_label);
-    }
-
-    void ElidingLabel::SetText(const QString& text)
-    {
-        if (text == m_text)
-        {
-            return;
-        }
-
-        m_text = text;
-        m_label->setText(m_text);
-        m_elidedText.clear();
-        update();
-    }
-
-    void ElidingLabel::SetDescription(const QString& description)
-    {
-        m_description = description;
-    }
-
-    void ElidingLabel::paintEvent(QPaintEvent* event)
-    {
-        Elide();
-        QWidget::paintEvent(event);
-    }
-
-    void ElidingLabel::resizeEvent(QResizeEvent* event)
-    {
-        m_elidedText.clear();
-        QWidget::resizeEvent(event);
-    }
-
-    void ElidingLabel::Elide()
-    {
-        if (!m_elidedText.isEmpty()) {
-            return;
-        }
-
-        QPainter painter(this);
-        QFontMetrics fontMetrics = painter.fontMetrics();
-        m_elidedText = fontMetrics.elidedText(m_text, Qt::ElideRight, m_label->contentsRect().width());
-        m_label->setText(m_elidedText);
-
-        if (m_elidedText != m_text)
-        {
-            if (m_description.isEmpty())
-            {
-                setToolTip(m_text);
-            }
-            else
-            {
-                setToolTip(m_text + "\n" + m_description);
-            }
-        }
-        else
-        {
-            setToolTip(m_description);
-        }
-    }
-
-    void ElidingLabel::RefreshStyle()
-    {
-        m_label->style()->unpolish(m_label);
-        m_label->style()->polish(m_label);
-        m_label->update();
-    }
-
     PropertyRowWidget::PropertyRowWidget(QWidget* pParent)
         : QFrame(pParent)
     {
@@ -105,17 +33,14 @@ namespace AzToolsFramework
         m_iconOpen = s_iconOpen;
         m_iconClosed = s_iconClosed;
 
-        m_requestedLabelWidth = 0;
-
-        m_mainLayout = aznew QHBoxLayout();
+        m_mainLayout = new QHBoxLayout();
         m_mainLayout->setSpacing(0);
         m_mainLayout->setContentsMargins(PropertyQTConstant_LeftMargin, 1, PropertyQTConstant_RightMargin, 1);
 
-        m_leftHandSideLayout = aznew QHBoxLayout(NULL);
-        m_middleLayout = aznew QHBoxLayout(NULL);
-        m_rightHandSideLayout = aznew QHBoxLayout(NULL);
+        m_leftHandSideLayout = new QHBoxLayout(nullptr);
+        m_middleLayout = new QHBoxLayout(nullptr);
+        m_rightHandSideLayout = new QHBoxLayout(nullptr);
 
-        m_childWidget = nullptr;
         m_leftHandSideLayout->setSpacing(0);
         m_middleLayout->setSpacing(0);
         m_rightHandSideLayout->setSpacing(0);
@@ -123,8 +48,7 @@ namespace AzToolsFramework
         m_middleLayout->setContentsMargins(0, 0, 0, 0);
         m_rightHandSideLayout->setContentsMargins(0, 0, 0, 0);
 
-        m_parentRow = nullptr;
-        m_leftAreaContainer = aznew QWidget(this);
+        m_leftAreaContainer = new QWidget(this);
         m_mainLayout->addWidget(m_leftAreaContainer, 0, Qt::AlignLeft);
         m_mainLayout->addLayout(m_middleLayout, 1);
         m_mainLayout->addLayout(m_rightHandSideLayout, 0);
@@ -134,38 +58,23 @@ namespace AzToolsFramework
         m_leftAreaContainer->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Maximum);
         m_leftAreaContainer->setContentsMargins(0, 0, 0, 0);
 
-        m_treeDepth = 0;
-
-        m_indent = aznew QSpacerItem(1, 1, QSizePolicy::Fixed, QSizePolicy::Fixed);
+        m_indent = new QSpacerItem(1, 1, QSizePolicy::Fixed, QSizePolicy::Fixed);
 
         m_leftHandSideLayout->addSpacerItem(m_indent);
 
-        m_nameLabel = aznew ElidingLabel(this);
+        m_nameLabel = new AzQtComponents::ElidingLabel(this);
         m_nameLabel->setObjectName("Name");
         m_nameLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
         m_nameLabel->setFixedHeight(16);
 
-        m_defaultLabel = aznew QLabel(this);
+        m_defaultLabel = new AzQtComponents::ElidingLabel(this);
         m_middleLayout->addWidget(m_defaultLabel);
-        m_defaultLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        m_defaultLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
         m_defaultLabel->hide();
         m_defaultLabel->setFixedHeight(16);
+        m_defaultLabel->SetElideMode(Qt::ElideLeft);
 
         m_leftHandSideLayout->addWidget(m_nameLabel);
-        m_expanded = false;
-        m_forbidExpansion = false;
-        m_autoExpand = false;
-        m_containerEditable = false;
-        m_sourceNode = NULL;
-        m_isContainer = false;
-        m_isMultiSizeContainer = false;
-        m_isFixedSizeOrSmartPtrContainer = false;
-        m_isSelected = false;
-        m_selectionEnabled = false;
-        m_readOnly = false;
-        m_initialized = false;
-        m_handler = nullptr;
-        m_containerSize = 0;
 
         setLayout(m_mainLayout);
     }
@@ -191,7 +100,7 @@ namespace AzToolsFramework
         m_childrenRows.clear();
 
         AZ_Assert(m_initialized, "Cannot clear a property row unless it is initialized");
-        m_sourceNode = NULL;
+        m_sourceNode = nullptr;
         m_initialized = false;
         m_identifier = 0;
         m_containerSize = 0;
@@ -211,12 +120,13 @@ namespace AzToolsFramework
         m_readOnly = false;
         m_defaultValueString.clear();
         m_changeNotifiers.clear();
+        m_changeValidators.clear();
 
         delete m_containerClearButton;
         delete m_containerAddButton;
         delete m_elementRemoveButton;
 
-        setToolTip("");
+        setToolTip({});
     }
 
     void PropertyRowWidget::createContainerButtons()
@@ -227,7 +137,7 @@ namespace AzToolsFramework
         if (!m_containerClearButton)
         {
             // add those extra controls on the right hand side
-            m_containerClearButton = aznew QPushButton(this);
+            m_containerClearButton = new QPushButton(this);
             m_containerClearButton->setFlat(true);
             //m_containerClearButton->setStyleSheet("border: none; background-color: transparent; padding: 0ex;");
             m_containerClearButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
@@ -235,7 +145,7 @@ namespace AzToolsFramework
             m_containerClearButton->setIcon(s_iconClear);
             m_containerClearButton->setToolTip(tr("Remove all elements"));
 
-            m_containerAddButton = aznew QPushButton(this);
+            m_containerAddButton = new QPushButton(this);
             m_containerAddButton->setFlat(true);
             m_containerAddButton->setStyleSheet("border: none; background-color: transparent; padding: 0ex;");
             m_containerAddButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
@@ -266,6 +176,7 @@ namespace AzToolsFramework
         m_isSelected = false;
         m_selectionEnabled = false;
         m_changeNotifiers.clear();
+        m_changeValidators.clear();
         m_containerSize = 0;
         m_defaultValueString.clear();
         m_leftAreaContainer->show();
@@ -376,7 +287,7 @@ namespace AzToolsFramework
             if (!m_elementRemoveButton)
             {
                 static QIcon s_iconRemove(":/PropertyEditor/Resources/cross-small.png");
-                m_elementRemoveButton = aznew QPushButton(this);
+                m_elementRemoveButton = new QPushButton(this);
                 m_elementRemoveButton->setFlat(true);
                 m_elementRemoveButton->setStyleSheet("border: none; background-color: transparent; padding: 0ex;");
                 m_elementRemoveButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
@@ -644,7 +555,7 @@ namespace AzToolsFramework
                         if (auto notifyAttribute = editorData->FindAttribute(AZ::Edit::Attributes::ChangeNotify))
                         {
                             PropertyAttributeReader reader(currentParent->FirstInstance(), notifyAttribute);
-                            HandleChangeNotifyAttribute(reader, currentParent);
+                            HandleChangeNotifyAttribute(reader, currentParent, m_changeNotifiers);
                         }
                     }
                     currentParent = currentParent->GetParent();
@@ -927,11 +838,72 @@ namespace AzToolsFramework
         }
         else if ((initial) && (attributeName == AZ::Edit::Attributes::ChangeNotify))
         {
-            HandleChangeNotifyAttribute(reader, m_sourceNode ? m_sourceNode->GetParent() : nullptr);
+            HandleChangeNotifyAttribute(reader, m_sourceNode ? m_sourceNode->GetParent() : nullptr, m_changeNotifiers);
+        }
+        else if ((initial) && (attributeName == AZ::Edit::Attributes::ChangeValidate))
+        {
+            HandleChangeValidateAttribute(reader, m_sourceNode ? m_sourceNode->GetParent() : nullptr);
+        }
+        else if ((initial) && (attributeName == AZ::Edit::Attributes::StringLineEditingCompleteNotify))
+        {
+            HandleChangeNotifyAttribute(reader, m_sourceNode ? m_sourceNode->GetParent() : nullptr, m_editingCompleteNotifiers);
         }
     }
 
-    void PropertyRowWidget::HandleChangeNotifyAttribute(PropertyAttributeReader& reader, InstanceDataNode* node)
+    InstanceDataNode* PropertyRowWidget::ResolveToNodeByType(InstanceDataNode* startNode, const AZ::Uuid& typeId) const
+    {
+        InstanceDataNode* targetNode = startNode;
+
+        if (!typeId.IsNull())
+        {
+            // Walk up the chain looking for the first correct class type to handle the callback
+            while (targetNode)
+            {
+                if (targetNode->GetClassMetadata()->m_azRtti)
+                {
+                    if (targetNode->GetClassMetadata()->m_azRtti->IsTypeOf(typeId))
+                    {
+                        // Instance has RTTI, and derives from type expected by the handler.
+                        break;
+                    }
+                }
+                else
+                {
+                    if (typeId == targetNode->GetClassMetadata()->m_typeId)
+                    {
+                        // Instance does not have RTTI, and is the type expected by the handler.
+                        break;
+                    }
+                }
+                targetNode = targetNode->GetParent();
+            }
+        }
+
+        return targetNode;
+    }
+
+    void PropertyRowWidget::HandleChangeValidateAttribute(PropertyAttributeReader& reader, InstanceDataNode* node)
+    {
+        // Verify type safety for member function handlers.
+        // ChangeValidate handlers are invoked on the instance associated with the node owning
+        // the field, but attributes are generically propagated to parents as well, which is not
+        // safe for ChangeValidate events bound to member functions.
+        // Here we'll avoid inheriting child ChangeValidate attributes unless it's actually
+        // type-safe to do so.
+        AZ::Edit::AttributeFunction<bool(void*, const AZ::Uuid&)>* funcBool = azdynamic_cast<AZ::Edit::AttributeFunction<bool(void*, const AZ::Uuid&)>*>(reader.GetAttribute());
+
+        const AZ::Uuid handlerTypeId = funcBool ? funcBool->GetInstanceType() : AZ::Uuid::CreateNull();
+        InstanceDataNode* targetNode = ResolveToNodeByType(node, handlerTypeId);
+
+        if (targetNode)
+        {
+            m_changeValidators.emplace_back(targetNode, reader.GetAttribute());
+        }
+
+    }
+
+
+    void PropertyRowWidget::HandleChangeNotifyAttribute(PropertyAttributeReader& reader, InstanceDataNode* node, AZStd::vector<ChangeNotification>& notifiers)
     {
         // Verify type safety for member function handlers.
         // ChangeNotify handlers are invoked on the instance associated with the node owning
@@ -973,7 +945,7 @@ namespace AzToolsFramework
 
         if (targetNode)
         {
-            m_changeNotifiers.emplace_back(targetNode, reader.GetAttribute());
+            notifiers.emplace_back(targetNode, reader.GetAttribute());
         }
     }
 
@@ -991,7 +963,7 @@ namespace AzToolsFramework
             {
             m_dropDownArrow->hide();
             }
-            m_indent->changeSize((m_treeDepth * 14) + 16, 1, QSizePolicy::Fixed, QSizePolicy::Fixed);
+            m_indent->changeSize((m_treeDepth * m_treeIndentation) + m_leafIndentation, 1, QSizePolicy::Fixed, QSizePolicy::Fixed);
             m_leftHandSideLayout->invalidate();
             m_leftHandSideLayout->update();
             m_leftHandSideLayout->activate();
@@ -1000,16 +972,16 @@ namespace AzToolsFramework
         {
             if (!m_dropDownArrow)
             {
-                m_dropDownArrow = aznew QPushButton(this);
+                m_dropDownArrow = new QPushButton(this);
                 m_dropDownArrow->setFlat(true);
                 m_dropDownArrow->setStyleSheet("border: none; background-color: transparent; padding: 0ex;");
                 m_dropDownArrow->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-                m_dropDownArrow->setFixedSize(QSize(16, 16));
+                m_dropDownArrow->setFixedSize(QSize(m_leafIndentation, m_leafIndentation));
                 m_leftHandSideLayout->insertWidget(1, m_dropDownArrow);
                 connect(m_dropDownArrow, &QPushButton::clicked, this, &PropertyRowWidget::OnClickedExpansionButton);
             }
             m_dropDownArrow->show();
-            m_indent->changeSize((m_treeDepth * 14), 1, QSizePolicy::Fixed, QSizePolicy::Fixed);
+            m_indent->changeSize((m_treeDepth * m_treeIndentation), 1, QSizePolicy::Fixed, QSizePolicy::Fixed);
             m_leftHandSideLayout->invalidate();
             m_leftHandSideLayout->update();
             m_leftHandSideLayout->activate();
@@ -1145,9 +1117,94 @@ namespace AzToolsFramework
         return level;
     }
 
+    void PropertyRowWidget::DoEditingCompleteNotify()
+    {
+        if ((m_editingCompleteNotifiers.size() > 0) && (m_sourceNode))
+        {
+            for (size_t changeIndex = 0; changeIndex < m_editingCompleteNotifiers.size(); changeIndex++)
+            {
+                // execute the function or read the value.
+                InstanceDataNode* nodeToNotify = m_editingCompleteNotifiers[changeIndex].m_node;
+                if ((nodeToNotify) && (nodeToNotify->GetClassMetadata()->m_container))
+                {
+                    nodeToNotify = nodeToNotify->GetParent();
+                }
+
+                if (nodeToNotify)
+                {
+                    for (size_t idx = 0; idx < nodeToNotify->GetNumInstances(); ++idx)
+                    {
+                        PropertyAttributeReader reader(nodeToNotify->GetInstance(idx), m_editingCompleteNotifiers[changeIndex].m_attribute);
+                        
+                        // Support invoking a void handler
+                        AZ::Edit::AttributeFunction<void()>* func = azdynamic_cast<AZ::Edit::AttributeFunction<void()>*>(reader.GetAttribute());
+                        if (func)
+                        {
+                            func->Invoke(nodeToNotify->GetInstance(idx));
+                        }
+                        else
+                        {
+                            AZ_WarningOnce("Property Editor", false,
+                                "Unable to invoke editing complete notification handler for %s. "
+                                "Handler must return void",
+                                nodeToNotify->GetElementEditMetadata() ? nodeToNotify->GetElementEditMetadata()->m_name : nodeToNotify->GetClassMetadata()->m_name);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     bool PropertyRowWidget::HasChildRows() const
     {
         return !m_childrenRows.empty(); 
+    }
+
+    bool PropertyRowWidget::ShouldPreValidatePropertyChange() const
+    {
+        return (m_changeValidators.size() > 0);
+    }
+
+    bool PropertyRowWidget::ValidatePropertyChange(void* valueToValidate, const AZ::Uuid& valueType) const
+    {
+        if (m_sourceNode)
+        {
+            for (auto& changeValidator : m_changeValidators)
+            {
+                // execute the function or read the value.
+                InstanceDataNode* nodeToNotify = changeValidator.m_node;
+                if ((nodeToNotify) && (nodeToNotify->GetClassMetadata()->m_container))
+                {
+                    nodeToNotify = nodeToNotify->GetParent();
+                }
+
+                if (nodeToNotify)
+                {
+                    for (size_t idx = 0; idx < nodeToNotify->GetNumInstances(); ++idx)
+                    {
+                        PropertyAttributeReader reader(nodeToNotify->GetInstance(idx), changeValidator.m_attribute);
+                        bool valid = true;
+                        if (reader.Read<bool>(valid, valueToValidate, valueType))
+                        {
+                            if (!valid)
+                            {
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (m_parentRow)
+        {
+            if (!m_parentRow->ValidatePropertyChange(valueToValidate, valueType))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     QWidget* PropertyRowWidget::GetFirstTabWidget()
@@ -1223,6 +1280,15 @@ namespace AzToolsFramework
         m_leftAreaContainer->setFixedWidth(CalculateLabelWidth());
     }
 
+    void PropertyRowWidget::SetTreeIndentation(int indentation)
+    {
+        m_treeIndentation = indentation;
+    }
+
+    void PropertyRowWidget::SetLeafIndentation(int indentation)
+    {
+        m_leafIndentation = indentation;
+    }
 
     void PropertyRowWidget::OnClickedAddElementButton()
     {

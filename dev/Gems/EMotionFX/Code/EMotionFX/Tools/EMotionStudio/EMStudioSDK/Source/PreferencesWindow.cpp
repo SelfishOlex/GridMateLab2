@@ -12,15 +12,16 @@
 
 // include the required headers
 #include "PreferencesWindow.h"
-#include "EMStudioManager.h"
+
+#include <AzToolsFramework/UI/PropertyEditor/ReflectedPropertyEditor.hxx>
 #include <MCore/Source/LogManager.h>
-#include <EMotionFX/Source/Importer/Importer.h>
+#include <MysticQt/Source/MysticQtManager.h>
+
 #include <QLabel>
 #include <QPixmap>
 #include <QVBoxLayout>
 #include <QStackedWidget>
 #include <QListWidget>
-#include "MainWindow.h"
 
 
 namespace EMStudio
@@ -75,23 +76,6 @@ namespace EMStudio
         horizontalLayout->addWidget(mCategoriesWidget);
         horizontalLayout->addWidget(mStackedWidget);
         setLayout(horizontalLayout);
-    }
-
-
-    // add categories from the given plugin or in case the parameter is nullptr from all active plugins
-    void PreferencesWindow::AddCategoriesFromPlugin(EMStudioPlugin* plugin)
-    {
-        PluginManager* pluginManager = GetPluginManager();
-        const uint32 numPlugins = pluginManager->GetNumActivePlugins();
-        for (uint32 i = 0; i < numPlugins; ++i)
-        {
-            EMStudioPlugin* currentPlugin = pluginManager->GetActivePlugin(i);
-
-            if (plugin == nullptr || currentPlugin == plugin)
-            {
-                currentPlugin->AddSettings(this);
-            }
-        }
 
         mCategoriesWidget->setCurrentRow(0);
     }
@@ -106,8 +90,8 @@ namespace EMStudio
         QListWidgetItem* categoryButton = new QListWidgetItem();
 
         // load the category image and pass it to the category buttom
-        MCore::String imageFileName = MysticQt::GetDataDir() + relativeFileName;
-        categoryButton->setIcon(QIcon(imageFileName.AsChar()));
+        AZStd::string imageFileName = MysticQt::GetDataDir() + relativeFileName;
+        categoryButton->setIcon(QIcon(imageFileName.c_str()));
 
         // set the category button name and style it
         categoryButton->setText(categoryName);
@@ -131,16 +115,16 @@ namespace EMStudio
 
 
     // add a new category
-    MysticQt::PropertyWidget* PreferencesWindow::AddCategory(const char* categoryName, const char* relativeFileName, bool readOnly)
+    AzToolsFramework::ReflectedPropertyEditor* PreferencesWindow::AddCategory(const char* categoryName, const char* relativeFileName, bool readOnly)
     {
         MCORE_UNUSED(readOnly);
 
         // create the category button
         QListWidgetItem* categoryButton = new QListWidgetItem();
 
-        // load the category image and pass it to the category buttom
-        MCore::String imageFileName = MysticQt::GetDataDir() + relativeFileName;
-        categoryButton->setIcon(QIcon(imageFileName.AsChar()));
+        // load the category image and pass it to the category button
+        AZStd::string imageFileName = MysticQt::GetDataDir() + relativeFileName;
+        categoryButton->setIcon(QIcon(imageFileName.c_str()));
 
         // set the category button name and style it
         categoryButton->setText(categoryName);
@@ -148,7 +132,7 @@ namespace EMStudio
         categoryButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
 
         // create the new property widget
-        MysticQt::PropertyWidget* propertyWidget = new MysticQt::PropertyWidget(this);
+        AzToolsFramework::ReflectedPropertyEditor* propertyWidget = aznew AzToolsFramework::ReflectedPropertyEditor(this);
         propertyWidget->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
 
         // add the button to the categories list and the property widget to the stacked widget on the right
@@ -169,7 +153,7 @@ namespace EMStudio
 
 
     // find category by name
-    PreferencesWindow::Category* PreferencesWindow::FindCategoryByName(const char* categoryName)
+    PreferencesWindow::Category* PreferencesWindow::FindCategoryByName(const char* categoryName) const
     {
         // get the number of categories and iterate through them
         const uint32 numCategories = mCategories.GetLength();
@@ -178,7 +162,7 @@ namespace EMStudio
             Category* category = mCategories[i];
 
             // compare the passed name with the current category and return if they are the same
-            if (category->mName.CheckIfIsEqual(categoryName))
+            if (category->mName == categoryName)
             {
                 return category;
             }

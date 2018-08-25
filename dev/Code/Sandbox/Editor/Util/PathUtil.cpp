@@ -222,8 +222,16 @@ namespace Path
         SplitPath(strExecutablePath, strDriveLetter, strDirectory, strFilename, strExtension);
         strReturnValue = strDriveLetter;
         strReturnValue += strDirectory;
-        GetParentDirectoryString(strReturnValue);
 
+        static const char EditorBundleName[] = "/Editor.app/Contents/MacOS/";
+        if (strReturnValue.endsWith(EditorBundleName))
+        {
+            // We are inside a bundle but the rest of the code is not setup to
+            // handle that.So go up a few directories to get out of the App Bundle heirarchy...
+            strReturnValue.chop(strlen(EditorBundleName));
+        }
+
+        GetParentDirectoryString(strReturnValue);
         return strReturnValue;
     }
     //////////////////////////////////////////////////////////////////////////
@@ -420,19 +428,21 @@ namespace Path
         }
 
         char rootpath[_MAX_PATH] = { 0 };
-        strcpy_s(rootpath, _MAX_PATH, Path::GetEditingRootFolder().c_str());
+        azstrcpy(rootpath, _MAX_PATH, Path::GetEditingRootFolder().c_str());
 
         if (bRelativeToGameFolder)
         {
-            strcpy_s(rootpath, _MAX_PATH, Path::GetEditingGameDataFolder().c_str());
+            azstrcpy(rootpath, _MAX_PATH, Path::GetEditingGameDataFolder().c_str());
         }
 
         QString rootPathNormalized(rootpath);
         QString srcPathNormalized(fullPath);
 
+#if defined(AZ_PLATFORM_WINDOWS)
         // avoid confusing PathRelativePathTo
         rootPathNormalized.replace('/', '\\');
         srcPathNormalized.replace('/', '\\');
+#endif
 
         // Create relative path
         char resolvedSrcPath[AZ_MAX_PATH_LEN] = { 0 };
@@ -510,7 +520,7 @@ namespace Path
                 }
 
                 char szAdjustedFile[AZ_MAX_PATH_LEN] = { 0 };
-                gEnv->pCryPak->AdjustFileName(adjustedFilePath.c_str(), szAdjustedFile, ICryPak::FLAGS_NO_LOWCASE);
+                gEnv->pCryPak->AdjustFileName(adjustedFilePath.c_str(), szAdjustedFile, AZ_ARRAY_SIZE(szAdjustedFile), ICryPak::FLAGS_NO_LOWCASE);
 
                 if ((strnicmp(szAdjustedFile, "@devassets@", 11) == 0) && ((szAdjustedFile[11] == '/') || (szAdjustedFile[11] == '\\')))
                 {
@@ -521,7 +531,7 @@ namespace Path
                         
                         if (gEnv->pCryPak->IsFileExist(newName.c_str()))
                         {
-                            strcpy(szAdjustedFile, newName.c_str());
+                            azstrcpy(szAdjustedFile, AZ_ARRAY_SIZE(szAdjustedFile), newName.c_str());
                         }
                         else
                         {
@@ -529,7 +539,7 @@ namespace Path
                             AzFramework::StringFunc::Replace(newName, "@devassets@", "@devroot@", false);
                             if (gEnv->pCryPak->IsFileExist(szAdjustedFile))
                             {
-                                strcpy(szAdjustedFile, newName.c_str());
+                                azstrcpy(szAdjustedFile, AZ_ARRAY_SIZE(szAdjustedFile), newName.c_str());
                             }
                             // give up, best guess is just @devassets@
                         }
@@ -553,7 +563,7 @@ namespace Path
                         // in which case we may as well just resolve the path to a full path and return it.
                         assetFullPath = adjustedPath;
                         AzFramework::StringFunc::Path::Normalize(assetFullPath);
-                        strcpy_s(szAdjustedFile, AZ_MAX_PATH_LEN, assetFullPath.c_str());
+                        azstrcpy(szAdjustedFile, AZ_MAX_PATH_LEN, assetFullPath.c_str());
                     }
                     // if the above case succeeded then it means that the file does NOT exist loose
                     // but DOES exist in a pak, in which case we leave szAdjustedFile with the alias on the front of it, meaning
@@ -591,6 +601,32 @@ namespace Path
         }
 
         return CaselessPaths(path);
+    }
+
+    QString SubDirectoryCaseInsensitive(const QString& path, const QStringList& parts)
+    {
+        if (parts.isEmpty())
+        {
+            return path;
+        }
+
+        QStringList modifiedParts = parts;
+        auto currentPart = modifiedParts.takeFirst();
+
+        // case insensitive iterator
+        QDirIterator it(path);
+        while (it.hasNext())
+        {
+            it.next();
+            // the current part already exists, use it, case doesn't matter
+            auto actualName = it.fileName();
+            if (QString::compare(actualName, currentPart, Qt::CaseInsensitive) == 0)
+            {
+                return SubDirectoryCaseInsensitive(QDir(path).absoluteFilePath(actualName), modifiedParts);
+            }
+        }
+        // the current path doesn't exist yet, so just create the complete path in one rush
+        return QDir(path).absoluteFilePath(parts.join('/'));
     }
 }
 

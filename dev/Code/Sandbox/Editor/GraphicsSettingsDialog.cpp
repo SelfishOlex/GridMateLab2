@@ -9,7 +9,7 @@
 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 *
 */
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "GraphicsSettingsDialog.h"
 
 //QT
@@ -49,7 +49,7 @@ GraphicsSettingsDialog::GraphicsSettingsDialog(QWidget* parent /* = nullptr */)
     setWindowTitle("Graphics Settings");
 
     /////////////////////////////////////////////
-    
+
     m_currentPlatform = GetISystem()->GetConfigPlatform();
 
     gEnv->pSystem->SetGraphicsSettingsMap(&m_cVarTracker);
@@ -59,26 +59,16 @@ GraphicsSettingsDialog::GraphicsSettingsDialog(QWidget* parent /* = nullptr */)
     // Remove once cvars can be overwritten in the PC config files
     if (m_currentPlatform == CONFIG_PC)
     {
-        m_currentPlatform = CONFIG_OSX_GL;
+        m_currentPlatform = CONFIG_OSX_METAL;
     }
 
-    // Subtract 1 and add PC to the Combo Box once cvars can be overwritten in the PC config files
-    m_ui->PlatformEntry->setCurrentIndex(m_currentPlatform - 2);
-
-    // Hide custom spec option initially
-    m_customSpecChosen = true;
-    ToggleCustomSpecOption();
+    m_showCustomSpec = true;
+    ShowCustomSpecOption(false);
 
     // Show categories, disable apply button
     m_showCategories = true;
     m_ui->ApplyButton->setEnabled(false);
 
-    // Uncomment once cvars can be overwritten in the PC config files
-    // m_cfgFiles[CONFIG_PC].push_back("pc_low.cfg");
-    // m_cfgFiles[CONFIG_PC].push_back("pc_medium.cfg");
-    // m_cfgFiles[CONFIG_PC].push_back("pc_high.cfg");
-    // m_cfgFiles[CONFIG_PC].push_back("pc_veryhigh.cfg");
-    m_cfgFiles[CONFIG_OSX_GL].push_back("osx_gl.cfg");
     m_cfgFiles[CONFIG_OSX_METAL].push_back("osx_metal.cfg");
     m_cfgFiles[CONFIG_ANDROID].push_back("android_low.cfg");
     m_cfgFiles[CONFIG_ANDROID].push_back("android_medium.cfg");
@@ -88,6 +78,14 @@ GraphicsSettingsDialog::GraphicsSettingsDialog(QWidget* parent /* = nullptr */)
     m_cfgFiles[CONFIG_IOS].push_back("ios_medium.cfg");
     m_cfgFiles[CONFIG_IOS].push_back("ios_high.cfg");
     m_cfgFiles[CONFIG_IOS].push_back("ios_veryhigh.cfg");
+#if defined(AZ_TOOLS_EXPAND_FOR_RESTRICTED_PLATFORMS)
+#define AZ_TOOLS_RESTRICTED_PLATFORM_EXPANSION(PrivateName, PRIVATENAME, privatename, PublicName, PUBLICNAME, publicname, PublicAuxName1, PublicAuxName2, PublicAuxName3)\
+    m_cfgFiles[CONFIG_##PUBLICNAME].push_back(#publicname "_low.cfg");\
+    m_cfgFiles[CONFIG_##PUBLICNAME].push_back(#publicname "_medium.cfg");\
+    m_cfgFiles[CONFIG_##PUBLICNAME].push_back(#publicname "_high.cfg");
+    AZ_TOOLS_EXPAND_FOR_RESTRICTED_PLATFORMS
+#undef AZ_TOOLS_RESTRICTED_PLATFORM_EXPANSION
+#endif
     m_cfgFiles[CONFIG_APPLETV].push_back("appletv.cfg");
 
     m_cvarGroupData["Config/CVarGroups/sys_spec_gameeffects.cfg"].m_layout = m_ui->GameEffectsLayout;
@@ -106,12 +104,25 @@ GraphicsSettingsDialog::GraphicsSettingsDialog(QWidget* parent /* = nullptr */)
     m_cvarGroupData["Config/CVarGroups/sys_spec_water.cfg"].m_layout = m_ui->WaterLayout;
     m_cvarGroupData["miscellaneous"].m_layout = m_ui->MiscellaneousLayout;
 
-    m_platformStrings["PC"] = CONFIG_PC;
-    m_platformStrings["OSX GL"] = CONFIG_OSX_GL;
-    m_platformStrings["OSX Metal"] = CONFIG_OSX_METAL;
-    m_platformStrings["Android"] = CONFIG_ANDROID;
-    m_platformStrings["iOS"] = CONFIG_IOS;
-    m_platformStrings["Apple TV"] = CONFIG_APPLETV;
+    m_platformStrings.push_back(AZStd::make_pair("OSX Metal", CONFIG_OSX_METAL));
+    m_platformStrings.push_back(AZStd::make_pair("Android", CONFIG_ANDROID));
+    m_platformStrings.push_back(AZStd::make_pair("iOS", CONFIG_IOS));
+#if defined(AZ_TOOLS_EXPAND_FOR_RESTRICTED_PLATFORMS)
+#define AZ_TOOLS_RESTRICTED_PLATFORM_EXPANSION(PrivateName, PRIVATENAME, privatename, PublicName, PUBLICNAME, publicname, PublicAuxName1, PublicAuxName2, PublicAuxName3)\
+    m_platformStrings.push_back(AZStd::make_pair(PublicAuxName2, CONFIG_##PUBLICNAME));
+    AZ_TOOLS_EXPAND_FOR_RESTRICTED_PLATFORMS
+#undef AZ_TOOLS_RESTRICTED_PLATFORM_EXPANSION
+#endif
+    m_platformStrings.push_back(AZStd::make_pair("Apple TV", CONFIG_APPLETV));
+    m_platformStrings.push_back(AZStd::make_pair("Custom", CONFIG_INVALID_PLATFORM));
+
+    for (auto& platformString : m_platformStrings)
+    {
+        QString platform = platformString.first.c_str();
+        m_ui->PlatformEntry->addItem(platform);
+    }
+
+    SetPlatformEntry(m_currentPlatform);
 
     BuildUI();
 
@@ -123,7 +134,7 @@ GraphicsSettingsDialog::~GraphicsSettingsDialog()
     for (CollapseGroup* group : m_uiCollapseGroup)
     {
         // Destructor of CollapseGroup will set the members
-        // pointing to nullptr. The actually destruction of the 
+        // pointing to nullptr. The actually destruction of the
         // widgets will be done on destruction of m_ui
         delete group;
     }
@@ -131,7 +142,7 @@ GraphicsSettingsDialog::~GraphicsSettingsDialog()
     for (ParameterWidget* widget : m_parameterWidgets)
     {
         // Destructor of ParameterWidget will set the members
-        // pointing to nullptr. The actually destruction of the 
+        // pointing to nullptr. The actually destruction of the
         // widgets will be done on destruction of m_ui
         delete widget;
     }
@@ -139,7 +150,7 @@ GraphicsSettingsDialog::~GraphicsSettingsDialog()
     gEnv->pSystem->SetGraphicsSettingsMap(nullptr);
 
     // Delete m_ui will destruct all the UI elements with in the ui file
-    // Since m_ui is a QScopedPointer which will cleanup itself on the end 
+    // Since m_ui is a QScopedPointer which will cleanup itself on the end
     // of the scope.
 }
 
@@ -153,30 +164,30 @@ void GraphicsSettingsDialog::BuildColumn(int specLevel)
         QWidget* input = nullptr;
         if (it.second.type == CVAR_INT)
         {
-            QSpinBox* intval = new QSpinBox(nullptr);
-            intval->setButtonSymbols(QAbstractSpinBox::NoButtons);
+            AzToolsFramework::PropertyIntSpinCtrl* intval = aznew AzToolsFramework::PropertyIntSpinCtrl(nullptr);
+            intval->setStep(1);
             intval->setMaximum(INT32_MAX);
+            intval->setMinimum(INT32_MIN);
             int editedValue;
             if (AZStd::any_numeric_cast<int>(&it.second.fileVals[specLevel].editedValue, editedValue))
             {
                 intval->setValue(editedValue);
             }
             m_cvarGroupData[it.second.cvarGroup].m_cvarSpinBoxes.push_back(intval);
-            intval->setKeyboardTracking(false);
-            connect(intval, SIGNAL(valueChanged(int)), this, SLOT(CVarChanged(int)));
+            connect(intval, SIGNAL(valueChanged(AZ::s64)), this, SLOT(CVarChanged(AZ::s64)));
             input = intval;
         }
         else if (it.second.type == CVAR_FLOAT)
         {
-            QDoubleSpinBox* doubleval = new QDoubleSpinBox(nullptr);
-            doubleval->setButtonSymbols(QAbstractSpinBox::NoButtons);
+            AzToolsFramework::PropertyDoubleSpinCtrl* doubleval = aznew AzToolsFramework::PropertyDoubleSpinCtrl(nullptr);
+            doubleval->setMaximum(FLT_MAX);
+            doubleval->setMinimum(-FLT_MAX);
             float editedValue;
             if (AZStd::any_numeric_cast<float>(&it.second.fileVals[specLevel].editedValue, editedValue))
             {
                 doubleval->setValue(editedValue);
             }
             m_cvarGroupData[it.second.cvarGroup].m_cvarDoubleSpinBoxes.push_back(doubleval);
-            doubleval->setKeyboardTracking(false);
             connect(doubleval, SIGNAL(valueChanged(double)), this, SLOT(CVarChanged(double)));
             input = doubleval;
         }
@@ -219,8 +230,20 @@ void GraphicsSettingsDialog::LoadPlatformConfigurations()
         GetISystem()->LoadConfiguration(m_cfgFiles[m_currentPlatform][cfgFileIndex].c_str(), 0, true);
     }
 
+    if (m_cVarTracker.find("sys_spec_full") == m_cVarTracker.end())
+    {
+        m_cVarTracker.clear();
+        CleanUI();
+        ShowCategories(false);
+        QMessageBox::warning(this, "Warning", "Invalid custom spec file (missing sys_spec_full).",
+            QMessageBox::Ok);
+        return;
+    }
+
     // Load sys_spec cfgs based on sys_spec_Full values
     gEnv->pSystem->AddCVarGroupDirectory("Config/CVarGroups");
+
+    setUpdatesEnabled(false);
 
     // Reload platform cfg files to override sys_spec index assignments and load rows with filenames of given platform
     for (int cfgFileIndex = 0; cfgFileIndex < m_cfgFiles[m_currentPlatform].size(); ++cfgFileIndex)
@@ -273,9 +296,11 @@ void GraphicsSettingsDialog::LoadPlatformConfigurations()
     {
         BuildColumn(cfgFileIndex);
     }
+
+    setUpdatesEnabled(true);
 }
 
- //Build UI, link signals and set the data for device list.
+//Build UI, link signals and set the data for device list.
 void GraphicsSettingsDialog::BuildUI()
 {
     //Collpase Buttons
@@ -294,18 +319,20 @@ void GraphicsSettingsDialog::BuildUI()
     SetCollapsedLayout(m_ui->VolumetricEffectsDropdown, m_ui->VolumetricEffectsLayout);
     SetCollapsedLayout(m_ui->WaterDropdown, m_ui->WaterLayout);
     SetCollapsedLayout(m_ui->MiscellaneousDropdown, m_ui->MiscellaneousLayout);
-    
+
     connect(m_ui->CancelButton, &QPushButton::clicked, this, &GraphicsSettingsDialog::reject);
     connect(m_ui->ApplyButton, &QPushButton::clicked, this, &GraphicsSettingsDialog::accept);
     connect(m_ui->PlatformEntry, SIGNAL(currentIndexChanged(const QString&)), this, SLOT(PlatformChanged(const QString&)));
     connect(m_ui->SelectCustomSpecButton, &QPushButton::clicked, this, &GraphicsSettingsDialog::OpenCustomSpecDialog);
     connect(m_ui->CustomSpec, &QLineEdit::editingFinished, this, [=]() {ApplyCustomSpec(m_ui->CustomSpec->text()); });
-    
+
     LoadPlatformConfigurations();
 }
 
 void GraphicsSettingsDialog::CleanUI()
 {
+    setUpdatesEnabled(false);
+
     for (auto& cvarGroupIt : m_cvarGroupData)
     {
         for (auto& it : cvarGroupIt.second.m_platformLabels)
@@ -351,12 +378,19 @@ void GraphicsSettingsDialog::CleanUI()
             collapseIt->ToggleCollpased();
         }
     }
+
+    setUpdatesEnabled(true);
 }
 
-void GraphicsSettingsDialog::ToggleCategories()
+void GraphicsSettingsDialog::ShowCategories(bool show)
 {
-    m_showCategories = !m_showCategories;
-    
+    if (m_showCategories == show)
+    {
+        return;
+    }
+
+    m_showCategories = show;
+
     m_ui->GameEffectsDropdown->setVisible(m_showCategories);
     m_ui->LightDropdown->setVisible(m_showCategories);
     m_ui->ObjectDetailDropdown->setVisible(m_showCategories);
@@ -390,11 +424,17 @@ void GraphicsSettingsDialog::ToggleCategories()
     m_ui->MiscellaneousLabel->setVisible(m_showCategories);
 }
 
-void GraphicsSettingsDialog::ToggleCustomSpecOption()
+void GraphicsSettingsDialog::ShowCustomSpecOption(bool show)
 {
-    m_customSpecChosen = !m_customSpecChosen;
-    m_ui->CustomSpecLabel->setVisible(m_customSpecChosen);
-    m_ui->CustomSpecWidget->setVisible(m_customSpecChosen);
+    if (m_showCustomSpec == show)
+    {
+        return;
+    }
+
+    m_showCustomSpec = show;
+
+    m_ui->CustomSpecLabel->setVisible(m_showCustomSpec);
+    m_ui->CustomSpecWidget->setVisible(m_showCustomSpec);
 }
 
 void GraphicsSettingsDialog::PlatformChanged(const QString& platform)
@@ -409,43 +449,35 @@ void GraphicsSettingsDialog::PlatformChanged(const QString& platform)
     {
         AZStd::string azPlatform = platform.toStdString().c_str();
 
-        if (m_platformStrings.find(azPlatform) != m_platformStrings.end())
+        m_currentPlatform = GetConfigPlatformFromName(azPlatform);
+        if (m_currentPlatform == CONFIG_INVALID_PLATFORM) // "Custom" selected
         {
-            m_currentPlatform = m_platformStrings[azPlatform];
-            if (m_customSpecChosen)
-            {
-                ToggleCustomSpecOption();
-                if (!m_showCategories)
-                {
-                    ToggleCategories();
-                }
-            }
+            ShowCustomSpecOption(true);
             CleanUI();
-            LoadPlatformConfigurations();
-        }
-        else // Custom selected
-        {
-            if (!m_customSpecChosen)
+            if (m_cfgFiles[CONFIG_INVALID_PLATFORM].empty()) // if we don't have a custom spec
             {
-                ToggleCustomSpecOption();
-                ToggleCategories();
+                ShowCategories(false);
                 m_ui->ApplyButton->setEnabled(false);
                 m_dirtyCVarCount = 0;
             }
+            else
+            {
+                ShowCategories(true);
+                LoadPlatformConfigurations();
+            }
+        }
+        else
+        {
+            ShowCustomSpecOption(false);
+            ShowCategories(true);
             CleanUI();
+            LoadPlatformConfigurations();
         }
     }
     else
     {
         m_ui->PlatformEntry->blockSignals(true);
-        if (m_currentPlatform != CONFIG_INVALID_PLATFORM)
-        {
-            m_ui->PlatformEntry->setCurrentIndex(m_currentPlatform - 2);
-        }
-        else
-        {
-            m_ui->PlatformEntry->setCurrentIndex(NUM_PLATFORMS - 1);
-        }
+        SetPlatformEntry(m_currentPlatform);
         m_ui->PlatformEntry->blockSignals(false);
     }
 }
@@ -469,7 +501,7 @@ bool GraphicsSettingsDialog::SendUnsavedChangesWarning(bool cancel)
 }
 
 bool GraphicsSettingsDialog::CVarChanged(AZStd::any val, const char* cvarName, int specLevel)
-{   
+{
     // Checking if the edited value (before change) is equal to the overwritten value
     bool dirtyBefore = false;
     AZStd::string azcvarName = cvarName;
@@ -478,7 +510,7 @@ bool GraphicsSettingsDialog::CVarChanged(AZStd::any val, const char* cvarName, i
     {
         dirtyBefore = true;
     }
-    
+
     if (azstricmp(cvarName, "sys_spec_full") == 0)
     {
         //Pop out the warning dialog for sys_spec_Full since all cvars will be changed
@@ -563,9 +595,9 @@ bool GraphicsSettingsDialog::CVarChanged(AZStd::any val, const char* cvarName, i
     return true;
 }
 
-void GraphicsSettingsDialog::CVarChanged(int i)
+void GraphicsSettingsDialog::CVarChanged(AZ::s64 i)
 {
-    QSpinBox* box = qobject_cast<QSpinBox*>(sender());
+    AzToolsFramework::PropertyIntSpinCtrl* box = qobject_cast<AzToolsFramework::PropertyIntSpinCtrl*>(sender());
     QString str = box->objectName();
     QByteArray ba = str.toUtf8();
     const char* cvarName = ba.data();
@@ -573,7 +605,7 @@ void GraphicsSettingsDialog::CVarChanged(int i)
     int specLevel = box->property("specLevel").toInt();
 
     AZStd::any val;
-    val = i;
+    val = static_cast<int>(i);
 
     if (!CVarChanged(val, cvarName, specLevel))
     {
@@ -590,7 +622,7 @@ void GraphicsSettingsDialog::CVarChanged(int i)
 
 void GraphicsSettingsDialog::CVarChanged(double d)
 {
-    QDoubleSpinBox* box = qobject_cast<QDoubleSpinBox*>(sender());
+    AzToolsFramework::PropertyDoubleSpinCtrl* box = qobject_cast<AzToolsFramework::PropertyDoubleSpinCtrl*>(sender());
     QString str = box->objectName();
     QByteArray ba = str.toUtf8();
     const char* cvarName = ba.data();
@@ -701,14 +733,14 @@ void GraphicsSettingsDialog::accept()
     if (result == QMessageBox::Yes)
     {
         SaveSystemSettings();
-    }    
+    }
 }
 
 void GraphicsSettingsDialog::OpenCustomSpecDialog()
 {
     QString projectName = GetIEditor()->GetAssetTagging()->GetProjectName();
     QString settingsPath = projectName + "/" + SETTINGS_FILE_PATH;
-    
+
     CAutoDirectoryRestoreFileDialog importCustomSpecDialog(QFileDialog::AcceptOpen, QFileDialog::ExistingFile, ".cfg", settingsPath, CFG_FILEFILTER, {}, {}, this);
 
     if (importCustomSpecDialog.exec())
@@ -759,10 +791,7 @@ void GraphicsSettingsDialog::ApplyCustomSpec(const QString& customFilePath)
             m_cfgFiles[CONFIG_INVALID_PLATFORM][0] = filename;
         }
 
-        if (!m_showCategories)
-        {
-            ToggleCategories();
-        }
+        ShowCategories(true);
 
         CleanUI();
 
@@ -783,15 +812,47 @@ void GraphicsSettingsDialog::SetCollapsedLayout(QPushButton* togglebutton, QGrid
     m_uiCollapseGroup.push_back(cgroup);
 }
 
+void GraphicsSettingsDialog::SetPlatformEntry(ESystemConfigPlatform platform)
+{
+    auto platformCheck = [&platform](AZStd::pair<AZStd::string, ESystemConfigPlatform>& stringConfigPair) { return stringConfigPair.second == platform; };
+    auto platformStringsIterator = AZStd::find_if(m_platformStrings.begin(), m_platformStrings.end(), platformCheck);
+    if (platformStringsIterator != m_platformStrings.end())
+    {
+        int platformIndex = m_ui->PlatformEntry->findText(platformStringsIterator->first.c_str());
+        m_ui->PlatformEntry->setCurrentIndex(platformIndex);
+    }
+    else
+    {
+        AZ_Assert(false, "Platform not found in platform strings vector.");
+    }
+}
+
+ESystemConfigPlatform GraphicsSettingsDialog::GetConfigPlatformFromName(const AZStd::string& platformName)
+{
+    ESystemConfigPlatform configPlatform = CONFIG_INVALID_PLATFORM;
+
+    auto platformNameCheck = [&platformName](AZStd::pair<AZStd::string, ESystemConfigPlatform>& stringConfigPair) { return (stringConfigPair.first == platformName); };
+    auto configPlatformIterator = AZStd::find_if(m_platformStrings.begin(), m_platformStrings.end(), platformNameCheck);
+    if (configPlatformIterator != m_platformStrings.end())
+    {
+        configPlatform = configPlatformIterator->second;
+    }
+    else
+    {
+        AZ_Assert(false, "Platform name not found in platform strings vector.");
+    }
+
+    return configPlatform;
+}
+
 // Save the current UI options to system qsettings
 void GraphicsSettingsDialog::SaveSystemSettings()
 {
     AZStd::vector<QString> successFiles;
     AZStd::vector<QString> nochangeFiles;
-    
+
     for (int cfgFileIndex = 0; cfgFileIndex < m_cfgFiles[m_currentPlatform].size(); ++cfgFileIndex)
     {
-
         const QString eq = " = ";
         const QString cvarGroupString1 = "\n------------------------\n-- ";
         const QString cvarGroupString2 = "\n------------------------\n";
@@ -853,9 +914,12 @@ void GraphicsSettingsDialog::SaveSystemSettings()
             }
         }
 
-        QString settingsPath = SETTINGS_FILE_PATH + m_cfgFiles[m_currentPlatform][cfgFileIndex].c_str();
+        // Adding the project name to the path so that the file is created there if it doesn't already exist
+        // as we don't want to modify the version in Engine/config.
         QString projectName = GetIEditor()->GetAssetTagging()->GetProjectName();
-        settingsPath = projectName + "/" + settingsPath;
+        QString settingsPath = projectName + "/" + SETTINGS_FILE_PATH;
+
+        QString settingsFile = settingsPath + m_cfgFiles[m_currentPlatform][cfgFileIndex].c_str();
 
         // Check if current settings differ from existing cfg
         if (saveOut)
@@ -865,30 +929,37 @@ void GraphicsSettingsDialog::SaveSystemSettings()
             {
                 commandList += it;
             }
-            
-            if (!CFileUtil::CheckoutFile(settingsPath.toStdString().c_str()))
+
+            if (!CFileUtil::CheckoutFile(settingsFile.toStdString().c_str()))
             {
-                QMessageBox::warning(this, "Warning", "Could not check out the file \"" + settingsPath + "\". Failed to apply Graphics Setting.",
+                QMessageBox::warning(this, "Warning", "Could not check out the file \"" + settingsFile + "\". Failed to apply Graphics Setting.",
                     QMessageBox::Ok);
-                break;
+                continue;
+            }
+
+            if (!CFileUtil::CreateDirectory(settingsPath.toStdString().c_str()))
+            {
+                QMessageBox::warning(this, "Warning", "Could not create the directory for file \"" + settingsFile + "\". Failed to apply Graphics Setting.",
+                    QMessageBox::Ok);
+                continue;
             }
 
             QByteArray data = commandList.toUtf8().data();
 
-            QFile file(settingsPath);
+            QFile file(settingsFile);
             if (!file.open(QIODevice::WriteOnly) || file.write(data) != data.size())
             {
-                QMessageBox::warning(this, "Warning", "Could not write settings to file \"" + settingsPath + ". Failed to apply Graphics Setting.",
+                QMessageBox::warning(this, "Warning", "Could not write settings to file \"" + settingsFile + ". Failed to apply Graphics Setting.",
                     QMessageBox::Ok);
                 file.close();
-                break;
+                continue;
             }
 
-            successFiles.push_back(settingsPath);
+            successFiles.push_back(settingsFile);
 
             // Update platform cvars to reflect new values
             for (auto& it : m_cVarTracker)
-            {   
+            {
                 it.second.fileVals[cfgFileIndex].overwrittenValue = it.second.fileVals[cfgFileIndex].editedValue;
             }
 
@@ -896,7 +967,7 @@ void GraphicsSettingsDialog::SaveSystemSettings()
         }
         else
         {
-            nochangeFiles.push_back(settingsPath);
+            nochangeFiles.push_back(settingsFile);
         }
     }
 
@@ -981,6 +1052,5 @@ QString GraphicsSettingsDialog::ParameterWidget::GetToolTip() const
     }
     return "";
 }
-
 
 #include <GraphicsSettingsDialog.moc>

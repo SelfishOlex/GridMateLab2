@@ -15,7 +15,6 @@
 #include "MysticQtConfig.h"
 #include <MCore/Source/StandardHeaders.h>
 #include <AzCore/std/containers/vector.h>
-#include <AzCore/std/string/string.h>
 #include <QMenu>
 #include <QObject>
 
@@ -45,13 +44,16 @@ namespace MysticQt
         void OnRecentFileSlot();
 
     private:
-        void UpdateRecentFileActions(bool checkFilesExist = false);
+        void UpdateMenu();
         void RemoveDuplicates();
 
-        AZStd::vector<QAction*> m_recentFileActions;
-        size_t                  m_maxNumRecentFiles;
-        QMenu*                  m_recentFilesMenu;
-        QAction*                m_resetRecentFilesAction;
-        QString                 m_configStringName;
+        void Save();
+        void Load();
+
+        QStringList     m_recentFiles;
+        size_t          m_maxNumRecentFiles;
+        QMenu*          m_recentFilesMenu;
+        QAction*        m_resetRecentFilesAction;
+        QString         m_configStringName;
     };
 } // namespace MysticQt

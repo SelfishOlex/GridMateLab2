@@ -20,6 +20,7 @@
 #include <Core/ScriptCanvasBus.h>
 #include <ScriptCanvas/Components/EditorGraph.h>
 #include <ScriptCanvas/Components/EditorScriptCanvasComponent.h>
+#include <ScriptCanvas/Components/EditorGraphVariableManagerComponent.h>
 
 #include <GraphCanvas/GraphCanvasBus.h>
 
@@ -43,19 +44,19 @@ namespace ScriptCanvasEditor
         AZ::AssetTypeInfoBus::MultiHandler::BusConnect(GetAssetType());
     }
 
+    ScriptCanvasAssetHandler::~ScriptCanvasAssetHandler()
+    {
+        AZ::AssetTypeInfoBus::MultiHandler::BusDisconnect();
+    }
+
     AZ::Data::AssetPtr ScriptCanvasAssetHandler::CreateAsset(const AZ::Data::AssetId& id, const AZ::Data::AssetType& type)
     {
         (void)type;
         auto assetData = aznew ScriptCanvasAsset(id);
-        // The Graph and Scene component live on the same entity
-        AZ::Entity* scriptCanvasEntity{};
-        GraphCanvas::GraphCanvasRequestBus::BroadcastResult(scriptCanvasEntity, &GraphCanvas::GraphCanvasRequests::CreateScene);
-        if (scriptCanvasEntity)
-        {
-            scriptCanvasEntity->SetName("Script Canvas Graph");
-            scriptCanvasEntity->CreateComponent<Graph>();
-            assetData->SetScriptCanvasEntity(scriptCanvasEntity);
-        }
+
+        AZ::Entity* scriptCanvasEntity = aznew AZ::Entity("Script Canvas Graph");
+        SystemRequestBus::Broadcast(&SystemRequests::CreateEditorComponentsOnEntity, scriptCanvasEntity);
+        assetData->SetScriptCanvasEntity(scriptCanvasEntity);
 
         return assetData;
     }
@@ -67,7 +68,8 @@ namespace ScriptCanvasEditor
         if (scriptCanvasAsset && m_serializeContext)
         {
             stream->Seek(0U, AZ::IO::GenericStream::ST_SEEK_BEGIN);
-            bool loadSuccess = AZ::Utils::LoadObjectFromStreamInPlace(*stream, scriptCanvasAsset->GetScriptCanvasData(), m_serializeContext, assetLoadFilterCB);
+            // tolerate unknown classes in the editor.  Let the asset processor warn about bad nodes...
+            bool loadSuccess = AZ::Utils::LoadObjectFromStreamInPlace(*stream, scriptCanvasAsset->GetScriptCanvasData(), m_serializeContext, AZ::ObjectStream::FilterDescriptor(assetLoadFilterCB, AZ::ObjectStream::FILTERFLAG_IGNORE_UNKNOWN_CLASSES));
             return loadSuccess;
         }
         return false;

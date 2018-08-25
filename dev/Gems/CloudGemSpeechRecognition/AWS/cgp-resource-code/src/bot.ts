@@ -117,13 +117,24 @@ export class BotEntry {
             let obj = JSON.parse(response.body.text());
             if (!obj.result.desc_file.error) {
                 let descFile = obj.result.desc_file;
-                let jsonUrl = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(descFile, null, 4));
-                let tmpElement = document.createElement('a');
-                tmpElement.href = jsonUrl;
-                tmpElement.download = this.name + '.json';
-                document.body.appendChild(tmpElement);
-                tmpElement.click();
-                document.body.removeChild(tmpElement);
+                let blob = new Blob([JSON.stringify(descFile, null, 4)], { type: "application/json" });
+                let fileName = this.name + ".json";
+
+                if (window.navigator.msSaveOrOpenBlob) //Edge
+                {
+                    window.navigator.msSaveBlob(blob, fileName);
+                }
+                else //Chrome & FireFox
+                {
+                    let a = document.createElement("a");
+                    let fileURL = URL.createObjectURL(blob);
+                    a.href = fileURL;
+                    a.download = fileName;
+                    window.document.body.appendChild(a);
+                    a.click();
+                    window.document.body.removeChild(a);
+                    URL.revokeObjectURL(fileURL);
+                }
                 this.toastr.success("The bot '" + this.name + "' was exported.");
             }
             else {
@@ -179,21 +190,40 @@ export class BotEntry {
 	**/
     public delete(): any {
         var promise = new Promise(function (resolve, reject) {
-            this._apiHandler.deleteBot(this.name).subscribe(response => {
-                let obj = JSON.parse(response.body.text());
-                if (obj.result.status == "INUSE") {
-                    this.toastr.error("The bot '" + this.name + "' is currently used by an alias. Delete the alisas from '" + this.name + "'");
-                    reject();
-                }
-                else if (obj.result.status == "DELETED") {
-                    this.toastr.success("The bot '" + this.name + "' was deleted.");
-                    resolve();
-                }
-                else {
-                    this.toastr.error("The bot '" + this.name + "' could not be deleted. " + obj.result.status);
-                    reject();
-                }
-            });
+            if (this.version == "$LATEST") {
+                this._apiHandler.deleteBot(this.name).subscribe(response => {
+                    let obj = JSON.parse(response.body.text());
+                    if (obj.result.status == "INUSE") {
+                        this.toastr.error("The bot '" + this.name + "' is currently used by an alias. Delete the alisas from '" + this.name + "'");
+                        reject();
+                    }
+                    else if (obj.result.status == "DELETED") {
+                        this.toastr.success("The bot '" + this.name + "' was deleted.");
+                        resolve();
+                    }
+                    else {
+                        this.toastr.error("The bot '" + this.name + "' could not be deleted. " + obj.result.status);
+                        reject();
+                    }
+                });
+            }
+            else {
+                this._apiHandler.deleteBotVersion(this.name, this.version).subscribe(response => {
+                    let obj = JSON.parse(response.body.text());
+                    if (obj.result.status == "INUSE") {
+                        this.toastr.error("The selected version of the bot '" + this.name + "' is currently used by an alias. Delete the alisas from '" + this.name + "'");
+                        reject();
+                    }
+                    else if (obj.result.status == "DELETED") {
+                        this.toastr.success("The selected version of the bot '" + this.name + "' was deleted.");
+                        resolve();
+                    }
+                    else {
+                        this.toastr.error("The selected version of the bot '" + this.name + "' could not be deleted. " + obj.result.status);
+                        reject();
+                    }
+                });
+            }
         }.bind(this));
         return promise;
     }

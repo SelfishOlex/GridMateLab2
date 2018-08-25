@@ -271,7 +271,8 @@ void CObjManager::PreloadLevelObjects()
 
             // Parse file, every line in a file represents a resource filename.
             char seps[] = "\r\n";
-            char* token = strtok(buf, seps);
+            char *next_token = nullptr;
+            char* token = azstrtok(buf, 0, seps, &next_token);
             while (token != NULL)
             {
                 int nAliasLen = sizeof("%level%") - 1;
@@ -293,7 +294,7 @@ void CObjManager::PreloadLevelObjects()
                 //cgfStreamer.StartStreaming(cgfFilename.c_str());
                 nCgfCounter++;
 
-                token = strtok(NULL, seps);
+                token = azstrtok(NULL, 0, seps, &next_token);
 
                 //This loop can take a few seconds, so we should refresh the loading screen and call the loading tick functions to ensure that no big gaps in coverage occur.
                 SYNCHRONOUS_LOADING_TICK();
@@ -680,6 +681,18 @@ CObjManager::CObjManager()
     , m_decalsToPrecreate()
     , m_bNeedProcessObjectsStreaming_Finish(false)
     , m_CullThread()
+    , m_fGSMMaxDistance(0)
+    , m_bLockCGFResources(false)
+    , m_sunAnimIndex(0)
+    , m_sunAnimSpeed(0)
+    , m_sunAnimPhase(0)
+    , m_nNextPrecachePointId(0)
+    , m_bCameraPrecacheOverridden(false)
+    , m_fILMul(1.f)
+    , m_fSSAOAmount(1.f)
+    , m_fSSAOContrast(1.f)
+    , m_pRMBox(nullptr)
+    , m_bGarbageCollectionEnabled(true)
 {
 #ifdef POOL_STATOBJ_ALLOCS
     m_statObjPool = new stl::PoolAllocator<sizeof(CStatObj), stl::PSyncMultiThread, alignof(CStatObj)>(stl::FHeap().PageSize(64)); // 20Kb per page
@@ -687,15 +700,10 @@ CObjManager::CObjManager()
 
     m_vStreamPreCachePointDefs.Add(SObjManPrecachePoint());
     m_vStreamPreCacheCameras.Add(SObjManPrecacheCamera());
-    m_nNextPrecachePointId = 0;
-    m_bCameraPrecacheOverridden = false;
 
     m_pObjManager = this;
 
     m_vSunColor.Set(0, 0, 0);
-    m_fILMul = 1.0f;
-    m_fSSAOAmount = 1.f;
-    m_fSSAOContrast = 1.f;
     m_rainParams.nUpdateFrameID = -1;
     m_rainParams.fAmount = 0.f;
     m_rainParams.fRadius = 1.f;
@@ -716,8 +724,6 @@ CObjManager::CObjManager()
     m_rainParams.bIgnoreVisareas = false;
     m_rainParams.bDisableOcclusion = false;
 
-    m_fGSMMaxDistance = 0;
-    m_bLockCGFResources = false;
 
 #ifdef SUPP_HWOBJ_OCCL
     if (GetRenderer()->GetFeatures() & RFT_OCCLUSIONTEST)
@@ -729,10 +735,7 @@ CObjManager::CObjManager()
         m_pShaderOcclusionQuery = 0;
     }
 #endif
-
-    m_pRMBox = NULL;
-    m_bGarbageCollectionEnabled = true;
-
+    
     m_decalsToPrecreate.reserve(128);
 
     // init queue for check occlusion
@@ -1145,7 +1148,9 @@ void StatInstGroup::Update(CVars* pCVars, int nGeomDetailScreenRes)
 
 #if defined(FEATURE_SVO_GI)
     _smart_ptr<IMaterial> pMat = pMaterial ? pMaterial : (pStatObj ? pStatObj->GetMaterial() : 0);
-    if (pMat && (Cry3DEngineBase::GetCVars()->e_svoTI_Active >= 0) && (gEnv->IsEditor() || Cry3DEngineBase::GetCVars()->e_svoTI_Apply))
+    if (pMat && (gEnv->pConsole->GetCVar("e_svoTI_Active") && 
+        gEnv->pConsole->GetCVar("e_svoTI_Active")->GetIVal() && 
+        gEnv->pConsole->GetCVar("e_GI")->GetIVal()))
     {
         pMat->SetKeepLowResSysCopyForDiffTex();
     }

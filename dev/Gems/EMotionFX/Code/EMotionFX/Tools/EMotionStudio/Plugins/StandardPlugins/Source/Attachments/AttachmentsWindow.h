@@ -13,12 +13,9 @@
 #pragma once
 
 #include <AzCore/std/containers/vector.h>
-#include <AzCore/std/string/string.h>
 
 #include "../StandardPluginsConfig.h"
 #include <MCore/Source/MemoryCategoriesCore.h>
-#include <MysticQt/Source/DoubleSpinbox.h>
-#include <MysticQt/Source/IntSpinbox.h>
 #include <EMotionFX/CommandSystem/Source/SelectionCommands.h>
 #include <EMotionFX/CommandSystem/Source/ActorCommands.h>
 #include <EMotionFX/CommandSystem/Source/CommandManager.h>
@@ -64,7 +61,7 @@ namespace EMStudio
         bool GetIsWaitingForAttachment() const      { return mWaitingForAttachment; }
 
         EMotionFX::ActorInstance* GetSelectedAttachment();
-        MCore::String GetSelectedNodeName();
+        AZStd::string GetSelectedNodeName();
     protected:
         void dropEvent(QDropEvent* event) override;
         void dragEnterEvent(QDragEnterEvent* event) override;
@@ -91,7 +88,7 @@ namespace EMStudio
     private:
         void RemoveTableItems(const QList<QTableWidgetItem*>& items);
         int GetIDFromTableRow(int row);
-        MCore::String GetNodeNameFromTableRow(int row);
+        AZStd::string GetNodeNameFromTableRow(int row);
         int GetRowContainingWidget(const QWidget* widget);
 
         bool                                    mWaitingForAttachment;
@@ -122,7 +119,7 @@ namespace EMStudio
         NodeSelectionWindow*                    mNodeSelectionWindow;
 
         AZStd::vector<AZStd::string>            mDropFileNames;
-        MCore::String                           mTempString;
+        AZStd::string                           mTempString;
     };
 
 } // namespace EMStudio

@@ -3,7 +3,7 @@
         "aws_gamelift_server_shared",
         "aws_gamelift_server_static"
     ],
-    "source": "@ROOT@/Code/SDKs/GameLiftServerSDK",
+    "source": "@3P:GameLiftServerSDK@",
     "description": "Shared libraries for GameLift Server SDK",
     "includes": [
         "include"
@@ -97,7 +97,15 @@
             "aws_gamelift_server_static/libpath_release": [
                 "lib/windows/intel64/vs2015/Release"
             ],
-            "aws_gamelift_server_static/lib": [
+            "aws_gamelift_server_static/lib_debug": [
+                "aws-cpp-sdk-gamelift-server.lib",
+                "sioclient.lib",
+                "libboost_date_time.lib",
+                "libboost_random.lib",
+                "libboost_system.lib",
+                "libprotobufd.lib"
+            ],
+            "aws_gamelift_server_static/lib_release": [
                 "aws-cpp-sdk-gamelift-server.lib",
                 "sioclient.lib",
                 "libboost_date_time.lib",
@@ -106,6 +114,7 @@
                 "libprotobuf.lib"
             ]
         },
+        "win_x64_vs2017": "@win_x64_vs2015",
         "linux_x64": {
             "aws_gamelift_server_static/defines": [
                 "AWS_CUSTOM_MEMORY_MANAGEMENT",
@@ -113,10 +122,10 @@
                 "GAMELIFT_USE_STD"
             ],
             "aws_gamelift_server_static/libpath_debug": [
-                "lib/linux/intel64/Debug_Static"
+                "lib/linux/intel64/clang-3.8.0/Debug"
             ],
             "aws_gamelift_server_static/libpath_release": [
-                "lib/linux/intel64/Release_Static"
+                "lib/linux/intel64/clang-3.8.0/Release"
             ],
             "aws_gamelift_server_static/lib": [
                 "libaws-cpp-sdk-gamelift-server.a",
