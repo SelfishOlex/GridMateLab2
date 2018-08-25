@@ -153,3 +153,5 @@ dev/Tools/LmbrSetup/Win.vc140.Profile.Test/
 dev/.vscode/
 dev/.vs/VSWorkspaceState.json
 dev/.vs/ProjectSettings.json
+dev/Bin64vc141/
+dev/CloudGemDefectReportSample/Gem/Resources/GameSDK.ico
