@@ -4,42 +4,35 @@
 #include <AzCore/Serialization/EditContext.h>
 #include "MyScriptCanvasNode.h"
 
+using namespace MyProject;
 using namespace ScriptCanvas;
 
-namespace MyProject
+void MyNodeLibrary::Reflect(AZ::ReflectContext* rc)
 {
-    namespace Libraries
+    if (auto* sc = azrtti_cast<AZ::SerializeContext*>(rc))
     {
-        void MyNodeLibrary::Reflect(AZ::ReflectContext* reflection)
-        {
-            AZ::SerializeContext* serializeContext = azrtti_cast<AZ::SerializeContext*>(reflection);
-            if (serializeContext)
-            {
-                serializeContext->Class<MyNodeLibrary, Library::LibraryDefinition>()
-                    ->Version(1)
-                    ;
+        sc->Class<MyNodeLibrary, LibraryDefinition>()
+            ->Version(1);
 
-                AZ::EditContext* editContext = serializeContext->GetEditContext();
-                if (editContext)
-                {
-                    editContext->Class<MyNodeLibrary>("My Nodes", "")->
-                        ClassElement(AZ::Edit::ClassElements::EditorData, "")->
-                        Attribute(AZ::Edit::Attributes::Icon, "Editor/Icons/ScriptCanvas/Debug.png")
-                        ;
-                }
-            }
-        }
-
-        void MyNodeLibrary::InitNodeRegistry(NodeRegistry& nodeRegistry)
+        if (auto* editContext = sc->GetEditContext())
         {
-            Library::AddNodeToRegistry<MyNodeLibrary, ScriptCanvas::MyProject::MyScriptCanvasNode>(nodeRegistry);
-        }
-
-        AZStd::vector<AZ::ComponentDescriptor*> MyNodeLibrary::GetComponentDescriptors()
-        {
-            return AZStd::vector<AZ::ComponentDescriptor*>({
-                ScriptCanvas::MyProject::MyScriptCanvasNode::CreateDescriptor(),
-            });
+            using namespace AZ::Edit;
+            editContext->Class<MyNodeLibrary>("My Nodes", "")
+                ->ClassElement(ClassElements::EditorData, "");
         }
     }
+}
+
+void MyNodeLibrary::InitNodeRegistry(NodeRegistry& nr)
+{
+    using namespace ScriptCanvas::Library;
+    AddNodeToRegistry<MyNodeLibrary, MyScriptCanvasNode>(nr);
+}
+
+AZStd::vector<AZ::ComponentDescriptor*>
+    MyNodeLibrary::GetComponentDescriptors()
+{
+    return AZStd::vector<AZ::ComponentDescriptor*>({
+        MyScriptCanvasNode::CreateDescriptor(),
+    });
 }

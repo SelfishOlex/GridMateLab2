@@ -33,16 +33,18 @@ void MyScriptSystemComponent::Reflect(AZ::ReflectContext* rc)
             Event("IsEditor", &MyHelperBus::Events::IsEditor);
     }
 
-    Libraries::MyNodeLibrary::Reflect(rc);
+    MyNodeLibrary::Reflect(rc);
 }
 
 void MyScriptSystemComponent::Init()
 {
-    AZ::EnvironmentVariable<ScriptCanvas::NodeRegistry> nodeRegistryVariable = AZ::Environment::FindVariable<ScriptCanvas::NodeRegistry>(ScriptCanvas::s_nodeRegistryName);
+    using namespace ScriptCanvas;
+    auto nodeRegistryVariable = AZ::Environment::
+        FindVariable<NodeRegistry>(s_nodeRegistryName);
     if (nodeRegistryVariable)
     {
-        ScriptCanvas::NodeRegistry& nodeRegistry = nodeRegistryVariable.Get();
-        MyProject::Libraries::MyNodeLibrary::InitNodeRegistry(nodeRegistry);
+        NodeRegistry& nodeRegistry = nodeRegistryVariable.Get();
+        MyNodeLibrary::InitNodeRegistry(nodeRegistry);
     }
 }
 

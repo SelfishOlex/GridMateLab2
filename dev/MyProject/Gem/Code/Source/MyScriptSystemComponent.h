@@ -1,7 +1,6 @@
 #pragma once
 
 #include <AzCore/Component/Component.h>
-#include <AzCore/RTTI/BehaviorContext.h>
 #include <MyProject/MyHelperBus.h>
 
 namespace MyProject
