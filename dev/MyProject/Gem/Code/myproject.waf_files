@@ -25,6 +25,12 @@
             "Source/MyUIStatusComponents.h",
             "Source/StartingMapSystemComponent.cpp",
             "Source/StartingMapSystemComponent.h"
+        ],
+        "Source/ScriptCanvas": [
+            "Source/ScriptCanvas/MyScriptCanvasNode.cpp",
+            "Source/ScriptCanvas/MyScriptCanvasNode.h",
+            "Source/ScriptCanvas/MyNodeLibrary.cpp",
+            "Source/ScriptCanvas/MyNodeLibrary.h"
         ]
     }
 }

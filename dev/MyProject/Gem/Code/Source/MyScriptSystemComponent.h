@@ -16,6 +16,8 @@ namespace MyProject
 
         ~MyScriptSystemComponent() override = default;
         static void Reflect(AZ::ReflectContext* rc);
+
+        void Init() override;
         void Activate() override { BusConnect(); }
         void Deactivate() override { BusDisconnect(); }
 

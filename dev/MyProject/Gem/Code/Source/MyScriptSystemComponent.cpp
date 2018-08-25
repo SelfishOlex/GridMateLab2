@@ -3,6 +3,7 @@
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/RTTI/BehaviorContext.h>
 #include <ISystem.h>
+#include <ScriptCanvas/MyNodeLibrary.h>
 
 using namespace MyProject;
 
@@ -30,6 +31,18 @@ void MyScriptSystemComponent::Reflect(AZ::ReflectContext* rc)
     {
         bc->EBus<MyHelperBus>("MyHelperBus")->
             Event("IsEditor", &MyHelperBus::Events::IsEditor);
+    }
+
+    Libraries::MyNodeLibrary::Reflect(rc);
+}
+
+void MyScriptSystemComponent::Init()
+{
+    AZ::EnvironmentVariable<ScriptCanvas::NodeRegistry> nodeRegistryVariable = AZ::Environment::FindVariable<ScriptCanvas::NodeRegistry>(ScriptCanvas::s_nodeRegistryName);
+    if (nodeRegistryVariable)
+    {
+        ScriptCanvas::NodeRegistry& nodeRegistry = nodeRegistryVariable.Get();
+        MyProject::Libraries::MyNodeLibrary::InitNodeRegistry(nodeRegistry);
     }
 }
 
