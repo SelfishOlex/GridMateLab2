@@ -1,9 +1,8 @@
-
 def build(bld):
 
     import os
-
-    driver_node = bld.path.find_or_declare('Gems/ScriptCanvas/Code/Include/ScriptCanvas/')
+    driver_node = bld.path.find_or_declare(
+        'Gems/ScriptCanvas/Code/Include/ScriptCanvas/')
     gem_node = bld.path.find_or_declare('MyProject/Gem/Code')
     script_canvas_dir = driver_node.path_from(gem_node)
 
@@ -13,10 +12,11 @@ def build(bld):
 
     bld.DefineGem(
         # General
-        includes                = [ '.',
-                                    bld.Path('Code/CryEngine/CryCommon'),
-                                    bld.Path('Code/CryEngine/CryAction')],
-        use                     = ['AzGameFramework','MultiplayerCharacter','ScriptCanvas'],
+        includes  = [ '.',
+                      bld.Path('Code/CryEngine/CryCommon'),
+                      bld.Path('Code/CryEngine/CryAction')],
+        use       = ['AzGameFramework','MultiplayerCharacter',
+                     'ScriptCanvas'],
 
         # Testing
         test_all_file_list      = ['myproject_tests.waf_files'],
@@ -28,7 +28,8 @@ def build(bld):
         az_code_gen = [
             {
                 'files'   : CODEGEN_FILE_LIST,
-                'scripts' : [os.path.join(script_canvas_dir, 'CodeGen/Drivers/ScriptCanvasNode.py')],
+                'scripts' : [os.path.join(script_canvas_dir,
+                        'CodeGen/Drivers/ScriptCanvasNode.py')],
             }
         ],
     )

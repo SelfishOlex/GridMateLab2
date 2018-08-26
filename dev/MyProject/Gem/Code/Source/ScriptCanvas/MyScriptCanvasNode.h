@@ -15,10 +15,8 @@ namespace MyProject
         );
 
     protected:
-
         // Inputs
         ScriptCanvas_In(ScriptCanvas_In::Name("In", "desc"));
-
         // Outputs
         ScriptCanvas_Out(ScriptCanvas_Out::Name("Out", "desc"));
 
