@@ -16,9 +16,7 @@ void MyNodeLibrary::Reflect(AZ::ReflectContext* rc)
 
         if (auto* editContext = sc->GetEditContext())
         {
-            using namespace AZ::Edit;
-            editContext->Class<MyNodeLibrary>("My Nodes", "")
-                ->ClassElement(ClassElements::EditorData, "");
+            editContext->Class<MyNodeLibrary>("My Nodes", "");
         }
     }
 }
