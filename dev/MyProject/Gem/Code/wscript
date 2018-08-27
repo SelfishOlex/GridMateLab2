@@ -8,6 +8,7 @@ def build(bld):
 
     CODEGEN_FILE_LIST = [
         'Source/ScriptCanvas/MyScriptCanvasNode.h',
+        'Source/ScriptCanvas/MyIncrementNode.h',
     ]
 
     bld.DefineGem(

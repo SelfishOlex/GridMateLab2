@@ -3,6 +3,7 @@
 #include <ScriptCanvas/Libraries/Libraries.h>
 #include <AzCore/Serialization/EditContext.h>
 #include "MyScriptCanvasNode.h"
+#include "MyIncrementNode.h"
 
 using namespace MyProject;
 using namespace ScriptCanvas;
@@ -25,6 +26,7 @@ void MyNodeLibrary::InitNodeRegistry(NodeRegistry& nr)
 {
     using namespace ScriptCanvas::Library;
     AddNodeToRegistry<MyNodeLibrary, MyScriptCanvasNode>(nr);
+    AddNodeToRegistry<MyNodeLibrary, MyIncrementNode>(nr);
 }
 
 AZStd::vector<AZ::ComponentDescriptor*>
@@ -32,5 +34,6 @@ AZStd::vector<AZ::ComponentDescriptor*>
 {
     return AZStd::vector<AZ::ComponentDescriptor*>({
         MyScriptCanvasNode::CreateDescriptor(),
+        MyIncrementNode::CreateDescriptor(),
     });
 }
