@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<SoundBanksInfo Platform="Generic" BasePlatform="Windows" SchemaVersion="11" SoundbankVersion="128">
+	<RootPaths>
+		<ProjectRoot>D:\Work\GridMateLab2\dev\MyProject\Sounds\wwise_project\</ProjectRoot>
+		<SourceFilesRoot>D:\Work\GridMateLab2\dev\MyProject\Sounds\wwise_project\.cache\Generic\</SourceFilesRoot>
+		<SoundBanksRoot>D:\Work\GridMateLab2\dev\MyProject\Sounds\wwise\</SoundBanksRoot>
+		<ExternalSourcesInputFile></ExternalSourcesInputFile>
+		<ExternalSourcesOutputRoot>D:\Work\GridMateLab2\dev\MyProject\Sounds\wwise_project\GeneratedSoundBanks\Generic</ExternalSourcesOutputRoot>
+	</RootPaths>
+	<DialogueEvents/>
+	<StreamedFiles/>
+	<MediaFilesNotInAnyBank/>
+	<SoundBanks>
+		<SoundBank Id="1355168291" Language="SFX">
+			<ObjectPath>Init</ObjectPath>
+			<ShortName>Init</ShortName>
+			<Path>Init.bnk</Path>
+		</SoundBank>
+		<SoundBank Id="2643612632" Language="SFX">
+			<ObjectPath>\SoundBanks\Default Work Unit\Content</ObjectPath>
+			<ShortName>Content</ShortName>
+			<Path>Content.bnk</Path>
+			<IncludedEvents>
+				<Event Id="4030263532" Name="Play_My_Sound" ObjectPath="\Events\Default Work Unit\Play_My_Sound"/>
+				<Event Id="3791287034" Name="Stop_My_Sound" ObjectPath="\Events\Default Work Unit\Stop_My_Sound"/>
+			</IncludedEvents>
+			<IncludedMemoryFiles>
+				<File Id="786173067" Language="SFX">
+					<ShortName>Music_amb_BeautifulPlanet.wav</ShortName>
+					<Path>SFX\Music_amb_BeautifulPlanet_1C9C67B2.wem</Path>
+				</File>
+			</IncludedMemoryFiles>
+		</SoundBank>
+	</SoundBanks>
+</SoundBanksInfo>
