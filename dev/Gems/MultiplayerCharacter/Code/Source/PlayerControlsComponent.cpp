@@ -4,9 +4,11 @@
 #include <LmbrCentral/Physics/CryCharacterPhysicsBus.h>
 #include <AzCore/Math/Vector3.h>
 #include <AzCore/Component/TransformBus.h>
+#include <Integration/AnimGraphComponentBus.h>
 
 using namespace AZ;
 using namespace MultiplayerCharacter;
+using namespace EMotionFX;
 
 void PlayerControlsComponent::Activate()
 {
@@ -73,6 +75,13 @@ void PlayerControlsComponent::Turn(float amount)
 {
     m_rotZ = amount * m_turnSpeed;
     SetRotation();
+
+    using AnimBus = Integration::AnimGraphComponentRequestBus;
+    AnimBus::Event(GetEntityId(),
+        &AnimBus::Events::SetNamedParameterFloat, "TurnSpeed",
+        (m_prevTurn - amount) * 100);
+
+    m_prevTurn = amount;
 }
 
 void PlayerControlsComponent::SetRotation()
@@ -114,4 +123,9 @@ void PlayerControlsComponent::OnTick(
     CryCharacterPhysicsRequestBus::Event(GetEntityId(),
         &CryCharacterPhysicsRequestBus::Events::RequestVelocity,
         direction, 0);
+
+    using AnimBus = Integration::AnimGraphComponentRequestBus;
+    AnimBus::Event(GetEntityId(),
+        &AnimBus::Events::SetNamedParameterFloat, "Speed",
+        direction.GetLengthSq() > 0 ? 10.f : 0.f);
 }

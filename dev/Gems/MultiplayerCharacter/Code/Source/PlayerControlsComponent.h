@@ -39,6 +39,8 @@ namespace MultiplayerCharacter
         bool m_isStrafingLeft = false;
         bool m_isStrafingRight = false;
 
+        float m_prevTurn = 0;
+
         float m_speed = 500.f;
         float m_turnSpeed = 3.f;
 
