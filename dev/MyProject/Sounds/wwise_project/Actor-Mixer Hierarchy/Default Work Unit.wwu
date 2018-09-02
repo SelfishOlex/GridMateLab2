@@ -3,7 +3,7 @@
 	<AudioObjects>
 		<WorkUnit Name="Default Work Unit" ID="{176D44A4-B870-407A-9A8D-5E5E64D011B0}" PersistMode="Standalone">
 			<ChildrenList>
-				<Sound Name="My_Sound" ID="{1CBB8DCC-E883-49C5-85A3-2DF24D58E1E5}" ShortID="708984127">
+				<Sound Name="My_Music" ID="{1CBB8DCC-E883-49C5-85A3-2DF24D58E1E5}" ShortID="708984127">
 					<ReferenceList>
 						<Reference Name="Conversion">
 							<ObjectRef Name="Default Conversion Settings" ID="{6D1B890C-9826-4384-BF07-C15223E9FB56}" WorkUnitID="{42C5AA18-58BE-4635-B5F9-974A56A5C99A}"/>

@@ -3,29 +3,29 @@
 	<Events>
 		<WorkUnit Name="Default Work Unit" ID="{8B24A31F-CDF8-4521-9D6E-87319F0CD4A2}" PersistMode="Standalone">
 			<ChildrenList>
-				<Event Name="Play_My_Sound" ID="{4067F9CE-0112-4B49-97EC-19D8AACDA6FE}">
+				<Event Name="Play_My_Music" ID="{38D7A1DD-B8D4-4D61-8380-25A2ED88AF46}">
 					<ChildrenList>
-						<Action Name="" ID="{B563379F-D82A-4A4A-BB0F-A048CF180B18}" ShortID="444289380">
+						<Action Name="" ID="{8378A933-F610-40B9-9CDB-9B2D7726F522}" ShortID="879552509">
 							<PropertyList>
 								<Property Name="ActionType" Type="int16" Value="1"/>
 							</PropertyList>
 							<ReferenceList>
 								<Reference Name="Target">
-									<ObjectRef Name="My_Sound" ID="{1CBB8DCC-E883-49C5-85A3-2DF24D58E1E5}" WorkUnitID="{176D44A4-B870-407A-9A8D-5E5E64D011B0}"/>
+									<ObjectRef Name="My_Music" ID="{1CBB8DCC-E883-49C5-85A3-2DF24D58E1E5}" WorkUnitID="{176D44A4-B870-407A-9A8D-5E5E64D011B0}"/>
 								</Reference>
 							</ReferenceList>
 						</Action>
 					</ChildrenList>
 				</Event>
-				<Event Name="Stop_My_Sound" ID="{C5040CDB-BEF6-4568-B275-0A40223FC0EC}">
+				<Event Name="Stop_My_Music" ID="{A823ACF4-2042-4221-8496-FD39A2960E6B}">
 					<ChildrenList>
-						<Action Name="" ID="{E16BCB3B-36D8-45A5-9DAE-A69C19C66F20}" ShortID="336002052">
+						<Action Name="" ID="{D2CD59E1-E16B-46E7-A73C-02C930C5BA17}" ShortID="2356341">
 							<PropertyList>
 								<Property Name="ActionType" Type="int16" Value="2"/>
 							</PropertyList>
 							<ReferenceList>
 								<Reference Name="Target">
-									<ObjectRef Name="My_Sound" ID="{1CBB8DCC-E883-49C5-85A3-2DF24D58E1E5}" WorkUnitID="{176D44A4-B870-407A-9A8D-5E5E64D011B0}"/>
+									<ObjectRef Name="My_Music" ID="{1CBB8DCC-E883-49C5-85A3-2DF24D58E1E5}" WorkUnitID="{176D44A4-B870-407A-9A8D-5E5E64D011B0}"/>
 								</Reference>
 							</ReferenceList>
 						</Action>

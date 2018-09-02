@@ -1,14 +1,14 @@
 <ATLConfig atl_name="my_controls">
  <AudioTriggers>
-  <ATLTrigger atl_name="Stop_My_Sound">
-   <WwiseEvent wwise_name="Stop_My_Sound"/>
+  <ATLTrigger atl_name="Stop_My_Music">
+   <WwiseEvent wwise_name="Stop_My_Music"/>
   </ATLTrigger>
-  <ATLTrigger atl_name="Play_My_Sound">
-   <WwiseEvent wwise_name="Play_My_Sound"/>
+  <ATLTrigger atl_name="Play_My_Music">
+   <WwiseEvent wwise_name="Play_My_Music"/>
   </ATLTrigger>
  </AudioTriggers>
  <AudioPreloads>
-  <ATLPreloadRequest atl_name="preload" path="sound_bank" atl_type="AutoLoad">
+  <ATLPreloadRequest atl_name="preload" atl_type="AutoLoad">
    <ATLPlatforms>
     <Platform atl_name="windows" atl_config_group_name="default"/>
     <Platform atl_name="mac" atl_config_group_name="default"/>

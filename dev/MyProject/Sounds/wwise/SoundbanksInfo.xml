@@ -21,8 +21,8 @@
 			<ShortName>Content</ShortName>
 			<Path>Content.bnk</Path>
 			<IncludedEvents>
-				<Event Id="4030263532" Name="Play_My_Sound" ObjectPath="\Events\Default Work Unit\Play_My_Sound"/>
-				<Event Id="3791287034" Name="Stop_My_Sound" ObjectPath="\Events\Default Work Unit\Stop_My_Sound"/>
+				<Event Id="2666883372" Name="Play_My_Music" ObjectPath="\Events\Default Work Unit\Play_My_Music"/>
+				<Event Id="725169646" Name="Stop_My_Music" ObjectPath="\Events\Default Work Unit\Stop_My_Music"/>
 			</IncludedEvents>
 			<IncludedMemoryFiles>
 				<File Id="786173067" Language="SFX">

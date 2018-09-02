@@ -4,8 +4,10 @@
 		<UserProjectSettings Name="" ID="{39904077-2947-4ED9-A746-15CDD1AC1FCB}">
 			<PropertyList>
 				<Property Name="AudioFilesImporter\Path" Type="string" Value="D:\Work\GridMateLab2\dev\StarterGame\Sounds\wwise_project\Originals\SFX"/>
+				<Property Name="Event Action List\{38D7A1DD-B8D4-4D61-8380-25A2ED88AF46}\x64_Expand States" Type="string" Value=""/>
 				<Property Name="Event Action List\{4067F9CE-0112-4B49-97EC-19D8AACDA6FE}\x64_Expand States" Type="string" Value=""/>
 				<Property Name="Event Action List\{5E92BC0B-0374-4093-A994-A2C9F91E63FC}\x64_Expand States" Type="string" Value=""/>
+				<Property Name="Event Action List\{A823ACF4-2042-4221-8496-FD39A2960E6B}\x64_Expand States" Type="string" Value=""/>
 				<Property Name="Event Action List\{C5040CDB-BEF6-4568-B275-0A40223FC0EC}\x64_Expand States" Type="string" Value=""/>
 				<Property Name="Event Action List\{EE03638A-910E-40F1-830C-65D886088EF9}\x64_Expand States" Type="string" Value=""/>
 				<Property Name="EventView\FilterMode1" Type="int32" Value="2"/>
