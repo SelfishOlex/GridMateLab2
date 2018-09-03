@@ -8,10 +8,13 @@
     "auto": {
         "Include": [
             "Include/MultiplayerCharacter/MultiplayerCharacterBus.h",
+            "Include/MultiplayerCharacter/FootstepComponentBus.h",
             "Include/MultiplayerCharacter/PlayerControlsRequestBus.h"
         ],
         "Source": [
             "Source/MultiplayerCharacterModule.cpp",
+            "Source/FootstepComponent.cpp",
+            "Source/FootstepComponent.h",
             "Source/PlayerControlsComponent.cpp",
             "Source/PlayerControlsComponent.h",
             "Source/CameraControlsComponent.cpp",
