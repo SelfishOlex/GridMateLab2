@@ -7,12 +7,20 @@
     },
     "auto": {
         "Include": [
+            "Include/MultiplayerCharacter/LocalClientBus.h",
+            "Include/MultiplayerCharacter/ServerPlayerBodyBus.h",
             "Include/MultiplayerCharacter/MultiplayerCharacterBus.h",
             "Include/MultiplayerCharacter/FootstepComponentBus.h",
             "Include/MultiplayerCharacter/PlayerControlsRequestBus.h"
         ],
         "Source": [
             "Source/MultiplayerCharacterModule.cpp",
+            "Source/LocalClientComponent.cpp",
+            "Source/LocalClientComponent.h",
+            "Source/ServerAuthPlayerComponent.cpp",
+            "Source/ServerAuthPlayerComponent.h",
+            "Source/ServerPlayerSpawnerComponent.cpp",
+            "Source/ServerPlayerSpawnerComponent.h",
             "Source/FootstepComponent.cpp",
             "Source/FootstepComponent.h",
             "Source/PlayerControlsComponent.cpp",
