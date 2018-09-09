@@ -7,7 +7,7 @@
 
 namespace MultiplayerCharacter
 {
-    // Sends client player input
+    // Sends local client player input to the server
     class PlayerActionRelayComponent
         : public AZ::Component
         , public PlayerControlsRequestBus::Handler
