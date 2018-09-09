@@ -8,7 +8,7 @@ namespace MultiplayerCharacter
     // Implements various player controls
     class PlayerControlsComponent
         : public AZ::Component
-        , public PlayerControlsRequestBus::Handler
+        , public ServerPlayerControlsRequestBus::Handler
         , public AZ::TickBus::Handler
     {
     public:

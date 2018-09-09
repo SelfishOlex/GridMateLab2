@@ -4,9 +4,9 @@
 #include <AzCore/Component/TransformBus.h>
 #include <AzCore/Math/Transform.h>
 #include <ISystem.h>
-#include <INetwork.h>
 #include <AzFramework/Network/NetBindingHandlerBus.h>
 #include <MultiplayerCharacter/MultiplayerCharacterBus.h>
+#include <MultiplayerCharacter/LocalPlayerBodyBus.h>
 
 using namespace AZ;
 using namespace AzFramework;
@@ -69,4 +69,9 @@ void LocalClientComponent::AttachToBody(
     Transform t = Transform::CreateTranslation(m_cameraOffset);
     TransformBus::Event(GetEntityId(),
         &TransformBus::Events::SetLocalTM, t);
+
+    AZ_Printf("Book", "Relay notified %llu", (AZ::u64)body);
+    LocalPlayerBodyNotificationBus::Event(body,
+        &LocalPlayerBodyNotificationBus::Events::
+            OnClientInputConnected);
 }

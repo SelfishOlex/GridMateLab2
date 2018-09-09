@@ -9,6 +9,7 @@
         "Include": [
             "Include/MultiplayerCharacter/LocalClientBus.h",
             "Include/MultiplayerCharacter/ServerPlayerBodyBus.h",
+            "Include/MultiplayerCharacter/LocalPlayerBodyBus.h",
             "Include/MultiplayerCharacter/MultiplayerCharacterBus.h",
             "Include/MultiplayerCharacter/FootstepComponentBus.h",
             "Include/MultiplayerCharacter/PlayerControlsRequestBus.h"
@@ -23,6 +24,8 @@
             "Source/ServerPlayerSpawnerComponent.h",
             "Source/FootstepComponent.cpp",
             "Source/FootstepComponent.h",
+            "Source/PlayerActionRelayComponent.cpp",
+            "Source/PlayerActionRelayComponent.h",
             "Source/PlayerControlsComponent.cpp",
             "Source/PlayerControlsComponent.h",
             "Source/CameraControlsComponent.cpp",

@@ -58,6 +58,12 @@ void ServerAuthPlayerComponent::Reflect(
     }
 }
 
+void ServerAuthPlayerComponent::GetRequiredServices(
+    AZ::ComponentDescriptor::DependencyArrayType& req)
+{
+    req.push_back(AZ_CRC("PlayerActionRelayService"));
+}
+
 void ServerAuthPlayerComponent::SetAssociatedPlayerId(
     GridMate::MemberIDCompact player)
 {

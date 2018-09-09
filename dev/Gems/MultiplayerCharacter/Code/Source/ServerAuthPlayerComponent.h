@@ -19,6 +19,10 @@ namespace MultiplayerCharacter
 
         static void Reflect(AZ::ReflectContext* context);
 
+        // what other components does this component require?
+        static void GetRequiredServices(
+            AZ::ComponentDescriptor::DependencyArrayType& req);
+
         GridMate::ReplicaChunkPtr GetNetworkBinding() override;
         void SetNetworkBinding(
             GridMate::ReplicaChunkPtr chunk) override;
