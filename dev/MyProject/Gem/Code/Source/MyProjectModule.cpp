@@ -9,6 +9,7 @@
 #include "MyUIStatusComponents.h"
 #include "MyScriptHelperComponent.h"
 #include "MyScriptSystemComponent.h"
+#include "MyUICanvasLoaderComponent.h"
 #include "ScriptCanvas/MyNodeLibrary.h"
 
 namespace MyProject
@@ -39,6 +40,8 @@ namespace MyProject
                 MyUIBackwardComponent::CreateDescriptor(),
                 MyUIStrafeLeftComponent::CreateDescriptor(),
                 MyUIStrafeRightComponent::CreateDescriptor(),
+
+                MyUICanvasLoaderComponent::CreateDescriptor(),
             });
 
             auto desc = MyNodeLibrary::GetComponentDescriptors();

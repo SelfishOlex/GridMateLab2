@@ -165,7 +165,7 @@ bool PlayerActionRelayComponent::MoveForwardRpc(
     ServerPlayerControlsRequestBus::Event(GetEntityId(),
         &ServerPlayerControlsRequestBus::Events::MoveForward,
         state);
-    return false; // don't pass back to clients
+    return true; // pass back to clients
 }
 
 bool PlayerActionRelayComponent::MoveBackwardRpc(
@@ -174,7 +174,7 @@ bool PlayerActionRelayComponent::MoveBackwardRpc(
     ServerPlayerControlsRequestBus::Event(GetEntityId(),
         &ServerPlayerControlsRequestBus::Events::MoveBackward,
         state);
-    return false; // don't pass back to clients
+    return true; // don't pass back to clients
 }
 
 bool PlayerActionRelayComponent::StrafeLeftRpc(
@@ -183,7 +183,7 @@ bool PlayerActionRelayComponent::StrafeLeftRpc(
     ServerPlayerControlsRequestBus::Event(GetEntityId(),
         &ServerPlayerControlsRequestBus::Events::StrafeLeft,
         state);
-    return false; // don't pass back to clients
+    return true; // don't pass back to clients
 }
 
 bool PlayerActionRelayComponent::StrafeRightRpc(
@@ -192,7 +192,7 @@ bool PlayerActionRelayComponent::StrafeRightRpc(
     ServerPlayerControlsRequestBus::Event(GetEntityId(),
         &ServerPlayerControlsRequestBus::Events::StrafeRight,
         state);
-    return false; // don't pass back to clients
+    return true; // don't pass back to clients
 }
 
 bool PlayerActionRelayComponent::TurnRpc(

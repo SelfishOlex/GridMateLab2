@@ -1,9 +1,9 @@
 <ObjectStream version="3">
 	<Class name="AZ::Entity" version="2" type="{75651658-8663-478D-9090-2432DFCAFA44}">
 		<Class name="EntityId" field="Id" version="1" type="{6383F1D3-BB27-4E6B-A49A-6409B2059EAA}">
-			<Class name="AZ::u64" field="id" value="275780330352" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
+			<Class name="AZ::u64" field="id" value="275843670880" type="{D6597933-47CD-4FC8-B911-63F3E2B0993A}"/>
 		</Class>
-		<Class name="AZStd::string" field="Name" value="275780330352" type="{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9}"/>
+		<Class name="AZStd::string" field="Name" value="275843670880" type="{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9}"/>
 		<Class name="AZStd::vector" field="Components" type="{0D23B755-6E8F-5C6C-B7C9-A352A55DC1DF}">
 			<Class name="SliceComponent" field="element" version="2" type="{AFD304E4-1773-47C8-855A-8B622398934F}">
 				<Class name="AZ::Component" field="BaseClass1" type="{EDFCB2CF-F75D-43BE-B26B-F35821B29247}">
@@ -49,8 +49,8 @@
 								<Class name="unsigned int" field="Parent Activation Transform Mode" value="0" type="{43DA906B-7DEF-4CA8-9790-854106D3F983}"/>
 								<Class name="bool" field="IsStatic" value="false" type="{A0CA880C-AFE4-43CB-926C-59AC48496112}"/>
 								<Class name="bool" field="Sync Enabled" value="true" type="{A0CA880C-AFE4-43CB-926C-59AC48496112}"/>
-								<Class name="unsigned int" field="InterpolatePosition" value="0" type="{43DA906B-7DEF-4CA8-9790-854106D3F983}"/>
-								<Class name="unsigned int" field="InterpolateRotation" value="0" type="{43DA906B-7DEF-4CA8-9790-854106D3F983}"/>
+								<Class name="unsigned int" field="InterpolatePosition" value="1" type="{43DA906B-7DEF-4CA8-9790-854106D3F983}"/>
+								<Class name="unsigned int" field="InterpolateRotation" value="1" type="{43DA906B-7DEF-4CA8-9790-854106D3F983}"/>
 							</Class>
 							<Class name="GenericComponentWrapper" field="element" type="{68D358CA-89B9-4730-8BA6-E181DEA28FDE}">
 								<Class name="EditorComponentBase" field="BaseClass1" version="1" type="{D5346BD4-7F20-444E-B370-327ACD03D4A0}">

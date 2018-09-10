@@ -13,19 +13,15 @@ using namespace EMotionFX;
 
 void PlayerControlsComponent::Activate()
 {
-#if defined(DEDICATED_SERVER)
     ServerPlayerControlsRequestBus::Handler::BusConnect(
         GetEntityId());
     AZ::TickBus::Handler::BusConnect();
-#endif // DEDICATED_SERVER
 }
 
 void PlayerControlsComponent::Deactivate()
 {
-#if defined(DEDICATED_SERVER)
     ServerPlayerControlsRequestBus::Handler::BusDisconnect();
     AZ::TickBus::Handler::BusDisconnect();
-#endif // DEDICATED_SERVER
 }
 
 void PlayerControlsComponent::Reflect(AZ::ReflectContext* ref)
@@ -117,6 +113,7 @@ void PlayerControlsComponent::OnTick(
 
     direction *= m_speed * dt /* Take frame time into account */;
 
+#if defined(DEDICATED_SERVER)
     // Get the current orientation of the entity
     AZ::Quaternion q = Quaternion::CreateIdentity();
     TransformBus::EventResult(q, GetEntityId(),
@@ -129,6 +126,7 @@ void PlayerControlsComponent::OnTick(
     CryCharacterPhysicsRequestBus::Event(GetEntityId(),
         &CryCharacterPhysicsRequestBus::Events::RequestVelocity,
         direction, 0);
+#endif
 
     using AnimBus = Integration::AnimGraphComponentRequestBus;
     AnimBus::Event(GetEntityId(),
