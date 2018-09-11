@@ -1,0 +1,16 @@
+{
+    "GemFormatVersion": 4,
+    "Uuid": "8c965c1219084653bb3f6a17f4bf66c1",
+    "Name": "WafStudy",
+    "DisplayName": "WafStudy",
+    "Version": "0.1.0",
+    "Summary": "A short description of my Gem.",
+    "Tags": ["Game"],
+    "IconPath": "preview.png",
+    "IsGameGem": true,
+    "Modules": [
+        {
+            "Type": "GameModule"
+        }
+    ]
+}

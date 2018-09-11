@@ -1,0 +1,18 @@
+{
+    "none": {
+        "Source": [
+            "Source/WafStudy_precompiled.cpp",
+            "Source/WafStudy_precompiled.h"
+        ]
+    },
+    "auto": {
+        "Include": [
+            "Include/WafStudy/WafStudyBus.h"
+        ],
+        "Source": [
+            "Source/WafStudyModule.cpp",
+            "Source/WafStudySystemComponent.cpp",
+            "Source/WafStudySystemComponent.h"
+        ]
+    }
+}

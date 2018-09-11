@@ -1,0 +1,9 @@
+{
+    "description": "Configuration for WafStudy",
+    "visual_studio_name": "WafStudy",
+    "comment" : "",
+    "game_projects" : "WafStudy",
+
+    "modules" : [
+    ]
+}
