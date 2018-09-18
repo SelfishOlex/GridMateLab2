@@ -331,7 +331,7 @@ namespace GridMate
          * so there is no point in trying to optimize cases
          * where only a few attributes have changed.
          */
-        if (m_dirtyAttributes.size() == 0)
+        if (m_dirtyAttributes.empty() && !m_dirtyRules.empty())
         {
             return m_dirtyRules;
         }
@@ -476,6 +476,17 @@ namespace GridMate
             {
                 // since it wasn't present during last calculation
                 m_resultCache.insert(AZStd::make_pair(repId, peerSet));
+            }
+        }
+
+        for (auto& possiblyDirty : before)
+        {
+            ReplicaId repId = possiblyDirty.first;
+
+            auto foundInAfter = after.find(repId);
+            if (foundInAfter == after.end())
+            {
+                m_resultCache.insert(AZStd::make_pair(repId, InterestPeerSet()));
             }
         }
 
