@@ -12,6 +12,11 @@
 #include <ServerAuthPlayerComponent.h>
 #include <ServerPlayerSpawnerComponent.h>
 #include <PlayerActionRelayComponent.h>
+#include <AzFramework/Network/InterestManagerComponent.h>
+#include <LargeWorld/PointOfInterestComponent.h>
+#include <LargeWorld/PlayerAoIComponent.h>
+
+using namespace AzFramework;
 
 namespace MultiplayerCharacter
 {
@@ -40,6 +45,11 @@ namespace MultiplayerCharacter
                 ServerAuthPlayerComponent::CreateDescriptor(),
                 ServerPlayerSpawnerComponent::CreateDescriptor(),
                 PlayerActionRelayComponent::CreateDescriptor(),
+                PointOfInterestComponent::CreateDescriptor(),
+                PlayerAoIComponent::CreateDescriptor(),
+
+                // enabling interest management
+                InterestManagerComponent::CreateDescriptor(),
             });
         }
 
@@ -50,6 +60,7 @@ namespace MultiplayerCharacter
         {
             return AZ::ComponentTypeList{
                 azrtti_typeid<MultiplayerCharacterSystemComponent>(),
+                azrtti_typeid<InterestManagerComponent>(),
             };
         }
     };

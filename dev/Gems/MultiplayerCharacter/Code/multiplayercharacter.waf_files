@@ -36,6 +36,12 @@
             "Source/TransformSyncComponent.h",
             "Source/MultiplayerCharacterSystemComponent.cpp",
             "Source/MultiplayerCharacterSystemComponent.h"
+        ],
+        "Source/LargeWorld": [
+            "Source/LargeWorld/PlayerAoIComponent.cpp",
+            "Source/LargeWorld/PlayerAoIComponent.h",
+            "Source/LargeWorld/PointOfInterestComponent.cpp",
+            "Source/LargeWorld/PointOfInterestComponent.h"
         ]
     }
 }
