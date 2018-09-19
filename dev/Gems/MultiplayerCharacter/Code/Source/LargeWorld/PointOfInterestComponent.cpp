@@ -3,7 +3,6 @@
 #include <AzCore/Serialization/EditContext.h>
 #include <GridMate/Replica/ReplicaFunctions.h>
 #include <AzCore/Component/TransformBus.h>
-#include <ISystem.h>
 #include <AzFramework/Network/InterestManagerComponent.h>
 
 using namespace AZ;
@@ -28,7 +27,7 @@ public:
             static_cast<PointOfInterestComponent*>(GetHandler());
         if (handler)
         {
-            handler->InitInterestAttribute(GetReplicaId());
+            handler->InitInterestAttribute();
         }
     }
 #endif
@@ -51,29 +50,27 @@ void PointOfInterestComponent::Deactivate()
 void PointOfInterestComponent::OnTransformChanged(
     const AZ::Transform&, const AZ::Transform& world)
 {
-    UpdatePointOfInterest(world.GetTranslation());
+    Update(world.GetTranslation());
 }
 
-void PointOfInterestComponent::InitInterestAttribute(
-    GridMate::ReplicaId id)
+void PointOfInterestComponent::InitInterestAttribute()
 {
-    ProximityInterestHandler* handler = nullptr;
+    ProximityInterestHandler* h = nullptr;
     using Interest = AzFramework::InterestManagerRequestsBus;
-    Interest::BroadcastResult(handler,
+    Interest::BroadcastResult(h,
         &Interest::Events::GetProximityInterest);
-    if (handler)
-    {
-        m_attr = handler->CreateAttribute(m_chunk->GetReplicaId());
+    AZ_Assert(h, "Failed to get the handler!");
 
-        AZ::Vector3 position;
-        AZ::TransformBus::EventResult(position, GetEntityId(),
-            &AZ::TransformBus::Events::GetWorldTranslation);
+    m_attr = h->CreateAttribute(m_chunk->GetReplicaId());
 
-        UpdatePointOfInterest(position);
-    }
+    AZ::Vector3 position;
+    AZ::TransformBus::EventResult(position, GetEntityId(),
+        &AZ::TransformBus::Events::GetWorldTranslation);
+
+    Update(position);
 }
 
-void PointOfInterestComponent::UpdatePointOfInterest(const AZ::Vector3& pos)
+void PointOfInterestComponent::Update(const AZ::Vector3& pos)
 {
     if (!m_attr || pos.GetDistanceSq(m_lastPosition) < 1) return;
     m_lastPosition = pos;

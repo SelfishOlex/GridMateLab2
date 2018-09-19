@@ -43,8 +43,8 @@ namespace MultiplayerCharacter
         GridMate::ReplicaChunkPtr m_chunk = nullptr;
         GridMate::ProximityInterestAttribute::Ptr m_attr = nullptr;
 
-        void InitInterestAttribute(GridMate::ReplicaId id);
+        void InitInterestAttribute();
         AZ::Vector3 m_lastPosition = AZ::Vector3::CreateZero();
-        void UpdatePointOfInterest(const AZ::Vector3& pos);
+        void Update(const AZ::Vector3& pos);
     };
 }

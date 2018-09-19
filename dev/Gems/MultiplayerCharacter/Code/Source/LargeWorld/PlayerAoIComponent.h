@@ -46,9 +46,8 @@ namespace MultiplayerCharacter
         class Chunk;
         GridMate::ReplicaChunkPtr m_chunk = nullptr;
         GridMate::ProximityInterestRule::Ptr m_aoi = nullptr;
-        GridMate::MemberIDCompact m_playerId = 0;
 
         AZ::Vector3 m_lastPosition = AZ::Vector3::CreateZero();
-        void UpdateAreaOfInterest(const AZ::Vector3& pos);
+        void Update(const AZ::Vector3& pos);
     };
 }

@@ -40,29 +40,27 @@ void PlayerAoIComponent::Deactivate()
 void PlayerAoIComponent::SetAssociatedPlayerId(
     GridMate::MemberIDCompact player)
 {
-    m_playerId = player;
-    ProximityInterestHandler* proximityInterest = nullptr;
+    ProximityInterestHandler* handler = nullptr;
     using Interest = AzFramework::InterestManagerRequestsBus;
-    Interest::BroadcastResult(proximityInterest,
+    Interest::BroadcastResult(handler,
         &Interest::Events::GetProximityInterest);
-    if (proximityInterest)
-    {
-        m_aoi = proximityInterest->CreateRule(m_playerId);
+    AZ_Assert(handler, "Handler can't be null!");
 
-        AZ::Vector3 position;
-        AZ::TransformBus::EventResult(position, GetEntityId(),
-            &AZ::TransformBus::Events::GetWorldTranslation);
-        UpdateAreaOfInterest(position);
-    }
+    m_aoi = handler->CreateRule(player);
+
+    AZ::Vector3 position;
+    AZ::TransformBus::EventResult(position, GetEntityId(),
+        &AZ::TransformBus::Events::GetWorldTranslation);
+    Update(position);
 }
 
 void PlayerAoIComponent::OnTransformChanged(
     const AZ::Transform&, const AZ::Transform& world)
 {
-    UpdateAreaOfInterest(world.GetPosition());
+    Update(world.GetPosition());
 }
 
-void PlayerAoIComponent::UpdateAreaOfInterest(const AZ::Vector3& pos)
+void PlayerAoIComponent::Update(const AZ::Vector3& pos)
 {
     if (!m_aoi || pos == m_lastPosition) return;
     m_lastPosition = pos;
